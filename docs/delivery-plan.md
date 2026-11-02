@@ -21,7 +21,7 @@
 | Q8 — content history | `dim_content_scd2`, licence validity | Q15, Q16, Q19 | Effective dates, historical partner/tier and region licence intervals |
 | Q13 — ads | `ad_delivery_daily`, `frequency_violations` | Q15, Q19 | Campaign/day metrics, revenue, credits, genre-target compliance |
 | Q17 — trending | `data/delta/gold/trending/` | Demo / product output | Window start/end, language, rank, title/content ID, viewers, baseline and growth ratio |
-| Q20 — churn | `data/delta/gold/churn_scores/` | Retention prioritisation | User, prediction timestamp, churn probability, risk value, rank |
+| Q20 — churn | `data/delta/gold/churn_scores/` | Retention prioritisation | User, prediction timestamp, churn probability, risk value, rank; heartbeat-derived watch time uses the dataset's five-minute cadence, with completion-only fallback |
 
 **Q20 integration preference:** pass the Q2 Silver playback path using `--playback` and expose `event_ts_corrected` (or `event_ts`). The Bronze `server_ts` fallback is provided for standalone development but is less accurate for offline and delayed events.
 

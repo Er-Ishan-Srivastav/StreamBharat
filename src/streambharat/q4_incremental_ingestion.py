@@ -28,7 +28,7 @@ def ensure_cast_device_column(spark, target_path: str) -> None:
         spark.sql(f"ALTER TABLE delta.`{escaped}` ADD COLUMNS (cast_device STRING)")
 
 def _merge_micro_batch(batch_df, batch_id: int, target_path: str, spark) -> None:
-    """Deduplicate each micro-batch and idempotently merge by event_id."""
+    """Deduplicate each batch and merge by event_id, with explicit schema checks."""
     if batch_df.isEmpty():
         return
     if "event_id" not in batch_df.columns:
@@ -37,36 +37,27 @@ def _merge_micro_batch(batch_df, batch_id: int, target_path: str, spark) -> None
         batch_df = batch_df.withColumn("_source_file", F.lit(None).cast("string"))
     if "_ingested_at" not in batch_df.columns:
         batch_df = batch_df.withColumn("_ingested_at", F.current_timestamp())
-    order = Window.partitionBy("event_id").orderBy(
+    ordering = Window.partitionBy("event_id").orderBy(
         F.col("server_ts").desc_nulls_last(), F.col("_source_file").desc_nulls_last()
     )
     source = (batch_df.filter(F.col("event_id").isNotNull())
-              .withColumn("_rn", F.row_number().over(order))
+              .withColumn("_rn", F.row_number().over(ordering))
               .filter(F.col("_rn") == 1).drop("_rn"))
     if source.isEmpty():
         return
     if not DeltaTable.isDeltaTable(spark, target_path):
         source.write.format("delta").mode("overwrite").save(target_path)
         return
-
     ensure_cast_device_column(spark, target_path)
     target_schema = spark.read.format("delta").load(target_path).schema
     target_types = {f.name: f.dataType for f in target_schema.fields}
-    source_columns = set(source.columns)
-    target_columns = set(target_types)
-    unexpected = source_columns - target_columns
-    # The documented additive field is evolved with Delta mergeSchema on the
-    # actual event batch, not by appending a synthetic partial row.
-    if unexpected - {"cast_device"}:
-        raise ValueError(f"Unexpected playback columns: {sorted(unexpected - {'cast_device'})}")
-    if "cast_device" in unexpected:
-        (source.write.format("delta").mode("append").option("mergeSchema", "true")
-         .save(target_path))
-        target_types = {f.name: f.dataType for f in
-                        spark.read.format("delta").load(target_path).schema.fields}
-        # Remove the just-appended rows from the source's merge set: the append
-        # was the schema migration and those rows are already persisted once.
-        source = source.limit(0)
+    unexpected = set(source.columns) - set(target_types)
+    if unexpected:
+        raise ValueError(
+            "Source contains columns absent from the target Delta schema: "
+            f"{sorted(unexpected)}. Apply the documented additive schema migration "
+            "before resuming this checkpoint."
+        )
     for name, dtype in target_types.items():
         if name not in source.columns:
             source = source.withColumn(name, F.lit(None).cast(dtype))

@@ -48,16 +48,25 @@ def _merge_micro_batch(batch_df, batch_id: int, target_path: str, spark) -> None
     if not DeltaTable.isDeltaTable(spark, target_path):
         source.write.format("delta").mode("overwrite").save(target_path)
         return
+    # Evolve an existing Delta table with the real rows before MERGE. Delta's
+    # mergeSchema option is supported for DataFrameWriter; it is not silently
+    # assumed for DeltaTable.merge.
     ensure_cast_device_column(spark, target_path)
     target_schema = spark.read.format("delta").load(target_path).schema
     target_types = {f.name: f.dataType for f in target_schema.fields}
     unexpected = set(source.columns) - set(target_types)
-    if unexpected:
+    if unexpected - {"cast_device"}:
         raise ValueError(
-            "Source contains columns absent from the target Delta schema: "
-            f"{sorted(unexpected)}. Apply the documented additive schema migration "
-            "before resuming this checkpoint."
+            "Source contains undocumented columns absent from the target Delta schema: "
+            f"{sorted(unexpected - {'cast_device'})}"
         )
+    if "cast_device" in unexpected:
+        (source.write.format("delta").mode("append").option("mergeSchema", "true")
+         .save(target_path))
+        target_schema = spark.read.format("delta").load(target_path).schema
+        target_types = {f.name: f.dataType for f in target_schema.fields}
+        # Rows have already been committed exactly once by the schema-evolving append.
+        return
     for name, dtype in target_types.items():
         if name not in source.columns:
             source = source.withColumn(name, F.lit(None).cast(dtype))

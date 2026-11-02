@@ -29,11 +29,11 @@ Bronze preserves the source event shape, adds ingestion lineage and protects aga
 
 ### Silver
 
-Silver is where team modules should enforce business-ready types, deduplicate records, correct timestamps, standardise keys and quarantine invalid records. Rutik's Q2 `playback_clean` is the preferred playback source for Q5, Q9–Q12, Q14 and Q20.
+Silver is where team modules enforce business-ready types, deduplicate records, correct timestamps, standardise keys and quarantine invalid records. Q1 publishes the catalogue dimensions/bridges; Q2 publishes `playback_clean`; Q3 publishes normalised CDN usage. Q2's corrected `playback_clean` is the preferred playback source for Q5, Q7–Q12, Q14 and Q20.
 
 ### Gold
 
-Gold contains business-level outputs such as watch-time facts, subscription snapshots, active-user metrics, rankings, finance/royalty measures, advertising measures, CDN cost, recommendations, churn-risk results and quality reports.
+Gold contains business-level outputs such as watch-time facts, subscription periods, active-user metrics, regional rankings, cohorts/MRR, account-sharing flags, finance/royalty measures, advertising measures, CDN cost, recommendations, churn-risk results and quality reports.
 
 ## Workload patterns
 
@@ -41,6 +41,8 @@ Gold contains business-level outputs such as watch-time facts, subscription snap
 - **Batch transformations (Q1–Q16, Q19–Q20):** Spark DataFrames/SQL with repeatable Delta inputs and outputs.
 - **Live event-time streaming (Q17–Q18):** file source driven by the supplied simulator, separate checkpoint directories and event-time logic.
 - **Machine learning (Q16, Q20):** Spark MLlib training/evaluation and versioned output artefacts.
+- **Finite orchestration:** `python -m streambharat.pipeline` runs Q1–Q16, Q19 and Q20 in dependency order; Q17/Q18 remain separate long-running streams.
+- **Retry safety:** Q4 merges playback by `event_id`; Q18 first persists impressions in a Delta ledger keyed by `impression_id` and rebuilds aggregates from unique rows.
 
 ## Technical baseline
 

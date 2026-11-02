@@ -19,9 +19,12 @@
 | Q5 — engagement | `viewing_sessions`, `watch_time_daily` | Q9–Q16, Q20 | Profile/user/content, viewing date, watched minutes, completion, session boundaries |
 | Q6 — subscriptions | `subscription_periods`, `subscribers_daily` | Q9, Q11–Q13, Q15, Q20 | User, plan, status, valid period, monthly price |
 | Q8 — content history | `dim_content_scd2`, licence validity | Q15, Q16, Q19 | Effective dates, historical partner/tier and region licence intervals |
-| Q13 — ads | `ad_delivery_daily`, `frequency_violations` | Q15, Q19 | Campaign/day metrics, revenue, credits, genre-target compliance |
+| Q13 — ads | `ad_delivery_daily`, `frequency_violations`, `ad_revenue_by_title_day` | Q15, Q19 | Platform/day fill rate (break data has no campaign ID for unfilled breaks), campaign/day delivery, revenue, credits, genre-target compliance |
+| Q14 — skew/optimization | `q14_performance/`, `cdn_cost_by_title/` | Platform analysis | Hot-key diagnosis, AQE/salting comparison, physical layout timing and provider/region rates |
+| Q16 — recommendations | `data/delta/gold/recommendations/` | Discovery output | Profile, user, content, score and rank; licence/kids restrictions; evaluation against held-out titles |
 | Q17 — trending | `data/delta/gold/trending/` | Demo / product output | Window start/end, language, rank, title/content ID, viewers, baseline and growth ratio |
-| Q20 — churn | `data/delta/gold/churn_scores/` | Retention prioritisation | User, prediction timestamp, churn probability, risk value, rank; heartbeat-derived watch time uses the dataset's five-minute cadence, with completion-only fallback |
+| Q18 — live ad pacing | `capped_users_live`, `pacing_alerts_live` | Live ad-serving demo | Unique impression ledger, per-user/campaign/day cap state and spend pace |
+| Q20 — churn | `data/delta/gold/churn_scores/` | Retention prioritisation | User, prediction timestamp, churn probability, risk value, rank |
 
 **Q20 integration preference:** pass the Q2 Silver playback path using `--playback` and expose `event_ts_corrected` (or `event_ts`). The Bronze `server_ts` fallback is provided for standalone development but is less accurate for offline and delayed events.
 
@@ -33,6 +36,8 @@
 4. **Analytics:** Q9–Q16; validate audience, search, content, finance, advertising, CDN and recommendations.
 5. **Streaming and quality:** Q17–Q19; run simulator demos, isolate checkpoints and enforce checks.
 6. **Integration/release:** Q20, end-to-end orchestration, regression validation, docs and demo evidence.
+
+The repository's finite orchestrator is `python -m streambharat.pipeline`. It runs Q1–Q16, Q19 and Q20 in dependency order. Q17 and Q18 are live streams and must be launched separately with the supplied simulator.
 
 ## Definition of done for each question
 

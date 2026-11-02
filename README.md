@@ -1,71 +1,65 @@
 # StreamBharat — OTT Streaming Analytics Platform
 
-**Project 4 · PySpark Industry Projects · Team implementation workspace**
+**Project 4 · PySpark Industry Projects · Six-member team implementation**
 
-StreamBharat is an end-to-end data engineering and analytics project for a fictional Indian OTT platform. The project uses PySpark, Spark Structured Streaming and Delta Lake to turn application, playback, billing, advertising, catalogue, search and CDN data into trusted analytical datasets and ML outputs.
+StreamBharat is an end-to-end data engineering and analytics project for a fictional Indian OTT platform. It uses PySpark, Spark Structured Streaming, Delta Lake and Spark MLlib to turn playback, billing, catalogue, advertising, search and CDN data into analytics and machine-learning outputs.
 
-> **Active assignment:** Workbook 2 — *Project 4: StreamBharat: OTT Streaming Analytics Platform*. This repository follows the file-based Spark streaming simulator supplied with that workbook. Kafka, Airflow, PostgreSQL and Metabase are **not** required by this assignment's core implementation.
+> **Source of truth:** Workbook 2 — *Project 4: StreamBharat: OTT Streaming Analytics Platform*. This repository uses the supplied file-based simulator for Q17/Q18. Kafka, Airflow, PostgreSQL and Metabase are not required by this workbook's core implementation.
 
 ## Project at a glance
 
-- **Business domains:** playback and engagement, content catalogue and licensing, subscriptions and revenue, ads, CDN delivery, recommendations, data quality and churn.
-- **Processing pattern:** raw files → Bronze → Silver → Gold / ML outputs.
-- **Scale of supplied sample:** 2,500 accounts and 4,736 profiles; approximately 1.6 million playback events.
-- **Dataset periods:** subscriptions May 2025–October 2026; playback, search and advertising July–October 2026; CDN logs September 2026.
-- **Primary stack:** Python 3.10/3.11, Java 17, PySpark 3.5.3, Delta Lake 3.2.0, pytest and Spark MLlib.
+- **Sample data:** 2,500 accounts, 4,736 profiles and approximately 1.62 million player events.
+- **Data periods:** subscriptions May 2025–October 2026; playback/search/ads July–October 2026; CDN logs September 2026.
+- **Important convention:** a playback heartbeat represents up to five minutes in this dataset, not 30 seconds.
+- **Architecture:** immutable raw inputs → Bronze ingestion → Silver cleansing/conformance → Gold facts/reports → ML features and scores.
+- **Stack:** Python 3.10/3.11, Java 17, PySpark 3.5.3, Delta Lake 3.2.0, pytest and Spark MLlib.
 
-## Repository map
+## Repository structure
 
 ```text
-StreamBharat-Project/
+StreamBharat/
 ├── README.md
-├── pyproject.toml                 # Pinned Spark/Delta dependencies and pytest config
-├── requirements.txt
-├── ott_stream_simulator.py        # Supplied Q17/Q18 file-stream simulator
-├── data/
-│   └── README.md                  # How to obtain and place the dataset
+├── pyproject.toml / requirements.txt
+├── ott_stream_simulator.py
+├── data/README.md
 ├── docs/
-│   ├── project-brief.md           # Business context, scope and goals
-│   ├── questions-and-ownership.md # All 20 questions and six-person allocation
-│   ├── data-catalog.md            # Dataset inventory, formats, keys and conventions
-│   ├── architecture.md            # Bronze/Silver/Gold and streaming architecture
-│   ├── delivery-plan.md           # Integration contracts, quality gates and milestones
-│   ├── implementation/            # Design notes for Q4, Q17 and Q20
-│   └── source-materials/          # Student-facing workbook, team guide and dataset README
+│   ├── project-brief.md
+│   ├── questions-and-ownership.md
+│   ├── team-workstreams.md
+│   ├── data-catalog.md
+│   ├── architecture.md
+│   ├── delivery-plan.md
+│   ├── implementation/                 # Q4, Q17 and Q20 design notes
+│   └── source-materials/                # Workbook, team guide, dataset README
 ├── src/streambharat/
-│   ├── spark_session.py
-│   ├── q4_incremental_ingestion.py
-│   ├── q17_trending.py
-│   ├── q20_churn.py
-│   ├── pipeline.py
-│   └── logic.py
-├── tests/
+│   ├── q1_catalog.py ... q20_churn.py   # Question-specific implementations
+│   ├── q18_live_ad_pacing.py
+│   ├── pipeline.py                      # Finite batch orchestrator
+│   ├── quality_rules.py                 # Deterministic business rules
+│   └── spark_session.py
+├── tests/                               # Pure-Python deterministic tests
 ├── scripts/
-└── .github/workflows/tests.yml
+└── .github/workflows/
 ```
 
-The repository currently contains Ishan's implementation for Q4, Q17 and Q20. The other workstreams are documented with owners and expected interfaces; their implementation modules should be added by the respective owners as they are completed. The repo does not claim that all 20 questions are already implemented.
+## Team ownership and implementation map
 
-## Team ownership
-
-| Member | Workstream | Questions |
+| Member | Questions | Implementations |
 |---|---|---|
-| Ishan | Project lead; incremental ingestion, streaming, integration | Q4, Q17, Q20 |
-| Rutik | Playback engineering and Spark optimization | Q2, Q5, Q12, Q14 |
-| Harshvardhan | Content modelling and discovery | Q1, Q8, Q10, Q16 |
-| Kshitij Jaisawal | Subscriptions, finance and live ad pacing | Q6, Q11, Q15, Q18 |
-| Siddhi | CDN processing and search analytics | Q3, Q7 |
-| Ankita | Engagement metrics, advertising and data quality | Q9, Q13, Q19 |
+| Ishan | Q4, Q17, Q20 | `q4_incremental_ingestion.py`, `q17_trending.py`, `q20_churn.py`; final batch orchestration |
+| Rutik | Q2, Q5, Q12, Q14 | `q2_playback_clean.py`, `q5_sessions.py`, `q12_account_sharing.py`, `q14_skew_optimization.py` |
+| Harshvardhan | Q1, Q8, Q10, Q16 | `q1_catalog.py`, `q8_content_history.py`, `q10_top10.py`, `q16_recommendations.py` |
+| Kshitij Jaisawal | Q6, Q11, Q15, Q18 | `q6_subscriptions.py`, `q11_cohorts_mrr.py`, `q15_royalties.py`, `q18_live_ad_pacing.py` |
+| Siddhi | Q3, Q7 | `q3_cdn.py`, `q7_search.py` |
+| Ankita | Q9, Q13, Q19 | `q9_active_users.py`, `q13_ads.py`, `q19_quality.py` |
 
-Q20 end-to-end integration is owned by Ishan, with Rutik providing technical support on the churn implementation.
+The complete question-by-question purpose, outputs, rules, dependencies and known assumptions are documented in [`docs/team-workstreams.md`](docs/team-workstreams.md) and [`docs/questions-and-ownership.md`](docs/questions-and-ownership.md).
 
-## Get started
+## Set up the project
 
-### 1. Obtain the dataset
+### 1. Obtain the course dataset
 
-The dataset archive is distributed separately as `StreamBharat_dataset.zip` (approximately 36 MB compressed). Extract its `data/` directory into the repository root. Do not modify the raw files. See [`data/README.md`](data/README.md) and [`docs/data-catalog.md`](docs/data-catalog.md).
-
-Expected local paths include:
+Download `StreamBharat_dataset.zip` from the course distribution, extract it and copy its `data/` directory into the repository root. The expected local paths include:
 
 ```text
 data/raw/player/*.json
@@ -75,82 +69,101 @@ data/raw/content/catalog_2026-10-01.json
 data/raw/reference/*.csv
 ```
 
-The raw dataset is intentionally excluded from Git to avoid committing large input files. `.gitignore` already excludes it.
+Raw files are intentionally excluded from Git. Do not edit them. See [`data/README.md`](data/README.md) and [`docs/data-catalog.md`](docs/data-catalog.md).
 
-### 2. Configure the runtime
+### 2. Install dependencies
 
-Use Python 3.10 or 3.11 and Java 17. From the repository root:
+Use Python 3.10 or 3.11 and Java 17.
 
 ```bash
 python -m venv .venv
-source .venv/bin/activate             # Windows: .venv\\Scripts\\Activate.ps1
+source .venv/bin/activate             # Windows PowerShell: .venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
 python -m pip install -e ".[test]"
 ```
 
 Ensure `JAVA_HOME` points to JDK 17. The first Spark launch may need internet access to resolve the Delta Lake Maven package.
 
-### 3. Run Ishan's modules
+### 3. Run the full batch pipeline
 
-Run from the repository root after extracting the dataset:
+From the repository root, after placing the dataset:
 
 ```bash
-# Q4 — incremental playback files → Bronze Delta
-python -m streambharat.q4_incremental_ingestion
-
-# Q20 — train/evaluate churn model and score active accounts
-python -m streambharat.q20_churn --as-of 2026-10-31
-
-# Q4 → Q20 batch orchestration
+python -m streambharat.pipeline --list
+python -m streambharat.pipeline --dry-run
 python -m streambharat.pipeline --as-of 2026-10-31
 ```
 
-Q17 is a live demonstration. Open two terminals in the repository root:
+The finite batch pipeline runs Q1–Q16, Q19 and Q20 in dependency order. Q17 and Q18 are continuous streams and are deliberately launched separately. The `--only` and `--skip` options support selected stages; selected stages assume their upstream Delta outputs already exist.
+
+Examples:
 
 ```bash
-# Terminal A: simulator
-python ott_stream_simulator.py --stream plays
+python -m streambharat.pipeline --only Q1,Q2,Q4,Q5,Q6
+python -m streambharat.pipeline --skip Q14,Q16
+```
 
-# Terminal B: trending stream
+### 4. Run the two live streams
+
+**Q17 — real-time trending:**
+
+Terminal A:
+
+```bash
+python ott_stream_simulator.py --stream plays
+```
+
+Terminal B:
+
+```bash
 python -m streambharat.q17_trending --as-of 2026-11-02
 ```
 
-The simulator emits JSON files into `data/stream/plays/`. Stop both processes with Ctrl+C after the demonstration.
+**Q18 — live ad pacing and frequency caps:**
 
-### 4. Run tests
+Terminal A:
+
+```bash
+python ott_stream_simulator.py --stream ads
+```
+
+Terminal B:
+
+```bash
+python -m streambharat.q18_live_ad_pacing
+```
+
+Stop the simulator and stream with Ctrl+C after the demonstration. The simulator writes JSON files to `data/stream/plays/` and `data/stream/ads/`.
+
+### 5. Run tests
 
 ```bash
 pytest -q
+python -m compileall -q src/streambharat
 ```
 
-The deterministic business-rule tests do not require a running Spark cluster. They are not a substitute for executing the Spark/Delta jobs against the actual data.
+Pure-Python business-rule tests do not require Spark. They do not prove that a Spark/Delta job has executed successfully against the full dataset.
 
-## Implementation status
+## Implementation and validation status
 
-| Area | Status | Notes |
-|---|---|---|
-| Q4 incremental ingestion | Implemented; runtime validation pending | Explicit schema, `availableNow`, checkpointing, idempotent Delta merge and additive `cast_device` support |
-| Q17 real-time trending | Implemented; runtime validation pending | 10-minute window, 1-minute slide, bounded event buffer, 15-minute late allowance, baseline and language-level top-N. Recomputed window/language snapshots replace old rankings, including empty results |
-| Q20 churn model | Implemented; runtime validation pending | 30-day cycle plus 7-day grace; a successful renewal within the outcome window overrides intermediate billing failures/cancellations; pre-anchor features and chronological evaluation |
-| Q1–Q3, Q5–Q16, Q18–Q19 | Team workstreams | See question registry and owners |
-| Full integrated release | In progress | Requires Silver playback contract from Q2, all team-owned Gold outputs, and full Spark validation |
+All 20 question modules are now present, and the batch orchestrator wires their documented dependencies. Deterministic tests and Python compilation are passing. **Full Spark/Delta integration is still pending**: this build environment does not have PySpark installed, so no claim is made that the full 1.6-million-event jobs, live streams, Delta schema evolution, ML training or model metrics have been runtime-validated here.
 
-CI runs deterministic Python business-rule tests on Python 3.11. The Spark/Delta jobs require Java 17 and PySpark/Delta runtime integration against the course dataset; a passing unit-test workflow is not evidence that Q4/Q17/Q20 Spark execution or churn model performance has been validated. Do not report Spark runtime success or model metrics until the jobs have been run and their outputs inspected.
+Treat a question as complete for submission only after it has been executed against the course data, its output schemas and counts have been inspected, its business checks have passed, and its owner can explain it.
 
-## Important links inside this repository
+## Important repository documents
 
 - [Project brief](docs/project-brief.md)
 - [All 20 questions and ownership](docs/questions-and-ownership.md)
+- [Implementation notes and output contracts for every question](docs/team-workstreams.md)
 - [Dataset catalogue](docs/data-catalog.md)
 - [Architecture](docs/architecture.md)
-- [Delivery plan and integration contracts](docs/delivery-plan.md)
-- [Publish this repository to GitHub](docs/publishing-to-github.md)
-- [Q4 design](docs/implementation/q4-incremental-ingestion.md)
-- [Q17 design](docs/implementation/q17-real-time-trending.md)
-- [Q20 design](docs/implementation/q20-churn-model.md)
-- [Student-facing source workbook](docs/source-materials/Project-4-StreamBharat-PySpark-Workbook.pdf)
+- [Integration plan and completion gates](docs/delivery-plan.md)
+- [Q4 implementation design](docs/implementation/q4-incremental-ingestion.md)
+- [Q17 implementation design](docs/implementation/q17-real-time-trending.md)
+- [Q20 implementation design](docs/implementation/q20-churn-model.md)
+- [Student-facing workbook](docs/source-materials/Project-4-StreamBharat-PySpark-Workbook.pdf)
 - [Team distribution and implementation guide](docs/source-materials/StreamBharat-Team-Distribution-and-Implementation-Guide.pdf)
 
-## Data and academic integrity note
+## Data integrity
 
-All names, accounts, titles, advertisers and other entities in the supplied dataset are fictional. The instructor-only answer/seed notes and dataset-generation scripts are intentionally not included in this student-facing repository. Raw data is distributed separately and must remain unchanged.
+All accounts, people, titles, advertisers and other entities in the supplied sample are fictional. Instructor-only answer/seed notes and dataset-generation scripts are not included. Raw dataset files and simulator output remain untracked by Git.

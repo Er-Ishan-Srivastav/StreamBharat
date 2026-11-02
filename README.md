@@ -130,8 +130,8 @@ The deterministic business-rule tests do not require a running Spark cluster. Th
 | Area | Status | Notes |
 |---|---|---|
 | Q4 incremental ingestion | Implemented; runtime validation pending | Explicit schema, `availableNow`, checkpointing, idempotent Delta merge and additive `cast_device` support |
-| Q17 real-time trending | Implemented; runtime validation pending | 10-minute window, 1-minute slide, bounded event buffer, 15-minute late allowance, baseline and language-level top-N |
-| Q20 churn model | Implemented; runtime validation pending | Matured labels, pre-anchor features, chronological evaluation, MLlib logistic regression and value-weighted risk ranking |
+| Q17 real-time trending | Implemented; runtime validation pending | 10-minute window, 1-minute slide, bounded event buffer, 15-minute late allowance, baseline and language-level top-N. Recomputed window/language snapshots replace old rankings, including empty results |
+| Q20 churn model | Implemented; runtime validation pending | 30-day cycle plus 7-day grace; a successful renewal within the outcome window overrides intermediate billing failures/cancellations; pre-anchor features and chronological evaluation |
 | Q1–Q3, Q5–Q16, Q18–Q19 | Team workstreams | See question registry and owners |
 | Full integrated release | In progress | Requires Silver playback contract from Q2, all team-owned Gold outputs, and full Spark validation |
 

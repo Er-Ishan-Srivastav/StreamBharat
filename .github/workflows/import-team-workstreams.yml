@@ -42,7 +42,6 @@ jobs:
                       raise SystemExit(f"Unsafe archive path: {member.name}")
               package.extractall(".")
           shutil.rmtree(bootstrap)
-          pathlib.Path(".github/workflows/import-team-workstreams.yml").unlink()
           PY
       - name: Install lightweight test dependency
         run: python -m pip install "pytest>=8.0"
@@ -61,7 +60,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add README.md docs/team-workstreams.md docs/architecture.md docs/delivery-plan.md
-          git add src/streambharat tests/test_quality_rules.py scripts/run_q18.sh .github/workflows/tests.yml
-          git add -u .github/workflows/import-team-workstreams.yml
+          git add src/streambharat tests/test_quality_rules.py scripts/run_q18.sh
+          git add -A _bootstrap
           git commit -m "Implement remaining StreamBharat team workstreams"
           git push origin HEAD:main

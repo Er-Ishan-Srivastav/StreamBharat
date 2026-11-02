@@ -14,7 +14,7 @@ Default paths:
 - Bronze Delta: `data/delta/bronze/playback/`
 - Checkpoint: `data/checkpoints/q4_playback/`
 
-The job reads JSONL using an explicit schema and `maxFilesPerTrigger`, attaches `_source_file` and `_ingested_at`, and uses `trigger(availableNow=True)` for a finite incremental run. The `foreachBatch` writer deduplicates within a micro-batch and merges into Delta on `event_id`. The schema includes nullable `cast_device`; an additive migration adds it to an existing Delta table if needed.
+The job reads JSONL using an explicit schema and `maxFilesPerTrigger`, attaches `_source_file` and `_ingested_at`, and uses `trigger(availableNow=True)` for a finite incremental run. The `foreachBatch` writer deduplicates within a micro-batch and merges into Delta on `event_id`. The schema includes nullable `cast_device`; an additive migration adds it to an existing Delta table if needed. Keep the source and target schemas aligned during upgrades; verify additive-column merge behaviour on the team's pinned Delta runtime before a full historical backfill.
 
 ## Run and verify
 

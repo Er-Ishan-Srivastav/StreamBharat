@@ -17,7 +17,7 @@ The assignment's core implementation uses PySpark, Spark Structured Streaming, D
 
 The platform scenario includes playback, subscription, catalogue, advertising, search, CDN and user/profile domains. The supplied learning dataset contains approximately 1.62 million playback events, 2,500 accounts and 4,736 profiles; it is not a production-scale 3-crore-user dataset.
 
-~~~mermaid
+```mermaid
 flowchart TB
     subgraph Inputs["Source systems / supplied course files"]
         PLAY["Player events<br/>JSONL"]
@@ -53,11 +53,11 @@ flowchart TB
     QA --> OUT["Validated business outputs<br/>and model scores"]
     TRANS --> GOLD["Gold facts and aggregates"]
     GOLD --> OUT
-~~~
+```
 
 ## 3. Lakehouse / medallion architecture
 
-~~~mermaid
+```mermaid
 flowchart LR
     subgraph RAW["RAW — immutable source"]
       R1["Playback JSONL"]
@@ -106,7 +106,7 @@ flowchart LR
     G2 --> G6
     G4 --> G6
     G5 --> G6
-~~~
+```
 
 ### Zone responsibilities
 
@@ -124,7 +124,7 @@ Exact paths and table contracts are listed in [docs/delivery-plan.md](delivery-p
 
 The finite orchestrator is **python -m streambharat.pipeline**. It executes Q1–Q16, Q19 and Q20 in dependency order. Q17 and Q18 are excluded from the finite sequence because they are long-running streaming jobs.
 
-~~~mermaid
+```mermaid
 flowchart TD
     Q1["Q1 Catalogue model"]
     Q2["Q2 Playback cleansing"]
@@ -142,6 +142,8 @@ flowchart TD
     Q14["Q14 Skew / CDN cost"]
     Q15["Q15 Royalties"]
     Q16["Q16 ALS recommendations"]
+    Q17["Q17 Trending stream (separate)"]
+    Q18["Q18 Ad pacing stream (separate)"]
     Q19["Q19 Quality gates"]
     Q20["Q20 Churn + integration"]
     Q1 --> Q8
@@ -155,7 +157,8 @@ flowchart TD
     Q2 --> Q14
     Q2 --> Q16
     Q2 --> Q20
-    Q4 --> Q2
+    Q1 --> Q17
+    Q4 --> Q17
     Q5 --> Q9
     Q5 --> Q10
     Q5 --> Q12
@@ -176,7 +179,7 @@ flowchart TD
     Q16 --> Q19
     Q9 --> Q19
     Q19 --> Q20
-~~~
+```
 
 This dependency graph is a logical data-dependency view; the current batch orchestrator uses a fixed stage order. A selected stage assumes that its upstream output already exists. Use --dry-run to inspect the planned list, not as proof that transformations execute.
 
@@ -184,7 +187,7 @@ This dependency graph is a logical data-dependency view; the current batch orche
 
 Q17 and Q18 are driven by the supplied ott_stream_simulator.py. It writes JSON files to local folders; the Spark file source discovers those files. Neither job requires Kafka for this workbook.
 
-~~~mermaid
+```mermaid
 flowchart LR
     SIM["ott_stream_simulator.py"]
     SIM -->|--stream plays| PLAYDIR["data/stream/plays/"]
@@ -200,7 +203,7 @@ flowchart LR
     LEDGER --> PACE["Campaign spend pacing"]
     CAP --> ALERT["Capped users + alerts"]
     PACE --> ALERT
-~~~
+```
 
 ### Q17 — trending
 
@@ -221,7 +224,7 @@ flowchart LR
 
 ## 6. Machine-learning architecture
 
-~~~mermaid
+```mermaid
 flowchart TB
     WATCH["Q5 cleaned watch-time facts"]
     CATALOG["Q1 catalogue + Q8 licence/SCD2"]
@@ -244,7 +247,7 @@ flowchart TB
     CHURN --> LR["Spark MLlib Logistic Regression"]
     LR --> SCORE["Churn probability × plan value"]
     SCORE --> PRIORITY["Prioritised retention scores"]
-~~~
+```
 
 Q16 uses implicit engagement signals and evaluates recommendations against held-out recent titles, with licence and kids-safety filtering. Q20 uses features observed before the prediction anchor, a chronological evaluation split and a separate final refit for scoring. Model metrics must come from actual Spark execution; do not substitute illustrative values.
 
@@ -264,7 +267,7 @@ Q16 uses implicit engagement signals and evaluates recommendations against held-
 
 ## 8. Runtime topology and local execution
 
-~~~mermaid
+```mermaid
 flowchart TB
     DEV["Developer workstation / lab VM"]
     DATA["Course dataset<br/>data/raw/"]
@@ -279,7 +282,7 @@ flowchart TB
     JVM --> DELTA
     JVM --> CKPT
     JVM --> ART
-~~~
+```
 
 The documented baseline is Python 3.10/3.11, Java 17, PySpark 3.5.3 and Delta Lake 3.2.0. The session factory defaults to local Spark execution for the course/lab setup. A distributed cluster, cloud object store, scheduler or dashboard layer would be an extension, not a current workbook dependency.
 

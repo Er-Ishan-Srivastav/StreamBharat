@@ -1,0 +1,35 @@
+# Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# Local dataset - distribute separately; never commit customer-like/raw data
+/data/raw/
+/data/stream/
+/data/delta/
+/data/checkpoints/
+/data/tmp/
+/lake/
+
+# Generated model and runtime artefacts
+/artifacts/
+/logs/
+/spark-warehouse/
+metastore_db/
+derby.log
+
+# Editors / OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
+__pycache__/
+*.egg-info/
+build/
+dist/

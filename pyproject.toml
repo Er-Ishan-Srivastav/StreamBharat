@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "streambharat-ott-analytics"
+version = "1.0.0"
+description = "Team project workspace for the StreamBharat OTT streaming analytics platform"
+requires-python = ">=3.10,<3.12"
+dependencies = [
+  "pyspark==3.5.3",
+  "delta-spark==3.2.0",
+]
+
+[project.optional-dependencies]
+test = ["pytest>=8.0"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]

@@ -54,7 +54,7 @@ The fictional business scenario describes a large Indian OTT service. The suppli
 
 The platform has two processing paths: a finite batch/lakehouse path and two independent long-running streaming demonstrations.
 
-~~~mermaid
+```mermaid
 flowchart LR
     subgraph Sources["Source domains"]
       P["Playback JSONL"]
@@ -91,7 +91,7 @@ flowchart LR
     GO --> REC
     GO --> CH
     GO --> OPS
-~~~
+```
 
 **Live path:** the supplied simulator emits play and ad-impression JSON files. Q17 consumes play events to calculate trending; Q18 consumes ad impressions to calculate live frequency caps and spend pacing. Each stream has its own checkpoint and output.
 
@@ -147,7 +147,7 @@ This is a workbook-aligned stack. The repo does not claim a Kafka-based architec
 
 ## Repository layout
 
-~~~text
+```text
 StreamBharat/
 ├── README.md
 ├── pyproject.toml
@@ -172,7 +172,7 @@ StreamBharat/
 ├── tests/
 ├── scripts/
 └── .github/workflows/
-~~~
+```
 
 ## Dataset setup
 
@@ -180,7 +180,7 @@ StreamBharat/
 2. Extract it and copy the supplied data/ directory into the repository root.
 3. Confirm that these paths exist:
 
-~~~text
+```text
 data/raw/player/
 data/raw/billing/subscription_events.json
 data/raw/billing/gateway_settlements.csv
@@ -190,7 +190,7 @@ data/raw/content/catalog_2026-10-01.json
 data/raw/ads/
 data/raw/cdn/
 data/raw/reference/
-~~~
+```
 
 The raw files are excluded from .gitignore. Keep the supplied source data unchanged. For the simulator, run commands from the repository root because it reads catalogue and campaign files using repository-relative paths.
 
@@ -204,30 +204,30 @@ Use Python 3.10/3.11 and JDK 17. Set JAVA_HOME to the JDK installation.
 
 **Linux / macOS / Git Bash**
 
-~~~bash
+```bash
 python -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
 python -m pip install -e ".[test]"
-~~~
+```
 
 **Windows PowerShell**
 
-~~~powershell
+```powershell
 py -3.11 -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
 python -m pip install -e ".[test]"
-~~~
+```
 
 The first Spark start may need internet access to resolve the Delta Lake Maven package.
 
 ### 2. Inspect the execution plan
 
-~~~bash
+```bash
 python -m streambharat.pipeline --list
 python -m streambharat.pipeline --dry-run
-~~~
+```
 
 The finite sequence includes Q1–Q16, Q19 and Q20. A dry-run checks the stage plan; it does **not** execute Spark transformations.
 
@@ -235,16 +235,16 @@ The finite sequence includes Q1–Q16, Q19 and Q20. A dry-run checks the stage p
 
 After placing the dataset and confirming upstream outputs are available:
 
-~~~bash
+```bash
 python -m streambharat.pipeline --as-of 2026-10-31
-~~~
+```
 
 Run a selected sequence:
 
-~~~bash
+```bash
 python -m streambharat.pipeline --only Q1,Q2,Q4,Q5,Q6
 python -m streambharat.pipeline --skip Q14,Q16
-~~~
+```
 
 Selected stages assume their upstream inputs already exist. Review [the cross-team data contracts](docs/delivery-plan.md) before running an isolated question.
 
@@ -252,38 +252,38 @@ Selected stages assume their upstream inputs already exist. Review [the cross-te
 
 **Terminal A — simulator**
 
-~~~bash
+```bash
 python ott_stream_simulator.py --stream plays
-~~~
+```
 
 **Terminal B — Spark stream**
 
-~~~bash
+```bash
 python -m streambharat.q17_trending --as-of 2026-11-02
-~~~
+```
 
 ### 5. Run live Q18 — ad frequency caps and pacing
 
 **Terminal A — simulator**
 
-~~~bash
+```bash
 python ott_stream_simulator.py --stream ads
-~~~
+```
 
 **Terminal B — Spark stream**
 
-~~~bash
+```bash
 python -m streambharat.q18_live_ad_pacing
-~~~
+```
 
 Stop the simulator and stream with Ctrl+C after the demonstration. The simulator writes JSON files under data/stream/plays/ and data/stream/ads/.
 
 ### 6. Run tests
 
-~~~bash
+```bash
 pytest -q
 python -m compileall -q src/streambharat tests
-~~~
+```
 
 Pure-Python tests validate deterministic business rules. They do not replace a full Spark/Delta integration run on the course dataset.
 

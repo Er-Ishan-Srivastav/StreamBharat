@@ -20,7 +20,7 @@ STREAMING_QUESTIONS = {"Q17", "Q18"}
 
 def _invoke(module_name: str, function_name: str, *args, **kwargs) -> None:
     """Import a stage only when it is executed (so dry-run works without Spark)."""
-    module = importlib.import_module(f".{{module_name}}", package=__package__)
+    module = importlib.import_module(f".{module_name}", package=__package__)
     getattr(module, function_name)(*args, **kwargs)
 
 

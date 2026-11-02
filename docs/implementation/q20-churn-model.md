@@ -33,7 +33,7 @@ Default inputs/outputs:
 
 ## Features
 
-Features are calculated strictly before each snapshot's anchor timestamp. They include current and preceding 28-day watch minutes, active days in both periods, relative watch decline, payment failures in the preceding 90 days, prior renewals, account tenure, monthly plan price and premium-plan indicator. Five minutes are attributed per heartbeat/complete event, reflecting the course sample's heartbeat cadence. Offline playback is excluded from the fallback calculation because server arrival may be days after the viewing timestamp.
+Features are calculated strictly before each snapshot's anchor timestamp. They include current and preceding 28-day watch minutes, active days in both periods, relative watch decline, payment failures in the preceding 90 days, prior renewals, account tenure, monthly plan price and premium-plan indicator. Five minutes are attributed per heartbeat, reflecting the course sample's five-minute cadence. A completion-only user/day receives one five-minute fallback only when no heartbeat exists; completion is not double-counted when heartbeats are present. Offline playback is excluded from the fallback calculation because server arrival may be days after the viewing timestamp.
 
 For final integration, use Q2's corrected Silver event timestamp and cleaned events. The Bronze `server_ts` path is for standalone execution only and is less accurate for offline or delayed events.
 

@@ -135,7 +135,7 @@ The deterministic business-rule tests do not require a running Spark cluster. Th
 | Q1–Q3, Q5–Q16, Q18–Q19 | Team workstreams | See question registry and owners |
 | Full integrated release | In progress | Requires Silver playback contract from Q2, all team-owned Gold outputs, and full Spark validation |
 
-A previous local check passed 5/5 deterministic unit tests and Python syntax checks. PySpark/Delta execution was not available in the build environment at packaging time. Do not report Spark runtime success or model metrics until the jobs have been run and their outputs inspected.
+CI runs deterministic Python business-rule tests on Python 3.11. The Spark/Delta jobs require Java 17 and PySpark/Delta runtime integration against the course dataset; a passing unit-test workflow is not evidence that Q4/Q17/Q20 Spark execution or churn model performance has been validated. Do not report Spark runtime success or model metrics until the jobs have been run and their outputs inspected.
 
 ## Important links inside this repository
 

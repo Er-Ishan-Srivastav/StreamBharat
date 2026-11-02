@@ -157,13 +157,25 @@ def _load_daily_watch(spark, playback_path: str):
     selected = playback.filter(F.col("event_type").isin("heartbeat", "complete"))
     if "download_id" in available:
         selected = selected.filter(F.col("download_id").isNull() | (F.trim(F.col("download_id")) == ""))
-    return (
+    daily_events = (
         selected.withColumn("watch_ts", F.to_timestamp(F.col(timestamp_col)))
         .filter(F.col("watch_ts").isNotNull())
         .withColumn("watch_date", F.to_date("watch_ts"))
         .groupBy("user_id", "watch_date")
-        .agg((F.count(F.lit(1)) * F.lit(5.0)).alias("watch_minutes"))
+        .agg(
+            F.count(F.when(F.col("event_type") == "heartbeat", 1)).alias("heartbeat_count"),
+            F.max(F.when(F.col("event_type") == "complete", 1).otherwise(0)).alias("has_complete"),
+        )
     )
+    # The course dataset defines one heartbeat as up to five minutes. Completion
+    # is not an additional five-minute interval when heartbeats already exist;
+    # use it only as a one-interval fallback for completion-only days.
+    return daily_events.withColumn(
+        "watch_minutes",
+        F.when(F.col("heartbeat_count") > 0, F.col("heartbeat_count") * F.lit(5.0))
+         .when(F.col("has_complete") == 1, F.lit(5.0))
+         .otherwise(F.lit(0.0)),
+    ).select("user_id", "watch_date", "watch_minutes")
 
 
 def _build_features(spark, anchors, subscriptions, daily_watch, users_path: str):

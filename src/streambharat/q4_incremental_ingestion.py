@@ -55,17 +55,18 @@ def _merge_micro_batch(batch_df, batch_id: int, target_path: str, spark) -> None
     source_columns = set(source.columns)
     target_columns = set(target_types)
     unexpected = source_columns - target_columns
-    # Permit only the documented additive cast_device field, and evolve it before MERGE.
+    # The documented additive field is evolved with Delta mergeSchema on the
+    # actual event batch, not by appending a synthetic partial row.
     if unexpected - {"cast_device"}:
         raise ValueError(f"Unexpected playback columns: {sorted(unexpected - {'cast_device'})}")
     if "cast_device" in unexpected:
-        source.select("cast_device").write.format("delta").mode("append").option(
-            "mergeSchema", "true"
-        ).save(target_path)
-        # The above append is a schema-evolution no-op for row content only when empty.
-        # Re-read the target schema and continue with the real source merge.
+        (source.write.format("delta").mode("append").option("mergeSchema", "true")
+         .save(target_path))
         target_types = {f.name: f.dataType for f in
                         spark.read.format("delta").load(target_path).schema.fields}
+        # Remove the just-appended rows from the source's merge set: the append
+        # was the schema migration and those rows are already persisted once.
+        source = source.limit(0)
     for name, dtype in target_types.items():
         if name not in source.columns:
             source = source.withColumn(name, F.lit(None).cast(dtype))

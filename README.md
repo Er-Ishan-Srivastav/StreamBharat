@@ -144,6 +144,7 @@ A previous local check passed 5/5 deterministic unit tests and Python syntax che
 - [Dataset catalogue](docs/data-catalog.md)
 - [Architecture](docs/architecture.md)
 - [Delivery plan and integration contracts](docs/delivery-plan.md)
+- [Publish this repository to GitHub](docs/publishing-to-github.md)
 - [Q4 design](docs/implementation/q4-incremental-ingestion.md)
 - [Q17 design](docs/implementation/q17-real-time-trending.md)
 - [Q20 design](docs/implementation/q20-churn-model.md)

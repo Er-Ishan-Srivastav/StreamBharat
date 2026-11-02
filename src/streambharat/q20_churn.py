@@ -405,18 +405,25 @@ def run_q20(playback_path: str, subscription_path: str, users_path: str,
              .when(F.col("plan") == "premium", F.lit(299.0)).otherwise(F.lit(149.0)),
         )
     )
-    # Retain only accounts with a successful paid cycle and no later terminal
-    # cancel/pause state. Trial-only users and currently paused/cancelled accounts
-    # are not valid targets for a paid-subscriber retention outreach list.
-    last_paid = subscriptions.filter(F.col("event_type").isin("subscribe", "renew", "upgrade", "downgrade"))
-    paid_users = last_paid.select("user_id").distinct()
-    terminal_state = subscriptions.filter(F.col("event_type").isin("cancel", "pause"))
+    # Cancel or pause is a terminal state until a later resume/subscribe/renew.
+    # Evaluate the latest event itself rather than excluding everyone with any
+    # historical cancellation in their event history.
+    last_paid_users = subscriptions.filter(
+        F.col("event_type").isin("subscribe", "renew", "upgrade", "downgrade")
+    ).select("user_id").distinct()
+    eligible_states = (
+        subscriptions.filter(F.col("event_ts") <= as_of_ts)
+        .withColumn("_rn", F.row_number().over(latest_window))
+        .filter(F.col("_rn") == 1)
+        .filter(F.col("event_type").isin("subscribe", "renew", "upgrade", "downgrade", "resume"))
+        .select("user_id")
+    )
     currently_active = (
-        latest_state.join(paid_users, "user_id", "inner")
-        .join(terminal_state.select("user_id").distinct(), "user_id", "left_anti")
+        latest_state.join(last_paid_users, "user_id", "inner")
+        .join(eligible_states, "user_id", "inner")
         .filter(F.col("plan").isin("basic", "premium"))
     )
-    scoring = _build_features(spark, latest_state, subscriptions, daily_watch, users_path)
+    scoring = _build_features(spark, currently_active.join(latest_state, 'user_id', 'inner'), subscriptions, daily_watch, users_path)
     scoring = scoring.filter(F.col("plan").isin("basic", "premium"))
 
     _fit_and_score(training, scoring, model_path, output_path, metrics_path, top_n)

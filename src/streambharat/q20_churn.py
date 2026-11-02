@@ -92,48 +92,48 @@ def _make_training_anchors(spark, subscriptions, as_of: str,
         )
     )
 
-    cancels = (
+    # A successful renewal within this 37-day window wins over an intermediate
+    # cancellation/payment failure. This models recovered billing attempts correctly.
+    renewals = subscriptions.filter(F.col("event_type") == "renew").select(
+        "user_id", F.col("event_ts").alias("renewal_ts")
+    )
+    churn_events = (
         subscriptions.filter(F.col("event_type") == "cancel")
-        .select("user_id", F.col("event_ts").alias("terminal_ts"),
-                F.lit(1).alias("priority"), F.lit("voluntary_cancel").alias("terminal_type"))
-    )
-    failures = _build_unrecovered_failures(subscriptions)
-    renewals = (
-        subscriptions.filter(F.col("event_type") == "renew")
-        .select("user_id", F.col("event_ts").alias("terminal_ts"),
-                F.lit(2).alias("priority"), F.lit("renewed").alias("terminal_type"))
-    )
-    terminals = cancels.unionByName(failures).unionByName(renewals)
-
-    matched = (
-        anchors.alias("a")
-        .join(
-            terminals.alias("t"),
-            (F.col("a.user_id") == F.col("t.user_id")) &
-            (F.col("t.terminal_ts") > F.col("a.anchor_ts")) &
-            (F.col("t.terminal_ts") <= F.col("a.anchor_ts") + F.expr("INTERVAL 37 DAYS")),
-            "left",
+        .select("user_id", F.col("event_ts").alias("churn_ts"),
+                F.lit("voluntary_cancel").alias("churn_type"))
+        .unionByName(
+            _build_unrecovered_failures(subscriptions).select(
+                "user_id", F.col("terminal_ts").alias("churn_ts"),
+                F.lit("involuntary_failure").alias("churn_type")
+            )
         )
-        .filter(F.col("t.terminal_ts").isNotNull())
+    )
+    renew_by_anchor = (
+        anchors.alias("a").join(renewals.alias("r"),
+            (F.col("a.user_id") == F.col("r.user_id")) &
+            (F.col("r.renewal_ts") > F.col("a.anchor_ts")) &
+            (F.col("r.renewal_ts") <= F.col("a.anchor_ts") + F.expr("INTERVAL 37 DAYS")),
+            "left")
         .groupBy(F.col("a.anchor_id").alias("anchor_id"))
-        .agg(
-            F.min(F.struct(
-                F.col("t.terminal_ts").alias("terminal_ts"),
-                F.col("t.priority").alias("priority"),
-                F.col("t.terminal_type").alias("terminal_type"),
-            )).alias("first_terminal")
-        )
-        .select(
-            "anchor_id",
-            F.col("first_terminal.terminal_type").alias("terminal_type"),
-        )
+        .agg(F.min("r.renewal_ts").alias("renewal_ts"))
+    )
+    churn_by_anchor = (
+        anchors.alias("a").join(churn_events.alias("c"),
+            (F.col("a.user_id") == F.col("c.user_id")) &
+            (F.col("c.churn_ts") > F.col("a.anchor_ts")) &
+            (F.col("c.churn_ts") <= F.col("a.anchor_ts") + F.expr("INTERVAL 37 DAYS")),
+            "left")
+        .groupBy(F.col("a.anchor_id").alias("anchor_id"))
+        .agg(F.min("c.churn_ts").alias("churn_ts"),
+             F.min("c.churn_type").alias("churn_type"))
     )
     labelled = (
-        anchors.join(matched, "anchor_id", "left")
-        .withColumn(
-            "terminal_type",
-            F.coalesce(F.col("terminal_type"), F.lit("no_renewal_within_grace")),
-        )
+        anchors.join(renew_by_anchor, "anchor_id", "left")
+        .join(churn_by_anchor, "anchor_id", "left")
+        .withColumn("terminal_type",
+            F.when(F.col("renewal_ts").isNotNull(), F.lit("renewed"))
+             .when(F.col("churn_ts").isNotNull(), F.col("churn_type"))
+             .otherwise(F.lit("no_renewal_within_grace")))
         .withColumn("label", F.when(F.col("terminal_type") == "renewed", 0.0).otherwise(1.0))
     )
     return labelled

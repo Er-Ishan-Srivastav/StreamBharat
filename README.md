@@ -350,9 +350,11 @@ All users, profiles, titles, advertisers and other entities in the supplied samp
 
 The local-first runtime is a single-node development stack (Kafka in KRaft mode,
 a Spark/PySpark workspace, Postgres and Metabase). It is not a production cluster.
+Copy `.env.example` to `.env` and change the local-only credentials.
 Place the supplied dataset at `data/raw/` without changing raw files.
 
 ```bash
+cp .env.example .env
 docker compose -f docker-compose.kafka.yml up -d --build
 bash config/kafka-topics.sh
 docker compose -f docker-compose.kafka.yml exec workspace pytest -q
@@ -413,19 +415,22 @@ docker compose -f docker-compose.airflow.yml up -d --build
 ```
 
 Open Airflow at `http://localhost:8081` (local development login: `admin` /
-`admin_local_dev`). For a complete historical backfill, trigger
-`streambharat_nightly` manually with DAG run configuration:
+`admin_local_dev`). For the first complete local run, trigger the DAG with the one-command helper:
 
-```json
-{
-  "start_date": "2026-10-01",
-  "end_date": "2026-10-31"
-}
+```bash
+bash scripts/trigger_local_full_run.sh 2026-10-01 2026-10-31
 ```
 
-Scheduled runs process the Airflow logical date only. The DAG currently orchestrates
-the seven-source replay, Bronze/DLQ, offset reconciliation, Silver player, Gold engagement
-and Postgres serving slice. See [Airflow runbook](dags/README.md) for the DAG boundary.
+This sets `full_refresh=true`, replays October source files, runs the July–September
+arrival-day backfill, rebuilds all date-partitioned engagement/session/ad Gold,
+and loads the available Delta outputs into Postgres. For a single-day rerun,
+use Airflow configuration with `date`, `start_date` and `end_date` set to the
+same day. See [Airflow runbook](dags/README.md) for details.
+
+The batch replay acknowledgement ledger is `lake/state/kafka_replay.sqlite3`;
+keep it across normal reruns so acknowledged file/line records are skipped.
+The crash window between Kafka delivery acknowledgement and the SQLite ledger
+commit remains at-least-once. See the [Kafka implementation guide](docs/implementation/kafka-streaming.md).
 
 
 Use `--available-now` for bounded replay/backfill consumption. Omit it for

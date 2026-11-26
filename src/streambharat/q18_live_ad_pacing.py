@@ -28,10 +28,17 @@ AD_SCHEMA = StructType([
 
 def _persist_impressions(spark, ledger_path: str, incoming):
     parsed = (
-        incoming.withColumn("event_ts", F.to_timestamp("ad_break_ts"))
+        incoming.withColumn("_ad_break_time", F.to_timestamp("ad_break_ts"))
+        .withColumn(
+            "event_ts",
+            F.to_timestamp(F.from_unixtime(
+                F.unix_timestamp("_ad_break_time") + F.col("duration_sec")
+            )),
+        )
         .filter(F.col("event_ts").isNotNull() & F.col("impression_id").isNotNull())
         .dropDuplicates(["impression_id"])
         .withColumn("ad_date", F.to_date("event_ts"))
+        .drop("_ad_break_time")
     )
     if parsed.isEmpty():
         return
@@ -112,12 +119,12 @@ def _process_ads_batch(
                 F.lit("UNDERDELIVERING"),
             ),
         )
-        .filter(F.col("alert").isNotNull())
+        .withColumn("is_alert", F.col("alert").isNotNull())
+        .withColumn("alert_type", F.coalesce(F.col("alert"), F.lit("ON_PACE")))
         .withColumn("alert_id", F.sha2(
             F.concat_ws("|", F.col("campaign_id"), F.col("ad_date").cast("string"),
                         F.lit("CAMPAIGN_PACING")), 256
         ))
-        .withColumn("alert_type", F.col("alert"))
         .withColumn("user_id", F.lit(None).cast("string"))
         .withColumn("event_ts", F.current_timestamp())
         .withColumn(

@@ -46,8 +46,11 @@ def _persist_impressions(spark, ledger_path: str, incoming):
         )
 
 
-def _process_ads_batch(df, batch_id, spark, campaigns, ledger_path, cap_state_path,
-                       spend_state_path, capped_path, alerts_path, match_start, match_hours):
+def _process_ads_batch(
+    df, batch_id, spark, campaigns, ledger_path, cap_state_path,
+    spend_state_path, capped_path, alerts_path, match_start, match_hours,
+    bootstrap_servers=None, alerts_topic="ott.alerts.ad_pacing",
+):
     if df.isEmpty():
         return
     _persist_impressions(spark, ledger_path, df)
@@ -110,9 +113,64 @@ def _process_ads_batch(df, batch_id, spark, campaigns, ledger_path, cap_state_pa
             ),
         )
         .filter(F.col("alert").isNotNull())
+        .withColumn("alert_id", F.sha2(
+            F.concat_ws("|", F.col("campaign_id"), F.col("ad_date").cast("string"),
+                        F.lit("CAMPAIGN_PACING")), 256
+        ))
+        .withColumn("alert_type", F.col("alert"))
+        .withColumn("user_id", F.lit(None).cast("string"))
+        .withColumn("event_ts", F.current_timestamp())
+        .withColumn(
+            "details",
+            F.to_json(F.struct(
+                "spend_inr", "daily_budget_inr", "ideal_spend_inr",
+                "elapsed_hours", "pacing_ratio",
+            )),
+        )
         .withColumn("batch_processed_at", F.current_timestamp())
     )
     pacing.write.format("delta").mode("overwrite").save(alerts_path)
+
+    if bootstrap_servers:
+        cap_alerts = (
+            capped
+            .withColumn("alert_id", F.sha2(
+                F.concat_ws("|", F.col("user_id"), F.col("campaign_id"),
+                            F.col("ad_date").cast("string"), F.lit("FREQUENCY_CAP")),
+                256,
+            ))
+            .withColumn("alert_type", F.lit("FREQUENCY_CAP"))
+            .withColumn("event_ts", F.current_timestamp())
+            .withColumn("spend_inr", F.lit(None).cast("double"))
+            .withColumn("pacing_ratio", F.lit(None).cast("double"))
+            .withColumn(
+                "details",
+                F.to_json(F.struct("impression_count", "daily_frequency_cap")),
+            )
+            .select(
+                "alert_id", "alert_type", "campaign_id", "user_id", "event_ts",
+                "spend_inr", "pacing_ratio", "details",
+            )
+        )
+        pacing_alerts = pacing.select(
+            "alert_id", "alert_type", "campaign_id", "user_id", "event_ts",
+            "spend_inr", "pacing_ratio", "details",
+        )
+        alert_events = cap_alerts.unionByName(pacing_alerts)
+        if not alert_events.isEmpty():
+            kafka_rows = alert_events.select(
+                F.col("alert_id").alias("key"),
+                F.to_json(F.struct(
+                    "alert_id", "alert_type", "campaign_id", "user_id", "event_ts",
+                    "spend_inr", "pacing_ratio", "details",
+                )).alias("value"),
+            )
+            (
+                kafka_rows.write.format("kafka")
+                .option("kafka.bootstrap.servers", bootstrap_servers)
+                .option("topic", alerts_topic)
+                .save()
+            )
 
 
 def run_q18(input_path="data/stream/ads", campaigns_path="data/raw/ads/ad_campaigns.csv",

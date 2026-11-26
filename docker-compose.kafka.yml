@@ -107,7 +107,7 @@ services:
       POSTGRES_PASSWORD: ott_local_dev
       PYTHONPATH: /workspace/src
       PYSPARK_PYTHON: python3
-      SPARK_LOCAL_IP: 0.0.0.0
+      SPARK_LOCAL_IP: 127.0.0.1
       JUPYTER_TOKEN: streambharat-local
     volumes:
       - ./:/workspace

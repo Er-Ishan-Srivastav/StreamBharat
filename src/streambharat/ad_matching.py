@@ -101,6 +101,7 @@ def build_ad_delivery(
         F.col("b.user_id").alias("user_id"),
         F.coalesce(F.col("i.profile_id"), F.col("b.profile_id")).alias("profile_id"),
         F.col("b.content_id").alias("content_id"),
+        F.col("b.filled").cast("int").alias("break_filled"),
         F.col("b.break_ts").alias("break_ts"),
         F.col("i.ad_break_ts").alias("ad_break_ts"),
         F.col("i.duration_sec").alias("duration_sec"),
@@ -126,6 +127,7 @@ def build_ad_delivery(
             F.concat(F.lit("IMPRESSION:"), F.col("impression_id")).alias("delivery_id"),
             F.lit(None).cast("string").alias("break_id"),
             "impression_id", "campaign_id", "user_id", "profile_id", "content_id",
+            F.lit(None).cast("int").alias("break_filled"),
             F.lit(None).cast("timestamp").alias("break_ts"),
             "ad_break_ts", "duration_sec", "completed", "cpm_inr",
             F.lit("ORPHAN_IMPRESSION").alias("delivery_status"),
@@ -181,7 +183,7 @@ def build_ad_delivery(
     )
     delivery = enriched.select(
         "delivery_id", "break_id", "impression_id", "campaign_id", "user_id",
-        "profile_id", "content_id", "break_ts", "ad_break_ts", "duration_sec",
+        "profile_id", "content_id", "break_filled", "break_ts", "ad_break_ts", "duration_sec",
         "completed", "cpm_inr", "delivery_status", "genre_eligible",
         "activity_date", "spend_inr", "break_partition", "break_offset",
         "impression_partition", "impression_offset",
@@ -247,8 +249,8 @@ def build_ad_delivery(
         .groupBy("hour_start")
         .agg(
             F.count("break_id").alias("total_breaks"),
-            F.sum((F.col("delivery_status") == "DELIVERED").cast("long")).alias("filled_breaks"),
-            F.sum((F.col("delivery_status") == "UNFILLED_BREAK").cast("long")).alias("unfilled_breaks"),
+            F.sum((F.col("break_filled") == 1).cast("long")).alias("filled_breaks"),
+            F.sum((F.col("break_filled") == 0).cast("long")).alias("unfilled_breaks"),
         )
         .withColumn(
             "fill_rate",

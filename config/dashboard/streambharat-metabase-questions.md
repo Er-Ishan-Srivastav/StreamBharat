@@ -106,6 +106,14 @@ FROM ottdw.v_dq_rule_status
 ORDER BY batch_id, severity, rule_name;
 ```
 
+**Published board variance (0.5% tolerance)**
+```sql
+SELECT month, metric, published_value, actual_value, variance_pct,
+       reconciliation_status, investigation_hint
+FROM ottdw.v_published_metric_variance
+ORDER BY month, reconciliation_status, metric;
+```
+
 **Subscription churn**
 ```sql
 SELECT churn_type, users, refreshed_at

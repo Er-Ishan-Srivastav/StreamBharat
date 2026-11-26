@@ -11,9 +11,10 @@ import re
 import uuid
 
 import psycopg2
-from pyspark.sql import DataFrame
+from pyspark.sql import DataFrame, functions as F
+from delta.tables import DeltaTable
 
-from .spark_session import create_spark
+from streambharat.spark_session import create_spark
 
 TABLES = {
     "watch_time_daily": {
@@ -51,6 +52,12 @@ TABLES = {
         "columns": ["batch_id","rule_name","severity","passed_rows","failed_rows"],
         "keys": ["batch_id","rule_name"],
     },
+    "ad_pacing_alerts": {
+        "path": "lake/gold/pacing_alerts_live",
+        "columns": ["alert_id","alert_type","campaign_id","user_id","event_ts","spend_inr","pacing_ratio","details"],
+        "keys": ["alert_id"],
+        "json_columns": ["details"],
+    },
 }
 
 
@@ -71,10 +78,17 @@ def upsert_dataframe(df: DataFrame, table_name: str, config: dict, jdbc_url: str
     insert_cols=", ".join(cols)
     key_cols=", ".join(config["keys"])
     update_sql=", ".join(f"{c}=EXCLUDED.{c}" for c in updates)
+    select_cols = ", ".join(
+        f"{name}::jsonb AS {name}" if name in config.get("json_columns", []) else name
+        for name in cols
+    )
+    conflict_action = (
+        f"DO UPDATE SET {update_sql}" if update_sql else "DO NOTHING"
+    )
     sql=(
         f"INSERT INTO ottdw.{table_name} ({insert_cols}) "
-        f"SELECT {insert_cols} FROM ottdw.{stage} "
-        f"ON CONFLICT ({key_cols}) DO UPDATE SET {update_sql}; "
+        f"SELECT {select_cols} FROM ottdw.{stage} "
+        f"ON CONFLICT ({key_cols}) {conflict_action}; "
         f"DROP TABLE ottdw.{stage};"
     )
     conn=psycopg2.connect(**pg_config)
@@ -92,21 +106,41 @@ def upsert_dataframe(df: DataFrame, table_name: str, config: dict, jdbc_url: str
 
 
 def run_serving(date_arg: str | None = None):
-    spark=create_spark("StreamBharat-Postgres-Serving")
-    jdbc_url=os.getenv("POSTGRES_JDBC_URL","jdbc:postgresql://localhost:5432/ottdw")
-    jdbc_properties={"user":os.getenv("POSTGRES_USER","ott"),
-                     "password":os.environ["POSTGRES_PASSWORD"]}
-    pg_config={"host":os.getenv("POSTGRES_HOST","localhost"),
-               "port":int(os.getenv("POSTGRES_PORT","5432")),
-               "dbname":os.getenv("POSTGRES_DB","ottdw"),
-               "user":jdbc_properties["user"],"password":jdbc_properties["password"]}
+    spark = create_spark(
+        "StreamBharat-Postgres-Serving",
+        extra_packages=["org.postgresql:postgresql:42.7.4"],
+    )
+    postgres_host = os.getenv("POSTGRES_HOST", "localhost")
+    postgres_port = int(os.getenv("POSTGRES_PORT", "5432"))
+    postgres_db = os.getenv("POSTGRES_DB", "ottdw")
+    jdbc_url = os.getenv(
+        "POSTGRES_JDBC_URL",
+        f"jdbc:postgresql://{postgres_host}:{postgres_port}/{postgres_db}",
+    )
+    jdbc_properties = {
+        "user": os.getenv("POSTGRES_USER", "ott"),
+        "password": os.getenv("POSTGRES_PASSWORD", "ott_local_dev"),
+    }
+    pg_config = {
+        "host": postgres_host,
+        "port": postgres_port,
+        "dbname": postgres_db,
+        "user": jdbc_properties["user"],
+        "password": jdbc_properties["password"],
+    }
     try:
-        for table,config in TABLES.items():
-            path=config["path"]
-            df=spark.read.format("delta").load(path)
-            if date_arg and "viewing_date" in df.columns:
-                df=df.filter(f"viewing_date = DATE '{date_arg}'")
-            upsert_dataframe(df,table,config,jdbc_url,jdbc_properties,pg_config)
+        for table, config in TABLES.items():
+            path = config["path"]
+            if not DeltaTable.isDeltaTable(spark, path):
+                print(f"Skipping {table}; Delta path is not available: {path}")
+                continue
+            df = spark.read.format("delta").load(path)
+            if date_arg:
+                for date_column in ("viewing_date", "activity_date"):
+                    if date_column in df.columns:
+                        df = df.filter(F.col(date_column) == F.to_date(F.lit(date_arg)))
+                        break
+            upsert_dataframe(df, table, config, jdbc_url, jdbc_properties, pg_config)
     finally:
         spark.stop()
 

@@ -54,7 +54,8 @@ CREATE TABLE IF NOT EXISTS ottdw.stream_metrics (
     metric_ts TIMESTAMPTZ NOT NULL, query_name TEXT NOT NULL, topic TEXT,
     input_rows_per_second DOUBLE PRECISION, processed_rows_per_second DOUBLE PRECISION,
     batch_duration_ms BIGINT, event_time_max TIMESTAMPTZ, consumer_lag BIGINT,
-    freshness_seconds DOUBLE PRECISION, PRIMARY KEY (metric_ts, query_name)
+    freshness_seconds DOUBLE PRECISION,
+    PRIMARY KEY (metric_ts, query_name, topic)
 );
 CREATE TABLE IF NOT EXISTS ottdw.ad_pacing_alerts (
     alert_id TEXT PRIMARY KEY, alert_type TEXT NOT NULL, campaign_id TEXT, user_id TEXT,

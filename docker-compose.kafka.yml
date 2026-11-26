@@ -53,6 +53,7 @@ services:
     volumes:
       - postgres-data:/var/lib/postgresql/data
       - ./sql/001_warehouse.sql:/docker-entrypoint-initdb.d/001_warehouse.sql:ro
+      - ./sql/003_dashboard_views.sql:/docker-entrypoint-initdb.d/003_dashboard_views.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ott -d ottdw"]
       interval: 10s

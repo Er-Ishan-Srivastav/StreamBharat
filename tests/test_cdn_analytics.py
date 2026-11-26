@@ -20,8 +20,8 @@ def test_cdn_egress_aggregates_cost_and_missing_rates():
             StructField("content_id", StringType(), False),
         ])
         requests = spark.createDataFrame([
-            ("AkashCDN", "West", "2026-09-01T00:00:00", 200, 1024 ** 3, "C1"),
-            ("AkashCDN", "West", "2026-09-01T00:01:00", 404, 1024 ** 2, "C1"),
+            ("AkashCDN", "West", "2026-09-01T00:00:00", 200, 1_000_000_000, "C1"),
+            ("AkashCDN", "West", "2026-09-01T00:01:00", 404, 250_000_000, "C1"),
             ("NimbusEdge", "North", "2026-09-01T00:02:00", 503, 1024 ** 3, "C2"),
         ], request_schema)
         rate_schema = StructType([

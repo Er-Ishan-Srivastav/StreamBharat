@@ -7,7 +7,7 @@ from typing import Iterable
 
 from pyspark.sql import functions as F
 
-from .spark_session import create_spark
+from streambharat.spark_session import create_spark
 
 SOURCE_TOPICS = {
     "player_events": "ott.player.events",

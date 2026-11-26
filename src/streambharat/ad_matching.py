@@ -303,6 +303,11 @@ def run_ad_matching(
         delivery, campaign_day, hourly = build_ad_delivery(
             breaks, impressions, campaigns, content_genres
         )
+        if date_arg:
+            target_date = F.to_date(F.lit(date_arg))
+            delivery = delivery.filter(F.col("activity_date") == target_date)
+            campaign_day = campaign_day.filter(F.col("activity_date") == target_date)
+            hourly = hourly.filter(F.to_date("hour_start") == target_date)
         _write_delta(spark, delivery, delivery_path, ["delivery_id"], "activity_date", date_arg)
         _write_delta(spark, campaign_day, campaign_gold_path, ["activity_date", "campaign_id"], "activity_date", date_arg)
         _write_delta(spark, hourly, hourly_gold_path, ["hour_start"], "hour_start", date_arg)

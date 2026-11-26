@@ -99,6 +99,16 @@ event/arrival timestamps and the workbook's key fields. Player files are named
 by server-arrival date. Ad impressions are emitted according to their
 ad-break/impression timestamps.
 
+A durable SQLite acknowledgement ledger at
+`lake/state/kafka_replay.sqlite3` records source topic/file/line, payload hash,
+and acknowledged Kafka partition/offset. A normal rerun skips acknowledged
+records. If the raw source row changes at the same file/line identity, replay
+fails rather than silently publishing a different payload. Keep this state
+database with the local lake across normal reruns. The crash window between
+Kafka acknowledgement and SQLite commit remains at-least-once; downstream
+deduplication by business key is still required. Use a new state DB only when
+you intentionally want a full replay of a revised source dataset.
+
 Seven separate Structured Streaming queries write append-only Bronze Delta
 tables. Each preserves the raw value string, topic, partition, offset, broker
 timestamp, Kafka key, headers, ingestion timestamp and ingestion date. Each
@@ -124,7 +134,9 @@ proven from the broker.
 
 For continuous replay, start Bronze and DLQ without `--available-now` before
 replaying. For a completed replay, run them with `--available-now`. Preserve
-checkpoints across normal restarts.
+checkpoints across normal restarts. Daily DLQ counts are aggregated by source,
+reason and date into `lake/gold/dlq_metrics_daily` and served through
+`ottdw.v_dlq_metrics_daily`.
 
 ## Master/reference data and historical backfill
 

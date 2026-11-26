@@ -108,6 +108,7 @@ def test_revenue_reconciliation_matches_once_and_flags_exceptions(spark):
     subscription = spark.createDataFrame([
         ('{"event_id":"CH1","user_id":"U1","event_type":"subscribe","price":"100.00","event_ts":"2026-10-01T10:00:00"}',),
         ('{"event_id":"CH2","user_id":"U2","event_type":"renew","price":"200.00","event_ts":"2026-10-02T10:00:00"}',),
+        ('{"event_id":"CH3","user_id":"U4","event_type":"downgrade","price":"100.00","event_ts":"2026-10-03T10:00:00"}',),
     ], subscription_schema)
     settlement_schema = StructType([
         StructField("raw_value", StringType(), False),
@@ -116,6 +117,7 @@ def test_revenue_reconciliation_matches_once_and_flags_exceptions(spark):
         ('{"gateway":"G1","user_id":"U1","amount_inr":"100.00","settled_ts":"2026-10-01T11:00:00","event_type":"subscribe"}',),
         ('{"gateway":"G1","user_id":"U1","amount_inr":"100.00","settled_ts":"2026-10-01T12:00:00","event_type":"subscribe"}',),
         ('{"gateway":"G2","user_id":"U3","amount_inr":"500.00","settled_ts":"2026-10-01T12:00:00","event_type":"subscribe"}',),
+        ('{"gateway":"G3","user_id":"U4","amount_inr":"100.00","settled_ts":"2026-10-03T11:00:00","event_type":"downgrade"}',),
     ], settlement_schema)
 
     result = build_revenue_reconciliation(subscription, settlements)
@@ -125,6 +127,7 @@ def test_revenue_reconciliation_matches_once_and_flags_exceptions(spark):
     }
     assert statuses["CH1"] == "SETTLED"
     assert statuses["CH2"] == "UNSETTLED_CHARGE"
+    assert statuses["CH3"] == "SETTLED"
     assert list(statuses.values()).count("DUPLICATE_SETTLEMENT") == 1
     assert list(statuses.values()).count("ORPHAN_SETTLEMENT") == 1
 

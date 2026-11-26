@@ -384,6 +384,18 @@ docker compose -f docker-compose.kafka.yml exec workspace \
   bash scripts/run_bronze_ingest.sh --available-now
 ```
 
+Run the DLQ validator independently. It stores invalid source records in
+`lake/bronze/dlq` and publishes them to `ott.dlq`:
+
+```bash
+docker compose -f docker-compose.kafka.yml exec workspace \
+  bash scripts/run_dlq_ingest.sh --available-now
+```
+
+The Bronze and DLQ queries use independent checkpoints. For a full replay,
+run both after the source replay has completed; for continuous ingestion,
+start both in processing mode before the replay starts.
+
 Use `--available-now` for bounded replay/backfill consumption. Omit it for
 long-running processing-time ingestion. The Spark Kafka connector is fetched by
 `spark-submit` when first used; a working Maven repository connection is needed.

@@ -73,8 +73,8 @@ def _compute_backfill_offsets(spark, files: list[Path]):
     return (
         online.withColumn(
             "offset_seconds",
-            F.unix_timestamp(F.to_timestamp("server_ts"))
-            - F.unix_timestamp(F.to_timestamp("client_ts")),
+            F.unix_timestamp(F.to_timestamp("client_ts"))
+            - F.unix_timestamp(F.to_timestamp("server_ts")),
         )
         .groupBy("device_id")
         .agg(

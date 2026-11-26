@@ -96,15 +96,26 @@ def run_quality(
         for rule_name, severity, frame in violations:
             if frame.isEmpty():
                 continue
+            if "event_id" in frame.columns:
+                source_identity = F.col("event_id").cast("string")
+            elif "quarantine_id" in frame.columns:
+                source_identity = F.col("quarantine_id").cast("string")
+            else:
+                source_identity = F.sha2(F.to_json(F.struct(*frame.columns)), 256)
+            partition_identity = (
+                F.col("kafka_partition").cast("string")
+                if "kafka_partition" in frame.columns else F.lit("")
+            )
+            offset_identity = (
+                F.col("kafka_offset").cast("string")
+                if "kafka_offset" in frame.columns else F.lit("")
+            )
             quarantine = frame.withColumn(
                 "quarantine_id",
                 F.sha2(
                     F.concat_ws(
-                        "|",
-                        F.coalesce(F.col("event_id").cast("string"), F.lit("")),
-                        F.coalesce(F.col("kafka_partition").cast("string"), F.lit("")),
-                        F.coalesce(F.col("kafka_offset").cast("string"), F.lit("")),
-                        F.lit(rule_name),
+                        "|", source_identity,
+                        partition_identity, offset_identity, F.lit(rule_name),
                     ),
                     256,
                 ),

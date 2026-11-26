@@ -82,3 +82,14 @@ def test_invalid_ad_duration_is_checked_in_addition_to_cpm(spark):
     assert _validated(
         spark, "ads_impressions", [(valid,), (bad_duration,), (bad_cpm,)]
     ) == [None, "INVALID_DURATION", "INVALID_CPM_INR"]
+
+
+def test_unknown_subscription_transition_is_routed_to_dlq(spark):
+    valid = {
+        "user_id": "U7", "event_type": "downgrade", "plan": "basic",
+        "event_ts": "2026-10-15T10:00:00", "price": "99.00",
+    }
+    invalid = {**valid, "event_type": "mystery_transition"}
+    assert _validated(
+        spark, "billing_subscr", [(valid,), (invalid,)]
+    ) == [None, "UNKNOWN_SUBSCRIPTION_EVENT"]

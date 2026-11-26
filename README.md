@@ -6,11 +6,11 @@
 ![Delta Lake](https://img.shields.io/badge/Delta%20Lake-3.2.0-00A1E0)
 ![Project](https://img.shields.io/badge/Project-Data%20Engineering-6A5ACD)
 
-**A six-member, end-to-end data engineering project for a fictional Indian OTT platform.**
+**A six-member, end-to-end data engineering project for a fictional Indian OTT platform, extended with a local Kafka + Spark streaming path and a Postgres/Metabase serving foundation.**
 
 StreamBharat brings together playback, subscriptions, catalogue, search, advertising and CDN data to build a lakehouse-style analytics platform. This repository contains 20 question-specific implementations, a finite batch orchestrator, two separate file-based streaming jobs, deterministic business-rule tests and project documentation.
 
-> **Assignment scope:** Project 4 / Workbook 2 — *StreamBharat: OTT Streaming Analytics Platform*. The course-provided simulator writes JSON files for Spark Structured Streaming. Kafka, Airflow, PostgreSQL and Metabase are not prerequisites for this workbook's core implementation.
+> **Scope:** The original PySpark workbook remains the batch-processing baseline. The Kafka ETL workbook adds a second implementation track: seven source topics, two live topics, Bronze Delta ingestion, a Postgres warehouse and Metabase. The local Kafka extension is under active implementation; see the implementation status notes before treating it as fully validated.
 
 ## Contents
 
@@ -52,7 +52,7 @@ The fictional business scenario describes a large Indian OTT service. The suppli
 
 ## Platform at a glance
 
-The platform has two processing paths: a finite batch/lakehouse path and two independent long-running streaming demonstrations.
+The platform combines a finite batch/lakehouse path, two simulator-driven streaming jobs and a Kafka-based event path. The original file-source jobs remain available as a baseline.
 
 ```mermaid
 flowchart LR
@@ -95,7 +95,7 @@ flowchart LR
 
 **Live path:** the supplied simulator emits play and ad-impression JSON files. Q17 consumes play events to calculate trending; Q18 consumes ad impressions to calculate live frequency caps and spend pacing. Each stream has its own checkpoint and output.
 
-**Kafka extension:** a separate local Kafka path is being added for the live use cases. It bridges simulator events into `streambharat.plays` and `streambharat.ads`; Spark Structured Streaming reads those topics and reuses the Q17/Q18 Delta business sinks. See [Kafka integration guide](docs/implementation/kafka-streaming.md). The original file-source implementation remains the workbook baseline; Kafka runtime validation must be completed on the target environment.
+**Kafka extension:** local Kafka topics follow the ETL workbook contract: seven source topics, `ott.live.plays`, `ott.live.ads`, a DLQ, metrics/alert outputs and a compacted subscription-state topic. `streambharat.replay_kafka` replays the seven raw source feeds in timestamp order; `streambharat.bronze_ingest` writes append-only Bronze Delta tables. The live simulator bridge publishes to the two `ott.live.*` topics. See [Kafka integration guide](docs/implementation/kafka-streaming.md).
 
 ## Architecture
 
@@ -145,7 +145,7 @@ See [the complete question register](docs/questions-and-ownership.md) and [imple
 | pytest | Deterministic business-rule tests |
 | GitHub Actions | Python tests and compilation checks |
 
-This is a workbook-aligned stack. The repo does not claim a Kafka-based architecture or a deployed BI serving layer.
+The Kafka extension adds Apache Kafka 3.8 (KRaft), PySpark 3.5.3 with Delta Lake 3.2, PostgreSQL 16, Metabase and a Jupyter workspace for local development. Airflow remains a separate scheduling scaffold and is not yet an operational dependency of the local compose stack.
 
 ## Repository layout
 
@@ -366,6 +366,16 @@ the two live topics are distinct. The current simulator bridge feeds only
 docker compose -f docker-compose.kafka.yml exec workspace \
   python -m streambharat.kafka_producer --stream both
 ```
+
+
+Replay the seven October source feeds into the workbook-defined topics (run this after Kafka is healthy and topics have been created):
+
+```bash
+docker compose -f docker-compose.kafka.yml exec workspace \
+  python -m streambharat.replay_kafka --start-date 2026-10-01 --end-date 2026-10-31 --speed 0
+```
+
+For a small replay smoke test, add `--max-events 2000`. The replay reads from `data/raw/` and does not edit source files. Start the Bronze consumer before replay for continuous ingestion; for a completed replay, run the consumer afterward with `--available-now`.
 
 Start the seven Kafka-to-Delta Bronze consumers with:
 

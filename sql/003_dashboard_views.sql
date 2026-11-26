@@ -119,3 +119,10 @@ SELECT month, metric, actual_metric, published_value, actual_value,
        variance_absolute, variance_pct, tolerance_pct,
        reconciliation_status, investigation_hint, published_ts, compared_at
 FROM ottdw.published_metrics_reconciliation;
+
+
+CREATE OR REPLACE VIEW ottdw.v_dlq_metrics_daily AS
+SELECT activity_date, source_topic, reason_code,
+       invalid_records, affected_partitions,
+       first_seen_at, last_seen_at, first_offset, last_offset
+FROM ottdw.dlq_metrics_daily;

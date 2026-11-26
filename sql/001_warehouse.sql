@@ -20,8 +20,16 @@ CREATE TABLE IF NOT EXISTS ottdw.top_titles_daily (
 );
 CREATE TABLE IF NOT EXISTS ottdw.campaign_daily (
     activity_date DATE NOT NULL, campaign_id TEXT NOT NULL,
-    impressions BIGINT NOT NULL DEFAULT 0, spend_inr NUMERIC(18,2) NOT NULL DEFAULT 0,
-    daily_budget_inr NUMERIC(18,2), pacing_ratio NUMERIC(12,5), alert_status TEXT,
+    impressions BIGINT NOT NULL DEFAULT 0,
+    spend_inr NUMERIC(18,2) NOT NULL DEFAULT 0,
+    daily_budget_inr NUMERIC(18,2),
+    pacing_ratio NUMERIC(12,5),
+    unfilled_breaks BIGINT NOT NULL DEFAULT 0,
+    filled_missing_impression BIGINT NOT NULL DEFAULT 0,
+    orphan_impressions BIGINT NOT NULL DEFAULT 0,
+    frequency_cap_breaches BIGINT NOT NULL DEFAULT 0,
+    genre_mismatch_count BIGINT NOT NULL DEFAULT 0,
+    alert_status TEXT,
     refreshed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), PRIMARY KEY (activity_date, campaign_id)
 );
 CREATE TABLE IF NOT EXISTS ottdw.revenue_reconciliation (
@@ -134,3 +142,50 @@ CREATE TABLE IF NOT EXISTS ottdw.content_dropoff_daily (
     refreshed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     PRIMARY KEY (viewing_date, report_content_id, language)
 );
+
+
+-- Ad delivery facts retain the break/impression join result and Kafka lineage.
+CREATE TABLE IF NOT EXISTS ottdw.ad_delivery (
+    delivery_id TEXT PRIMARY KEY,
+    break_id TEXT,
+    impression_id TEXT,
+    campaign_id TEXT,
+    user_id TEXT,
+    profile_id TEXT,
+    content_id TEXT,
+    break_ts TIMESTAMPTZ,
+    ad_break_ts TIMESTAMPTZ,
+    duration_sec INTEGER,
+    completed INTEGER,
+    cpm_inr NUMERIC(18,4),
+    delivery_status TEXT NOT NULL,
+    genre_eligible BOOLEAN,
+    activity_date DATE,
+    spend_inr NUMERIC(18,4) NOT NULL DEFAULT 0,
+    break_partition INTEGER,
+    break_offset BIGINT,
+    impression_partition INTEGER,
+    impression_offset BIGINT,
+    refreshed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_ad_delivery_date_campaign
+    ON ottdw.ad_delivery(activity_date, campaign_id);
+CREATE INDEX IF NOT EXISTS idx_ad_delivery_user_campaign
+    ON ottdw.ad_delivery(user_id, campaign_id, activity_date);
+
+CREATE TABLE IF NOT EXISTS ottdw.ad_fill_rate_hourly (
+    hour_start TIMESTAMPTZ PRIMARY KEY,
+    total_breaks BIGINT NOT NULL,
+    filled_breaks BIGINT NOT NULL,
+    unfilled_breaks BIGINT NOT NULL,
+    fill_rate NUMERIC(8,5),
+    refreshed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Additive migration clauses keep an existing local Postgres volume upgradeable.
+ALTER TABLE ottdw.campaign_daily
+    ADD COLUMN IF NOT EXISTS unfilled_breaks BIGINT NOT NULL DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS filled_missing_impression BIGINT NOT NULL DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS orphan_impressions BIGINT NOT NULL DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS frequency_cap_breaches BIGINT NOT NULL DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS genre_mismatch_count BIGINT NOT NULL DEFAULT 0;

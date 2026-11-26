@@ -111,6 +111,12 @@ def reconcile(
         )
         report.write.format("delta").mode("overwrite").save(output_path)
         report.orderBy("source_topic", "kafka_partition").show(100, False)
+        failed_partitions = report.filter(~F.col("reconciled")).count()
+        if failed_partitions:
+            raise RuntimeError(
+                f"Bronze offset reconciliation failed for {failed_partitions} partition(s); "
+                f"inspect {output_path}"
+            )
     finally:
         spark.stop()
 

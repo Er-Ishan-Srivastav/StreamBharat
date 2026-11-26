@@ -45,7 +45,7 @@ TABLES = {
         "path": "lake/gold/revenue_reconciliation",
         "columns": ["charge_id","user_id","charge_amount","settlement_id","settlement_status","charge_ts","settlement_ts"],
         "keys": ["charge_id"],
-        "date_column": "charge_ts",
+        "date_columns": ["charge_ts", "settlement_ts"],
     },
     "royalties_quarterly": {
         "path": "lake/gold/royalties_quarterly",
@@ -161,23 +161,29 @@ def upsert_dataframe(
         f"ON CONFLICT ({key_columns}) {conflict_action}"
     )
 
-    date_column = config.get("date_column")
-    if date_arg and date_column:
-        if not re.fullmatch(r"[a-z_]+", date_column):
+    date_columns = config.get("date_columns") or (
+        [config["date_column"]] if config.get("date_column") else []
+    )
+    if date_arg and date_columns:
+        if any(not re.fullmatch(r"[a-z_]+", column) for column in date_columns):
             raise ValueError("Unsafe date column")
-        delete_sql = (
-            f"DELETE FROM ottdw.{table_name} "
-            f"WHERE DATE({date_column}) = %s"
+        date_predicates = " OR ".join(
+            f"DATE({column}) = %s" for column in date_columns
         )
+        delete_sql = (
+            f"DELETE FROM ottdw.{table_name} WHERE ({date_predicates})"
+        )
+        delete_params = tuple(date_arg for _ in date_columns)
     else:
         delete_sql = None
+        delete_params = ()
 
     conn = psycopg2.connect(**pg_config)
     try:
         with conn:
             with conn.cursor() as cursor:
                 if delete_sql:
-                    cursor.execute(delete_sql, (date_arg,))
+                    cursor.execute(delete_sql, delete_params)
                 cursor.execute(insert_sql)
                 cursor.execute(f"DROP TABLE ottdw.{stage}")
     except Exception:
@@ -224,10 +230,18 @@ def run_serving(date_arg: str | None = None):
                 print(f"Skipping {table}; Delta path is not available: {path}")
                 continue
             df = spark.read.format("delta").load(path)
-            if date_arg and config.get("date_column"):
-                date_column = config["date_column"]
-                if date_column in df.columns:
-                    df = df.filter(F.to_date(F.col(date_column)) == F.to_date(F.lit(date_arg)))
+            if date_arg:
+                date_columns = config.get("date_columns") or (
+                    [config["date_column"]] if config.get("date_column") else []
+                )
+                available_columns = [column for column in date_columns if column in df.columns]
+                if available_columns:
+                    date_condition = F.lit(False)
+                    for date_column in available_columns:
+                        date_condition = date_condition | (
+                            F.to_date(F.col(date_column)) == F.to_date(F.lit(date_arg))
+                        )
+                    df = df.filter(date_condition)
             upsert_dataframe(
                 df, table, config, jdbc_url, jdbc_properties, pg_config, date_arg
             )

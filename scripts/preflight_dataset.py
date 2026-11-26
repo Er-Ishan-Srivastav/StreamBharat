@@ -15,6 +15,8 @@ REQUIRED = {
     "ads_impressions": ("ads", "ad_impressions.csv"),
 }
 ADDITIONAL = (
+    ("users", "app/users.json"),
+    ("profiles", "app/profiles.json"),
     ("content catalogue", "content/catalog_2026-10-01.json"),
     ("genre mapping", "reference/genre_mapping.csv"),
     ("ad campaigns", "ads/ad_campaigns.csv"),

@@ -1,0 +1,15 @@
+.git
+.gitignore
+.venv
+venv
+__pycache__
+.pytest_cache
+.mypy_cache
+.ruff_cache
+.ipynb_checkpoints
+.idea
+.vscode
+data/raw
+data/stream
+lake
+*.pyc

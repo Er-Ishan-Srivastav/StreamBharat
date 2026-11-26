@@ -154,6 +154,7 @@ CREATE TABLE IF NOT EXISTS ottdw.ad_delivery (
     user_id TEXT,
     profile_id TEXT,
     content_id TEXT,
+    break_filled INTEGER,
     break_ts TIMESTAMPTZ,
     ad_break_ts TIMESTAMPTZ,
     duration_sec INTEGER,

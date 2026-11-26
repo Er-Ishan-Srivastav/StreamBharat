@@ -12,6 +12,7 @@ PYTHON = os.getenv("STREAMBHARAT_PYTHON", "python")
 BOOTSTRAP = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "kafka:29092")
 DATA_ROOT = os.getenv("STREAMBHARAT_DATA_ROOT", "/opt/streambharat/data/raw")
 LOGICAL_DATE = '{{ dag_run.conf.get("date", ds) }}'
+FULL_REFRESH = '{{ dag_run.conf.get("full_refresh", "false") | lower }}'
 REPLAY_START = '{{ dag_run.conf.get("start_date", ds) }}'
 REPLAY_END = '{{ dag_run.conf.get("end_date", ds) }}'
 
@@ -153,23 +154,22 @@ with DAG(
         task_id="gold_watch_time_dau_mau_top_titles",
         cwd=PROJECT_ROOT,
         bash_command=(
-            f"cd {PROJECT_ROOT} && {PYTHON} -m streambharat.gold_analytics "
-            "--player lake/silver/player_events "
-            "--catalog data/raw/content/catalog_2026-10-01.json "
-            f"--gold-root lake/gold --date '{LOGICAL_DATE}'"
+            f"cd {PROJECT_ROOT} && "
+            f"if [ '{FULL_REFRESH}' = 'true' ]; then "
+            f"{PYTHON} -m streambharat.gold_analytics --player lake/silver/player_events --catalog data/raw/content/catalog_2026-10-01.json --gold-root lake/gold ; "
+            f"else {PYTHON} -m streambharat.gold_analytics --player lake/silver/player_events --catalog data/raw/content/catalog_2026-10-01.json --gold-root lake/gold --date '{LOGICAL_DATE}'; fi"
         ),
     )
-
     sessions_gold = BashOperator(
         task_id="build_viewing_sessions_and_episode_dropoff",
         cwd=PROJECT_ROOT,
         bash_command=(
-            f"cd {PROJECT_ROOT} && {PYTHON} -m streambharat.session_analytics "
-            "--player lake/silver/player_events "
-            f"--date '{LOGICAL_DATE}'"
+            f"cd {PROJECT_ROOT} && "
+            f"if [ '{FULL_REFRESH}' = 'true' ]; then "
+            f"{PYTHON} -m streambharat.session_analytics --player lake/silver/player_events ; "
+            f"else {PYTHON} -m streambharat.session_analytics --player lake/silver/player_events --date '{LOGICAL_DATE}'; fi"
         ),
     )
-
     cdn_cost_gold = BashOperator(
         task_id="build_cdn_egress_and_regional_cost",
         cwd=PROJECT_ROOT,
@@ -185,11 +185,12 @@ with DAG(
         task_id="match_ad_breaks_and_impressions",
         cwd=PROJECT_ROOT,
         bash_command=(
-            f"cd {PROJECT_ROOT} && {PYTHON} -m streambharat.ad_matching "
-            f"--date '{LOGICAL_DATE}'"
+            f"cd {PROJECT_ROOT} && "
+            f"if [ '{FULL_REFRESH}' = 'true' ]; then "
+            f"{PYTHON} -m streambharat.ad_matching  ; "
+            f"else {PYTHON} -m streambharat.ad_matching  --date '{LOGICAL_DATE}'; fi"
         ),
     )
-
     finance_gold = BashOperator(
         task_id="reconcile_revenue_and_calculate_partner_royalties",
         cwd=PROJECT_ROOT,
@@ -226,11 +227,12 @@ with DAG(
         task_id="upsert_gold_and_silver_serving_tables_to_postgres",
         cwd=PROJECT_ROOT,
         bash_command=(
-            f"cd {PROJECT_ROOT} && {PYTHON} -m streambharat.serve_postgres "
-            f"--date '{LOGICAL_DATE}'"
+            f"cd {PROJECT_ROOT} && "
+            f"if [ '{FULL_REFRESH}' = 'true' ]; then "
+            f"{PYTHON} -m streambharat.serve_postgres  ; "
+            f"else {PYTHON} -m streambharat.serve_postgres  --date '{LOGICAL_DATE}'; fi"
         ),
     )
-
     preflight >> [create_topics, master_data]
     create_topics >> replay_sources >> bronze_ingestion
     bronze_ingestion >> [

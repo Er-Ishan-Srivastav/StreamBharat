@@ -128,7 +128,8 @@ def build_engagement_gold(
         & (F.col("position_delta") <= F.col("gap_seconds") + 5)
     )
     remaining_duration = F.greatest(
-        F.col("duration_sec") - F.col("previous_position").cast("double"),
+        F.coalesce(F.col("duration_sec"), F.lit(1.0e12))
+        - F.col("previous_position").cast("double"),
         F.lit(0.0),
     )
     ordered = ordered.withColumn(

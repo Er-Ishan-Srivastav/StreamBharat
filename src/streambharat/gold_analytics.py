@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import os
 
+from delta.tables import DeltaTable
 from pyspark.sql import Window
 from pyspark.sql import functions as F
 
@@ -16,6 +17,7 @@ def build_engagement_gold(
     player_path: str,
     catalog_path: str,
     gold_root: str,
+    date_arg: str | None = None,
 ) -> None:
     """Build watch-time, DAU/MAU and language-level top-title Gold tables."""
     events = spark.read.format("delta").load(player_path)
@@ -38,6 +40,12 @@ def build_engagement_gold(
         .withColumn("viewing_date", F.to_date("event_ts"))
         .filter(F.col("event_type").isin("start", "heartbeat", "pause", "stop", "complete"))
     )
+    target_date = F.to_date(F.lit(date_arg)) if date_arg else None
+    if date_arg:
+        events = events.filter(
+            (F.col("viewing_date") >= F.date_sub(target_date, 29))
+            & (F.col("viewing_date") <= target_date)
+        )
 
     catalog = read_catalog_snapshot(spark, catalog_path)
     content = (
@@ -145,8 +153,13 @@ def build_engagement_gold(
         ).otherwise(F.lit(0.0)),
     )
 
+    daily_ordered = ordered
+    history_ordered = ordered
+    if date_arg:
+        daily_ordered = ordered.filter(F.col("viewing_date") == target_date)
+
     watch_time = (
-        ordered.groupBy(
+        daily_ordered.groupBy(
             F.col("viewing_date"),
             "profile_id",
             "user_id",
@@ -172,23 +185,26 @@ def build_engagement_gold(
             "watched_seconds", "completion_rate",
         )
     )
-    watch_time.write.format("delta").mode("overwrite").save(
-        os.path.join(gold_root, "watch_time_daily")
-    )
+    _write_gold(watch_time, os.path.join(gold_root, "watch_time_daily"),
+                ["viewing_date", "profile_id", "content_id"], date_arg)
 
     daily_users = (
-        ordered.filter(F.col("event_type").isin("start", "heartbeat"))
+        history_ordered.filter(F.col("event_type").isin("start", "heartbeat"))
         .select(
             F.col("viewing_date").alias("activity_date"),
             "user_id",
         )
         .dropDuplicates()
     )
-    dau = daily_users.groupBy("activity_date").agg(
+    dau_input = (
+        daily_users.filter(F.col("activity_date") == target_date)
+        if date_arg else daily_users
+    )
+    dau = dau_input.groupBy("activity_date").agg(
         F.countDistinct("user_id").cast("long").alias("active_users")
     ).withColumn("metric_type", F.lit("DAU"))
 
-    days = daily_users.select("activity_date").distinct().alias("days")
+    days = dau_input.select("activity_date").distinct().alias("days")
     users = daily_users.alias("users")
     mau = (
         days.join(
@@ -207,12 +223,11 @@ def build_engagement_gold(
     active_users = dau.select("activity_date", "metric_type", "active_users").unionByName(
         mau.select("activity_date", "metric_type", "active_users")
     )
-    active_users.write.format("delta").mode("overwrite").save(
-        os.path.join(gold_root, "active_users_daily")
-    )
+    _write_gold(active_users, os.path.join(gold_root, "active_users_daily"),
+                ["activity_date", "metric_type"], date_arg)
 
     ranked_titles = (
-        ordered.filter(F.col("event_type").isin("start", "heartbeat"))
+        daily_ordered.filter(F.col("event_type").isin("start", "heartbeat"))
         .groupBy(
             F.col("viewing_date").alias("activity_date"),
             "language",
@@ -237,9 +252,27 @@ def build_engagement_gold(
             "title", "viewers", "watched_seconds",
         )
     )
-    top_titles.write.format("delta").mode("overwrite").save(
-        os.path.join(gold_root, "top_titles_daily")
-    )
+    _write_gold(top_titles, os.path.join(gold_root, "top_titles_daily"),
+                ["activity_date", "language", "rank_no"], date_arg)
+
+
+def _write_gold(frame, path: str, keys: list[str], date_arg: str | None) -> None:
+    if date_arg and DeltaTable.isDeltaTable(frame.sparkSession, path):
+        source = frame.dropDuplicates(keys)
+        (
+            DeltaTable.forPath(frame.sparkSession, path).alias("target")
+            .merge(
+                source.alias("source"),
+                " AND ".join(f"target.{key} = source.{key}" for key in keys),
+            )
+            .whenMatchedUpdateAll()
+            .whenNotMatchedInsertAll()
+            .execute()
+        )
+    else:
+        frame.write.format("delta").mode("overwrite").option(
+            "overwriteSchema", "true"
+        ).save(path)
 
 
 def main() -> None:
@@ -249,11 +282,12 @@ def main() -> None:
     parser.add_argument("--player", default="lake/silver/player_events")
     parser.add_argument("--catalog", default="data/raw/content/catalog_2026-10-01.json")
     parser.add_argument("--gold-root", default="lake/gold")
+    parser.add_argument("--date", help="Recompute one viewing date; MAU includes the prior 29 days")
     args = parser.parse_args()
 
     spark = create_spark("StreamBharat-Gold-Engagement-Analytics")
     try:
-        build_engagement_gold(spark, args.player, args.catalog, args.gold_root)
+        build_engagement_gold(spark, args.player, args.catalog, args.gold_root, args.date)
     finally:
         spark.stop()
 

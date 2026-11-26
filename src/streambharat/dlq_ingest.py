@@ -10,8 +10,8 @@ from pyspark.sql import DataFrame
 from pyspark.sql import functions as F
 from pyspark.sql.types import MapType, StringType
 
-from .bronze_ingest import SOURCE_TOPICS
-from .spark_session import create_spark
+from streambharat.bronze_ingest import SOURCE_TOPICS
+from streambharat.spark_session import create_spark
 
 # Required fields and event-time columns follow the Kafka ETL workbook's raw
 # source contracts. Player position is versioned: v1 uses position_sec and v2

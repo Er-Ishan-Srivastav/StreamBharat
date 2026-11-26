@@ -77,17 +77,21 @@ def build_historical_baseline(
     historical = (
         historical.join(F.broadcast(catalog_df), "content_id", "inner")
         .withColumn("hour_of_day", F.hour("event_ts"))
-        .groupBy("content_id", "language", "hour_of_day", "event_date")
+        .withColumn(
+            "baseline_window_start",
+            F.window("event_ts", f"{window_minutes} minutes").getField("start"),
+        )
+        .groupBy(
+            "content_id", "language", "hour_of_day",
+            "event_date", "baseline_window_start",
+        )
         .agg(F.countDistinct("profile_id").alias("window_unique_viewers"))
     )
     baseline_column = f"baseline_avg_{window_minutes}m_viewers"
     baseline = historical.groupBy(
         "content_id", "language", "hour_of_day"
     ).agg(
-        (
-            F.avg("window_unique_viewers")
-            / F.lit(60.0 / float(window_minutes))
-        ).alias(baseline_column)
+        F.avg("window_unique_viewers").alias(baseline_column)
     )
     baseline.write.format("delta").mode("overwrite").save(output_path)
 

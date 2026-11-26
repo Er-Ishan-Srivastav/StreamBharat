@@ -49,10 +49,9 @@ def test_licence_rule_uses_viewer_state_and_event_date():
         violations = classify_player_quality(
             player, titles, profiles, licences, city_state
         )
-        licence_rows = next(
-            frame for frame in violations
-            if frame.select("rule_name").first()["rule_name"] == "LICENCE_EXPIRED_FOR_STATE"
-        )
+        # The classifier returns frames in RULES order:
+        # UNKNOWN_CONTENT, KIDS_AGE_RESTRICTION, LICENCE_EXPIRED_FOR_STATE, ...
+        licence_rows = violations[2]
         assert [row.event_id for row in licence_rows.select("event_id").collect()] == ["E2"]
     finally:
         spark.stop()

@@ -136,6 +136,39 @@ offline downloads, records corrected event and arrival dates, and MERGEs by even
 Malformed or un-timestamped events are written to a separate quarantine path. The device
 offset table is retained for audit.
 
+## Subscription SCD2 and seven-day payment grace period
+
+Run the subscription state rebuild after the subscription Bronze table is available:
+
+```bash
+python -m streambharat.subscription_state \
+  --bronze lake/bronze/billing_subscr \
+  --silver lake/silver/subscriptions \
+  --churn lake/gold/subscription_churn \
+  --bootstrap-servers localhost:9092
+```
+
+The job parses subscription event type, user, plan and event timestamp. It canonicalises
+trial, active/renewal, paused, payment-failed and cancellation events, deduplicates by
+event_id (or a deterministic event fingerprint), and orders events by event time. It
+rebuilds a valid-from/valid-to SCD2 history and preserves Kafka partition/offset lineage.
+
+A payment-failed event enters payment_failed rather than churn immediately. If an active
+or renewal event occurs within seven days in event time, the failure state ends at that
+renewal and no synthetic churn is emitted. Otherwise, a deterministic synthetic cancelled
+state is created at failure timestamp + 7 days and classified as involuntary churn.
+Explicit cancellation events are voluntary churn. Late-arriving source events cause the
+history to be rebuilt in event-time order so valid_to boundaries are recalculated.
+
+The current state per user is published to ott.ref.subscription_state with user_id as the
+Kafka key. The topic is compacted by key. Malformed or unrecognised subscription events
+are MERGEd into lake/bronze/dlq/subscriptions and sent to ott.dlq using the stable
+source-topic/partition/offset identifier.
+
+The current implementation is a deterministic full-history rebuild from Bronze, which is
+easy to re-run safely for this learning dataset. It is not yet a streaming incremental SCD2
+processor optimised for production-scale history.
+
 ## Live Kafka event path
 
 The simulator creates completed JSONL files under data/stream/plays and data/stream/ads.
@@ -188,7 +221,7 @@ lake/_checkpoints/dlq_live_*.
   Both output topics are compacted by key.
 - This platform is at-least-once with idempotent Delta effects. There is no claim of an
   atomic exactly-once transaction spanning Kafka offsets, Delta and Postgres.
-- Airflow is still a scaffold, not yet wired to invoke every job in this Kafka ETL workbook.
+- Airflow now runs the implemented replay, Bronze/DLQ, player/subscription Silver, Gold engagement, offset reconciliation and Postgres serving tasks. It does not orchestrate all twenty workbook requirements yet.
 - PostgreSQL DDL and dashboard question specifications are present, but Gold-to-Postgres
   loads and a saved Metabase dashboard still need runtime verification.
 - The local stack is one Kafka broker and one local-mode Spark process. It is not
@@ -211,11 +244,11 @@ lake/_checkpoints/dlq_live_*.
 
 ## Remaining Kafka workbook work
 
-The following are not complete in this implementation slice: subscription SCD2/state
-machine and compacted reference producer, full nested catalog/licence/user dimension
-loading, July–September player backfill, real-time sessionisation, ad break/impression
-stream join and target-genre checks, complete Gold watch-time/active-user/revenue/royalty
-tables, a production-grade Airflow DAG, stream metrics/lag monitoring, and failure drills.
+The following are not complete in this implementation slice: full nested catalog/licence/user
+dimension loading, July–September player backfill, real-time sessionisation, ad break/impression
+stream join and target-genre checks, complete Gold revenue/royalty reconciliation, full
+Airflow coverage for all workbook jobs, stream metrics/lag monitoring, saved Metabase
+dashboard provisioning, and failure/performance drills.
 These require additional modules and runtime validation against the supplied dataset.
 
 ## References

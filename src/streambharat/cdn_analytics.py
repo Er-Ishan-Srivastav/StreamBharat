@@ -37,7 +37,7 @@ def build_cdn_egress_daily(
         .withColumn("region_key", F.lower(F.trim("region")))
         .withColumn("bytes", F.col("bytes").cast("long"))
         .join(rate_rows, ["cdn_key", "region_key"], "left")
-        .withColumn("egress_gb", F.col("bytes") / F.lit(1024.0 ** 3))
+        .withColumn("egress_gb", F.col("bytes") / F.lit(1_000_000_000.0))
         .withColumn(
             "cost_inr",
             F.col("egress_gb") * F.col("rate_inr_per_gb"),

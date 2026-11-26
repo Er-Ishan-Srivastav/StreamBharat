@@ -37,13 +37,13 @@ services:
       PYSPARK_PYTHON: python
       SPARK_LOCAL_IP: 127.0.0.1
       SPARK_SHUFFLE_PARTITIONS: "8"
-      SPARK_EXTRA_PACKAGES: org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.3
+      SPARK_EXTRA_PACKAGES: org.postgresql:postgresql:42.7.4
       KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       POSTGRES_HOST: postgres
       POSTGRES_PORT: "5432"
       POSTGRES_DB: ottdw
       POSTGRES_USER: ott
-      POSTGRES_PASSWORD: ott_local_dev
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ott_local_dev}
     command:
       - bash
       - -c

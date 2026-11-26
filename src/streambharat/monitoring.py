@@ -115,7 +115,8 @@ class StreamingMetricsListener(StreamingQueryListener):
                 duration_map = progress.durationMs or {}
                 trigger_duration = int(duration_map.get("triggerExecution", 0) or 0)
                 query_name = progress.name or str(progress.id)
-                rows = []
+                topic_lags: dict[str, int] = {}
+                topic_lag_complete: dict[str, bool] = {}
                 for topic, partition, processed_end_offset in offsets:
                     try:
                         _, high_watermark = consumer.get_watermark_offsets(
@@ -124,12 +125,17 @@ class StreamingMetricsListener(StreamingQueryListener):
                             cached=False,
                         )
                         lag = max(int(high_watermark) - processed_end_offset, 0)
+                        topic_lags[topic] = topic_lags.get(topic, 0) + lag
+                        topic_lag_complete[topic] = topic_lag_complete.get(topic, True)
                     except Exception as exc:  # broker metadata may be unavailable during recovery
                         LOG.warning(
                             "Could not obtain Kafka watermark for %s-%s: %s",
                             topic, partition, exc,
                         )
-                        lag = None
+                        topic_lag_complete[topic] = False
+
+                rows = []
+                for topic, lag_sum in topic_lags.items():
                     rows.append((
                         metric_ts,
                         query_name,
@@ -139,7 +145,7 @@ class StreamingMetricsListener(StreamingQueryListener):
                         float(progress.processedRowsPerSecond or 0.0),
                         trigger_duration,
                         event_time,
-                        lag,
+                        lag_sum if topic_lag_complete.get(topic, False) else None,
                         freshness,
                     ))
             finally:

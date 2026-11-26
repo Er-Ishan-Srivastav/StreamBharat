@@ -172,7 +172,7 @@ def build_ad_delivery(
                 ) > 0
             ),
         )
-        .withColumn("activity_date", F.to_date(F.coalesce("ad_break_ts", "break_ts")))
+        .withColumn("activity_date", F.to_date(F.coalesce("break_ts", "ad_break_ts")))
         .withColumn(
             "spend_inr",
             F.when(
@@ -277,7 +277,10 @@ def run_ad_matching(
         if date_arg:
             target_date = F.to_date(F.lit(date_arg))
             breaks = breaks.filter(F.to_date("break_ts") == target_date)
-            impressions = impressions.filter(F.to_date("ad_break_ts") == target_date)
+            # An impression can be logged after midnight for the previous day's break.
+            impressions = impressions.filter(
+                F.to_date("ad_break_ts").between(target_date, F.date_add(target_date, 1))
+            )
         campaigns = spark.read.option("header", True).option("inferSchema", True).csv(campaigns_path)
         catalog = read_catalog_snapshot(spark, catalog_path)
         mapping_path = os.path.join(os.path.dirname(os.path.dirname(campaigns_path)), "reference", "genre_mapping.csv")

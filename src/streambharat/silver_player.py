@@ -51,7 +51,7 @@ def transform_player_events(bronze_df, device_offsets=None):
         .withColumn("server_time", F.to_timestamp("server_ts"))
     )
 
-    # Offset is server time minus client time. Subtract it to correct online client time.
+    # Offset is client clock minus server reference. Subtract it to correct online client time.
     online = expanded.filter(
         (F.col("download_id").isNull()) | (F.trim("download_id") == "")
     ).filter(
@@ -62,7 +62,7 @@ def transform_player_events(bronze_df, device_offsets=None):
     computed_offsets = (
         online.withColumn(
             "offset_seconds",
-            F.unix_timestamp("server_time") - F.unix_timestamp("client_time")
+            F.unix_timestamp("client_time") - F.unix_timestamp("server_time")
         )
         .groupBy("device_id")
         .agg(F.expr("percentile_approx(offset_seconds, 0.5)").alias("median_clock_offset_seconds"))

@@ -254,3 +254,20 @@ CREATE TABLE IF NOT EXISTS ottdw.published_metrics_reconciliation (
 );
 CREATE INDEX IF NOT EXISTS idx_published_metrics_status_month
     ON ottdw.published_metrics_reconciliation(reconciliation_status, month DESC);
+
+
+CREATE TABLE IF NOT EXISTS ottdw.dlq_metrics_daily (
+    activity_date DATE NOT NULL,
+    source_topic TEXT NOT NULL,
+    reason_code TEXT NOT NULL,
+    invalid_records BIGINT NOT NULL,
+    affected_partitions BIGINT NOT NULL,
+    first_seen_at TIMESTAMPTZ,
+    last_seen_at TIMESTAMPTZ,
+    first_offset BIGINT,
+    last_offset BIGINT,
+    refreshed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (activity_date, source_topic, reason_code)
+);
+CREATE INDEX IF NOT EXISTS idx_dlq_metrics_reason_date
+    ON ottdw.dlq_metrics_daily(reason_code, activity_date DESC);

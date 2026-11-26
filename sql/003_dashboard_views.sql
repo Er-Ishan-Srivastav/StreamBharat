@@ -112,3 +112,10 @@ SELECT date_trunc('month', activity_date)::date AS month_start,
        SUM(missing_rate_requests) AS missing_rate_requests
 FROM ottdw.cdn_egress_daily
 GROUP BY 1, 2, 3;
+
+
+CREATE OR REPLACE VIEW ottdw.v_published_metric_variance AS
+SELECT month, metric, actual_metric, published_value, actual_value,
+       variance_absolute, variance_pct, tolerance_pct,
+       reconciliation_status, investigation_hint, published_ts, compared_at
+FROM ottdw.published_metrics_reconciliation;

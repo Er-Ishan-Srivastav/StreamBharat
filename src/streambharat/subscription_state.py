@@ -211,7 +211,7 @@ def build_subscription_history(events: DataFrame) -> DataFrame:
         .select(
             "user_id", "plan", "status", "event_id", "event_type",
             "valid_from", "valid_to", "is_current", "churn_type",
-            "is_synthetic",
+            "is_synthetic", "kafka_timestamp", "kafka_partition", "kafka_offset",
         )
     )
     return history

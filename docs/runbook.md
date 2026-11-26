@@ -2,16 +2,13 @@
 
 ## Start of day
 
-1. Copy `.env.example` to `.env` and replace local-only passwords/tokens.
-2. Keep the raw dataset in `data/raw/`; do not modify it.
-3. Start the local Kafka, Postgres, Spark workspace and Metabase stack:
-   `docker compose -f docker-compose.kafka.yml up -d --build`.
-4. Run dataset preflight:
-   `docker compose -f docker-compose.kafka.yml exec workspace python scripts/preflight_dataset.py --data-root data/raw`.
-5. Start Airflow after the Kafka stack has created the shared network:
-   `docker compose -f docker-compose.airflow.yml up -d --build`.
-6. Verify health with `docker compose ps` in each Compose project.
-7. Run `pytest -q` in the workspace before triggering a full data run.
+1. Keep the raw dataset in `data/raw/`; do not modify it.
+2. Run `bash scripts/start_local_stack.sh`. It creates `.env` from the template
+   if needed, starts the local services, checks source files and starts Airflow.
+3. Verify health with `docker compose -f docker-compose.kafka.yml ps` and
+   `docker compose -f docker-compose.airflow.yml ps`.
+4. Run `docker compose -f docker-compose.kafka.yml exec workspace pytest -q`
+   before triggering a full data run.
 
 ## Scheduled batch pipeline
 

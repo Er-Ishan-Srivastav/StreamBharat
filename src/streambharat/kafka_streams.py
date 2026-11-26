@@ -10,13 +10,13 @@ from pyspark.sql import DataFrame
 from pyspark.sql import functions as F
 from pyspark.sql.types import DoubleType, IntegerType, StringType, StructType
 
-from .q17_trending import (
+from streambharat.q17_trending import (
     PLAYS_SCHEMA,
     _persist_and_recompute_trends,
     build_historical_baseline,
 )
-from .q18_live_ad_pacing import AD_SCHEMA, _process_ads_batch
-from .spark_session import create_spark
+from streambharat.q18_live_ad_pacing import AD_SCHEMA, _process_ads_batch
+from streambharat.spark_session import create_spark
 
 LIVE_REQUIRED_FIELDS = {
     "plays": (

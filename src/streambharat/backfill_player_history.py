@@ -131,6 +131,7 @@ def run_backfill(
     offsets_path: str = "lake/silver/device_clock_offsets_backfill",
     reconciliation_path: str = "lake/gold/recon_player_daily",
     september_late_path: str = "lake/gold/recon_september_arrivals",
+    manifest_path: str = "lake/silver/player_backfill_files",
 ) -> dict[str, int]:
     """MERGE file-day batches by event_id; rerunning any day does not duplicate rows."""
     files = select_arrival_files(data_root, start_date, end_date)
@@ -142,7 +143,17 @@ def run_backfill(
             "overwriteSchema", "true"
         ).save(offsets_path)
 
+        completed = set()
+        if DeltaTable.isDeltaTable(spark, manifest_path):
+            completed = {
+                row["source_file"]
+                for row in spark.read.format("delta").load(manifest_path).select("source_file").collect()
+            }
+
         for path in files:
+            if path.name in completed:
+                print(f"Backfill already complete; skipping {path.name}")
+                continue
             raw = _read_arrival_file(spark, path)
             conformed, _ = transform_player_events(raw, device_offsets=offsets)
             valid = conformed.filter(
@@ -151,6 +162,20 @@ def run_backfill(
             )
             merge_silver(spark, valid, silver_path)
             counts[path.name] = raw.count()
+            manifest_row = spark.createDataFrame(
+                [(path.name, str(path), counts[path.name])],
+                ["source_file", "source_path", "source_rows"],
+            ).withColumn("completed_at", F.current_timestamp())
+            if DeltaTable.isDeltaTable(spark, manifest_path):
+                (
+                    DeltaTable.forPath(spark, manifest_path).alias("target")
+                    .merge(manifest_row.alias("source"), "target.source_file = source.source_file")
+                    .whenMatchedUpdateAll()
+                    .whenNotMatchedInsertAll()
+                    .execute()
+                )
+            else:
+                manifest_row.write.format("delta").mode("append").save(manifest_path)
             print(f"Backfill merged {path.name}: {counts[path.name]:,} source records")
 
         silver = spark.read.format("delta").load(silver_path)
@@ -186,10 +211,11 @@ def main() -> None:
     parser.add_argument("--offsets", default="lake/silver/device_clock_offsets_backfill")
     parser.add_argument("--reconciliation", default="lake/gold/recon_player_daily")
     parser.add_argument("--september-late", default="lake/gold/recon_september_arrivals")
+    parser.add_argument("--manifest", default="lake/silver/player_backfill_files")
     args = parser.parse_args()
     run_backfill(
         args.data_root, args.start_date, args.end_date, args.silver,
-        args.offsets, args.reconciliation, args.september_late,
+        args.offsets, args.reconciliation, args.september_late, args.manifest,
     )
 
 

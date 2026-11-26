@@ -117,7 +117,7 @@ def classify_subscription_quality(
         subscription.plan == plans.reference_plan,
         "left",
     )
-    charge_event = F.lower(F.col("event_type")).isin("subscribe", "renew", "upgrade")
+    charge_event = F.lower(F.col("event_type")).isin("subscribe", "renew", "upgrade", "downgrade")
     return (
         compared.filter(
             charge_event

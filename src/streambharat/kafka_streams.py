@@ -1,4 +1,4 @@
-"""Kafka sources for Spark Q17/Q18, preserving existing Delta business sinks."""
+"""Kafka Structured Streaming adapters for Q17/Q18 with isolated DLQ writers."""
 from __future__ import annotations
 
 import argparse
@@ -14,12 +14,18 @@ from .spark_session import create_spark
 
 
 def kafka_json_stream(spark, topic: str, schema: StructType, bootstrap_servers: str,
-                      starting_offsets: str = "earliest"):
+                      starting_offsets: str = "earliest", dlq_path: str | None = None):
+    """Read Kafka records and parse values while preserving broker lineage.
+
+    Invalid payloads go to a separate query with its own checkpoint; they do not
+    get silently dropped or block the valid event query.
+    """
     raw = (
         spark.readStream.format("kafka")
         .option("kafka.bootstrap.servers", bootstrap_servers)
         .option("subscribe", topic)
         .option("startingOffsets", starting_offsets)
+        .option("includeHeaders", "true")
         .option("failOnDataLoss", "false")
         .load()
     )
@@ -30,33 +36,43 @@ def kafka_json_stream(spark, topic: str, schema: StructType, bootstrap_servers: 
         F.col("partition").alias("_kafka_partition"),
         F.col("offset").alias("_kafka_offset"),
         F.col("timestamp").alias("_kafka_timestamp"),
+        F.to_json(F.col("headers")).alias("_kafka_headers_json"),
     ).withColumn("_payload", F.from_json(F.col("_json"), schema))
-    invalid_path = os.getenv("KAFKA_DLQ_PATH", "data/delta/quality/kafka_invalid_events")
+
+    invalid_path = dlq_path or os.getenv(
+        "KAFKA_DLQ_PATH", "data/delta/quality/kafka_invalid_events"
+    )
+    invalid_checkpoint = os.getenv(
+        "KAFKA_DLQ_CHECKPOINT",
+        "data/checkpoints/kafka_dlq_" + topic.replace(".", "_")
+    )
+
     def quarantine_invalid(batch_df, batch_id):
         invalid = batch_df.filter(F.col("_payload").isNull()).select(
             F.col("_kafka_key"),
-            F.col("_json"),
-            F.col("_kafka_topic"),
-            F.col("_kafka_partition").cast("string").alias("_kafka_partition"),
-            F.col("_kafka_offset").cast("string").alias("_kafka_offset"),
-            F.col("_kafka_timestamp").cast("string").alias("_kafka_timestamp"),
-        ).withColumn("batch_id", F.lit(batch_id)).withColumn("quarantined_at", F.current_timestamp())
+            F.col("_json").alias("raw_value"),
+            F.col("_kafka_topic").alias("source_topic"),
+            F.col("_kafka_partition"),
+            F.col("_kafka_offset"),
+            F.col("_kafka_timestamp"),
+            F.col("_kafka_headers_json"),
+        ).withColumn("reason_code", F.lit("INVALID_JSON_OR_SCHEMA")) \
+         .withColumn("batch_id", F.lit(batch_id)) \
+         .withColumn("quarantined_at", F.current_timestamp())
         if not invalid.isEmpty():
             invalid.write.format("delta").mode("append").save(invalid_path)
 
-    # Keep invalid payloads on a parallel query so valid business records continue.
-    invalid_stream = decoded.filter(F.col("_payload").isNull())
     invalid_query = (
-        invalid_stream.writeStream.foreachBatch(quarantine_invalid)
-        .option("checkpointLocation", os.getenv(
-            "KAFKA_DLQ_CHECKPOINT", "data/checkpoints/kafka_dlq_" + topic.replace(".", "_")
-        ))
+        decoded.filter(F.col("_payload").isNull())
+        .writeStream.foreachBatch(quarantine_invalid)
+        .option("checkpointLocation", invalid_checkpoint)
         .queryName("streambharat_kafka_dlq_" + topic.replace(".", "_"))
         .start()
     )
+
     return decoded.filter(F.col("_payload").isNotNull()).select(
         "_kafka_key", "_kafka_topic", "_kafka_partition", "_kafka_offset",
-        "_kafka_timestamp", "_json", "_payload.*"
+        "_kafka_timestamp", "_kafka_headers_json", "_json", "_payload.*"
     )
 
 
@@ -143,14 +159,14 @@ def main():
 
     if args.stream == "plays":
         run_plays(
-            args.bootstrap_servers, args.topic or "streambharat.plays",
+            args.bootstrap_servers, args.topic or "ott.live.plays",
             args.checkpoint or "data/checkpoints/kafka_q17",
             args.bronze, args.catalog, args.baseline, args.output,
             args.starting_offsets, args.as_of, args.min_viewers, args.top_n, args.late_minutes
         )
     else:
         run_ads(
-            args.bootstrap_servers, args.topic or "streambharat.ads",
+            args.bootstrap_servers, args.topic or "ott.live.ads",
             args.checkpoint or "data/checkpoints/kafka_q18", args.campaigns,
             args.ledger, args.cap_state, args.spend_state, args.capped, args.alerts,
             args.match_start, args.match_hours, args.starting_offsets

@@ -3,25 +3,10 @@ from __future__ import annotations
 
 import argparse
 import os
-from confluent_kafka.admin import AdminClient
 from pyspark.sql import functions as F
 
 from .spark_session import create_spark
 from .bronze_ingest import SOURCE_TOPICS
-
-
-def kafka_watermarks(bootstrap_servers: str, topics: list[str]):
-    admin = AdminClient({"bootstrap.servers": bootstrap_servers})
-    metadata = admin.list_topics(timeout=20)
-    result = []
-    for topic in topics:
-        topic_meta = metadata.topics.get(topic)
-        if topic_meta is None:
-            continue
-        for partition_id in topic_meta.partitions:
-            low, high = admin.list_topics  # keep the contract explicit; fetch via consumer below
-            result.append((topic, partition_id))
-    return result
 
 
 def read_offset_ranges(bootstrap_servers: str, topics: list[str]):

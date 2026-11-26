@@ -227,27 +227,26 @@ def run_session_analytics(
         if date_arg:
             sessions = sessions.filter(F.col("viewing_date") == target_date)
             dropoff = dropoff.filter(F.col("viewing_date") == target_date)
-        _write_delta(spark, sessions, session_path, ["session_id"], date_arg)
+        _write_delta(
+            spark, sessions, session_path, ["session_id"], "viewing_date", date_arg
+        )
         _write_delta(
             spark, dropoff, dropoff_path,
-            ["viewing_date", "report_content_id", "language"], date_arg,
+            ["viewing_date", "report_content_id", "language"], "viewing_date", date_arg,
         )
     finally:
         spark.stop()
 
 
-def _write_delta(spark, frame: DataFrame, path: str, keys: list[str], date_arg: str | None):
+def _write_delta(
+    spark, frame: DataFrame, path: str, keys: list[str],
+    date_column: str, date_arg: str | None,
+):
     if date_arg and DeltaTable.isDeltaTable(spark, path):
-        (
-            DeltaTable.forPath(spark, path).alias("target")
-            .merge(
-                frame.dropDuplicates(keys).alias("source"),
-                " AND ".join(f"target.{key} = source.{key}" for key in keys),
-            )
-            .whenMatchedUpdateAll()
-            .whenNotMatchedInsertAll()
-            .execute()
+        DeltaTable.forPath(spark, path).delete(
+            F.to_date(F.col(date_column)) == F.to_date(F.lit(date_arg))
         )
+        frame.dropDuplicates(keys).write.format("delta").mode("append").save(path)
     else:
         frame.write.format("delta").mode("overwrite").option(
             "overwriteSchema", "true"

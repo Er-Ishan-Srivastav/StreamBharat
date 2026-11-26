@@ -40,12 +40,26 @@ def classify_player_quality(
         licence_map = licences_df.select(
             "content_id",
             F.col("region").alias("licence_state"),
+            F.to_date("licence_start").alias("licence_start"),
             F.to_date("licence_end").alias("licence_end"),
+            F.lit(1).alias("valid_licence_match"),
+        )
+        event_date = F.to_date(enriched.event_ts_corrected)
+        active_licence_condition = (
+            (enriched.content_id == licence_map.content_id)
+            & (enriched.viewing_state == licence_map.licence_state)
+            & (
+                licence_map.licence_start.isNull()
+                | (event_date >= licence_map.licence_start)
+            )
+            & (
+                licence_map.licence_end.isNull()
+                | (event_date <= licence_map.licence_end)
+            )
         )
         enriched = enriched.join(
             licence_map,
-            (enriched.content_id == licence_map.content_id)
-            & (enriched.viewing_state == licence_map.licence_state),
+            active_licence_condition,
             "left",
         ).drop(licence_map.content_id)
 
@@ -63,8 +77,7 @@ def classify_player_quality(
         ),
         (
             "LICENCE_EXPIRED_FOR_STATE",
-            F.col("licence_end").isNotNull()
-            & (F.to_date("event_ts_corrected") > F.col("licence_end")),
+            F.col("valid_licence_match").isNull(),
             "FAIL",
         ),
         (
@@ -77,7 +90,7 @@ def classify_player_quality(
     ]
     violations = []
     for rule_name, condition, severity in rules:
-        if rule_name == "LICENCE_EXPIRED_FOR_STATE" and "licence_end" not in enriched.columns:
+        if rule_name == "LICENCE_EXPIRED_FOR_STATE" and "valid_licence_match" not in enriched.columns:
             continue
         violations.append(
             enriched.filter(condition)

@@ -20,10 +20,16 @@ SOURCE_TOPICS = {
 }
 
 
-def build_bronze_stream(spark, topic: str, bootstrap_servers: str,
-                        starting_offsets: str = "earliest",
-                        max_offsets_per_trigger: int = 50000):
-    """Raw Kafka envelope; payload remains an unparsed UTF-8 string."""
+def build_bronze_stream(
+    spark,
+    topic: str,
+    bootstrap_servers: str,
+    starting_offsets: str = "earliest",
+    max_offsets_per_trigger: int = 50000,
+):
+    """Read the raw Kafka envelope without parsing or changing its payload."""
+    if max_offsets_per_trigger < 1:
+        raise ValueError("max_offsets_per_trigger must be positive")
     return (
         spark.readStream.format("kafka")
         .option("kafka.bootstrap.servers", bootstrap_servers)
@@ -31,7 +37,7 @@ def build_bronze_stream(spark, topic: str, bootstrap_servers: str,
         .option("startingOffsets", starting_offsets)
         .option("includeHeaders", "true")
         .option("maxOffsetsPerTrigger", max_offsets_per_trigger)
-        .option("failOnDataLoss", "false")
+        .option("failOnDataLoss", "true")
         .load()
         .select(
             F.col("value").cast("string").alias("raw_value"),
@@ -40,21 +46,27 @@ def build_bronze_stream(spark, topic: str, bootstrap_servers: str,
             F.col("offset").alias("kafka_offset"),
             F.col("timestamp").alias("kafka_timestamp"),
             F.col("key").cast("string").alias("kafka_key"),
+            F.col("headers").alias("kafka_headers"),
             F.to_json(F.col("headers")).alias("kafka_headers_json"),
-        ).withColumn("kafka_headers", F.col("headers"))
+        )
         .withColumn("ingested_at", F.current_timestamp())
         .withColumn("ingestion_date", F.to_date("ingested_at"))
     )
 
 
-def start_topic_query(spark, topic_name: str, topic: str, bootstrap_servers: str,
-                      base_path: str, checkpoint_root: str,
-                      starting_offsets: str = "earliest",
-                      max_offsets_per_trigger: int = 50000,
-                      trigger_mode: str = "processing"):
+def start_topic_query(
+    spark,
+    topic_name: str,
+    topic: str,
+    bootstrap_servers: str,
+    base_path: str,
+    checkpoint_root: str,
+    starting_offsets: str = "earliest",
+    max_offsets_per_trigger: int = 50000,
+    trigger_mode: str = "processing",
+):
     output_path = os.path.join(base_path, topic_name)
     checkpoint = os.path.join(checkpoint_root, "bronze_" + topic_name)
-    os.makedirs(output_path, exist_ok=True)
     stream = build_bronze_stream(
         spark, topic, bootstrap_servers, starting_offsets, max_offsets_per_trigger
     )
@@ -67,21 +79,21 @@ def start_topic_query(spark, topic_name: str, topic: str, bootstrap_servers: str
         .queryName("streambharat_bronze_" + topic_name)
     )
     if trigger_mode == "availableNow":
-        query = writer.trigger(availableNow=True).start()
-    elif trigger_mode == "processing":
-        query = writer.trigger(processingTime="10 seconds").start()
-    else:
-        raise ValueError("trigger_mode must be availableNow or processing")
-    return query
+        return writer.trigger(availableNow=True).start()
+    if trigger_mode == "processing":
+        return writer.trigger(processingTime="10 seconds").start()
+    raise ValueError("trigger_mode must be availableNow or processing")
 
 
-def run_bronze(topics: Iterable[str] | None = None,
-               bootstrap_servers: str = "localhost:9092",
-               base_path: str = "lake/bronze",
-               checkpoint_root: str = "lake/_checkpoints",
-               starting_offsets: str = "earliest",
-               max_offsets_per_trigger: int = 50000,
-               trigger_mode: str = "processing") -> None:
+def run_bronze(
+    topics: Iterable[str] | None = None,
+    bootstrap_servers: str = "localhost:9092",
+    base_path: str = "lake/bronze",
+    checkpoint_root: str = "lake/_checkpoints",
+    starting_offsets: str = "earliest",
+    max_offsets_per_trigger: int = 50000,
+    trigger_mode: str = "processing",
+) -> None:
     selected = list(topics) if topics else list(SOURCE_TOPICS)
     invalid = set(selected) - set(SOURCE_TOPICS)
     if invalid:
@@ -90,12 +102,19 @@ def run_bronze(topics: Iterable[str] | None = None,
     queries = []
     try:
         for alias in selected:
-            topic = SOURCE_TOPICS[alias]
-            queries.append(start_topic_query(
-                spark, alias, topic, bootstrap_servers, base_path,
-                checkpoint_root, starting_offsets, max_offsets_per_trigger,
-                trigger_mode
-            ))
+            queries.append(
+                start_topic_query(
+                    spark,
+                    alias,
+                    SOURCE_TOPICS[alias],
+                    bootstrap_servers,
+                    base_path,
+                    checkpoint_root,
+                    starting_offsets,
+                    max_offsets_per_trigger,
+                    trigger_mode,
+                )
+            )
         if trigger_mode == "availableNow":
             for query in queries:
                 query.awaitTermination()
@@ -109,20 +128,31 @@ def run_bronze(topics: Iterable[str] | None = None,
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Ingest Kafka source topics to append-only Bronze Delta")
+    parser = argparse.ArgumentParser(
+        description="Ingest all seven source topics into append-only Bronze Delta tables"
+    )
     parser.add_argument("--topics", help="Comma-separated aliases; default all seven")
-    parser.add_argument("--bootstrap-servers", default=os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092"))
+    parser.add_argument(
+        "--bootstrap-servers",
+        default=os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092"),
+    )
     parser.add_argument("--base-path", default="lake/bronze")
     parser.add_argument("--checkpoint-root", default="lake/_checkpoints")
-    parser.add_argument("--starting-offsets", choices=["earliest", "latest"], default="earliest")
+    parser.add_argument(
+        "--starting-offsets", choices=["earliest", "latest"], default="earliest"
+    )
     parser.add_argument("--max-offsets-per-trigger", type=int, default=50000)
     parser.add_argument("--available-now", action="store_true")
     args = parser.parse_args()
-    aliases = [v.strip() for v in args.topics.split(",")] if args.topics else None
+    aliases = [v.strip() for v in args.topics.split(",") if v.strip()] if args.topics else None
     run_bronze(
-        aliases, args.bootstrap_servers, args.base_path, args.checkpoint_root,
-        args.starting_offsets, args.max_offsets_per_trigger,
-        "availableNow" if args.available_now else "processing"
+        aliases,
+        args.bootstrap_servers,
+        args.base_path,
+        args.checkpoint_root,
+        args.starting_offsets,
+        args.max_offsets_per_trigger,
+        "availableNow" if args.available_now else "processing",
     )
 
 

@@ -51,6 +51,14 @@ ORDER BY activity_date, campaign_id;
 
 ## Dashboard 2 — Streaming & Delivery Operations
 
+**DLQ records by source and reason**
+```sql
+SELECT activity_date, source_topic, reason_code, invalid_records,
+       affected_partitions, first_seen_at, last_seen_at
+FROM ottdw.v_dlq_metrics_daily
+ORDER BY activity_date DESC, invalid_records DESC;
+```
+
 **Latest stream health by query/topic**
 ```sql
 SELECT metric_ts, query_name, topic, input_rows_per_second,

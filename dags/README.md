@@ -46,9 +46,9 @@ the scheduler worker process; no separate Spark master/worker cluster is configu
 
 ## Important scope boundary
 
-This DAG operationalises only the implemented source/player/engagement slice. Subscription
-SCD2/state transitions, sessionisation, the ad-break/impression stream join, full financial
-reconciliation and royalties, streaming metrics/lag monitoring, complete Metabase
-dashboard provisioning and the AWS deployment remain outstanding. A DAG appearing in
+This DAG operationalises the implemented source/player/subscription/engagement slice.
+Sessionisation, the ad-break/impression stream join, full financial reconciliation and
+royalties, streaming metrics/lag monitoring, saved Metabase dashboard provisioning and
+the AWS deployment remain outstanding. A DAG appearing in
 the UI does not establish successful data processing; inspect each task log and compare
 the resulting Delta and Postgres row counts.

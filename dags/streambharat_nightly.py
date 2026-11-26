@@ -41,18 +41,20 @@ with DAG(
     ## Run configuration
 
     A scheduled run replays the source file day matching the Airflow logical date.
-    A single-day rerun can be triggered with:
+    For a daily rerun, pass {"date":"2026-10-15","start_date":"2026-10-15","end_date":"2026-10-15"}.
 
-    JSON configuration: {"date": "2026-10-15", "start_date": "2026-10-15", "end_date": "2026-10-15"}
+    For the initial historical load, pass full_refresh=true and a source replay
+    range, for example {"full_refresh":true,"start_date":"2026-10-01","end_date":"2026-10-31"}.
+    This rebuilds all engagement, session and ad-delivery Gold dates and loads
+    all available Delta rows into Postgres. The July–September player backfill
+    is also executed and tracked by its Delta file manifest.
 
-    A bounded source replay can use start_date/end_date. Downstream Gold rebuilds
-    remain scoped to date (default: logical date). Trigger the separate historical
-    backfill command for July–September; completed file days are skipped via the
-    Delta manifest. The local development stack and dataset must be available first.
+    With full_refresh omitted/false, date-partitioned Gold and Postgres serving
+    replace only the logical date. The subscription history, finance totals,
+    quality checks and CDN monthly metrics are rebuilt from their available inputs.
 
-    The DAG fails on a FAIL-severity DQ gate. Warnings and quarantined rows remain
-    visible in the Gold DQ outputs. SLA misses are surfaced by Airflow's task/SLA
-    monitoring; configure an SMTP backend for email delivery outside local testing.
+    The DAG fails on FAIL-severity DQ findings. SLA misses are visible in Airflow;
+    email notification requires an SMTP backend which is not configured by default.
     """,
 ) as dag:
 

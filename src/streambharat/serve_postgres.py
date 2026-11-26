@@ -87,7 +87,7 @@ TABLES = {
     },
     "ad_delivery": {
         "path": "lake/silver/ad_delivery",
-        "columns": ["delivery_id","break_id","impression_id","campaign_id","user_id","profile_id","content_id","break_ts","ad_break_ts","duration_sec","completed","cpm_inr","delivery_status","genre_eligible","activity_date","spend_inr","break_partition","break_offset","impression_partition","impression_offset"],
+        "columns": ["delivery_id","break_id","impression_id","campaign_id","user_id","profile_id","content_id","break_filled","break_ts","ad_break_ts","duration_sec","completed","cpm_inr","delivery_status","genre_eligible","activity_date","spend_inr","break_partition","break_offset","impression_partition","impression_offset"],
         "keys": ["delivery_id"],
         "date_column": "activity_date",
     },

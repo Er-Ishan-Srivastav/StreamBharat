@@ -72,3 +72,46 @@ def test_subscription_scd2_grace_period_and_churn_classification():
         assert u3_last[2] is False
     finally:
         spark.stop()
+
+
+def test_downgrade_keeps_subscription_active_and_updates_plan():
+    os.environ.setdefault("SPARK_LOCAL_IP", "127.0.0.1")
+    spark = create_spark("streambharat-downgrade-state-test")
+    spark.sparkContext.setLogLevel("ERROR")
+    try:
+        rows = [
+            {
+                "raw_value": json.dumps({
+                    "user_id": "U4",
+                    "event_type": "subscribe",
+                    "plan": "premium",
+                    "event_ts": "2026-10-01T09:00:00",
+                    "event_id": "E40",
+                }),
+                "source_topic": "ott.billing.subscr",
+                "kafka_partition": 0,
+                "kafka_offset": 40,
+                "kafka_timestamp": datetime(2026, 10, 1, 9, 0),
+            },
+            {
+                "raw_value": json.dumps({
+                    "user_id": "U4",
+                    "event_type": "downgrade",
+                    "plan": "basic",
+                    "event_ts": "2026-10-05T09:00:00",
+                    "event_id": "E41",
+                }),
+                "source_topic": "ott.billing.subscr",
+                "kafka_partition": 0,
+                "kafka_offset": 41,
+                "kafka_timestamp": datetime(2026, 10, 5, 9, 0),
+            },
+        ]
+        events, invalid = parse_subscription_events(spark.createDataFrame(rows))
+        assert invalid.count() == 0
+        history = build_subscription_history(events).orderBy("valid_from").collect()
+        assert [row.status for row in history] == ["active", "active"]
+        assert [row.plan for row in history] == ["premium", "basic"]
+        assert history[-1].is_current is True
+    finally:
+        spark.stop()

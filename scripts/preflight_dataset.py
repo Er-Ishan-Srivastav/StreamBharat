@@ -17,9 +17,17 @@ REQUIRED = {
 ADDITIONAL = (
     ("users", "app/users.json"),
     ("profiles", "app/profiles.json"),
-    ("content catalogue", "content/catalog_2026-10-01.json"),
+    ("October content catalogue", "content/catalog_2026-10-01.json"),
+    ("licences", "content/licences.csv"),
     ("genre mapping", "reference/genre_mapping.csv"),
+    ("city-to-state mapping", "reference/city_state.csv"),
+    ("plans", "reference/plans.csv"),
+    ("content partners", "reference/content_partners.csv"),
+    ("CDN edge mapping", "reference/cdn_edges.csv"),
+    ("published board metrics", "reference/published_metrics.csv"),
     ("ad campaigns", "ads/ad_campaigns.csv"),
+    ("AkashCDN September log", "cdn/akashcdn_2026-09.log"),
+    ("NimbusEdge September log", "cdn/nimbusedge_2026-09.tsv"),
 )
 
 

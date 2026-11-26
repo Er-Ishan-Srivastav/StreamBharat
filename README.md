@@ -305,9 +305,11 @@ The CI workflow currently checks the deterministic test suite and Python compila
 
 **Code coverage:** all 20 question modules are present, with a finite batch orchestrator and separate Q17/Q18 streaming entry points.
 
-**Automated checks:** the latest repository CI workflow passed the deterministic test suite and code checks. See [GitHub Actions](https://github.com/Er-Ishan-Srivastav/StreamBharat/actions).
+**Automated checks:** GitHub Actions runs the pure-Python and Spark contract tests, followed by Python compilation for the source modules, scripts and Airflow DAGs. See [GitHub Actions](https://github.com/Er-Ishan-Srivastav/StreamBharat/actions).
 
-**Runtime status:** full Spark/Delta integration, complete dataset reconciliation, streaming restart/late-event tests and measured ML metrics remain outstanding. No model AUC, job duration or throughput result is fabricated in this README.
+**Kafka extension status:** source replay, seven independent Bronze consumers, source DLQ validation, retained-offset reconciliation, Silver player schema/clock handling, Gold engagement aggregates, Kafka Q17/Q18 output topics, Postgres upsert serving and the local Airflow DAG are implemented as a first end-to-end slice.
+
+**Runtime status:** the local Docker Compose stack and Airflow DAG still need a clean-install execution with the supplied dataset. Streaming restart/failure drills, complete financial reconciliation, full subscription lifecycle, complete ad join/sessionisation, saved Metabase dashboards and measured throughput/latency are not yet validated. Do not treat passing CI as proof of a full data run.
 
 Treat a question as validated only after its Spark job has run against the supplied data, output schemas and key counts have been inspected, business reconciliations have passed, and the owner has walked through the implementation.
 
@@ -318,7 +320,7 @@ Treat a question as validated only after its Spark job has run against the suppl
 3. **Integration proof:** validate Silver/Gold contracts across all six owners and run the complete dependency graph.
 4. **Performance evidence:** capture baseline versus AQE/salting timings and record cluster/runtime configuration.
 5. **ML evidence:** publish the Q16 precision@10 baseline comparison and Q20 ROC-AUC/PR-AUC from actual chronological holdouts.
-6. **Operationalisation:** add a serving layer/dashboard and scheduled deployment only if the project scope is extended beyond the workbook.
+6. **Operationalisation:** finish the remaining Kafka ETL workbook jobs, provision saved Metabase dashboards, run the local Airflow DAG end to end, and only then prepare AWS resources.
 
 ## Documentation
 
@@ -331,6 +333,9 @@ Treat a question as validated only after its Spark job has run against the suppl
 - [Q4 incremental ingestion design](docs/implementation/q4-incremental-ingestion.md)
 - [Q17 real-time trending design](docs/implementation/q17-real-time-trending.md)
 - [Q20 churn design](docs/implementation/q20-churn-model.md)
+- [Kafka ETL pipeline and local deployment guide](docs/implementation/kafka-streaming.md)
+- [Airflow DAG operations](dags/README.md)
+- [AWS deployment plan (deferred)](docs/aws-deployment-plan.md)
 - [Student-facing workbook](docs/source-materials/Project-4-StreamBharat-PySpark-Workbook.pdf)
 - [Team implementation guide](docs/source-materials/StreamBharat-Team-Distribution-and-Implementation-Guide.pdf)
 
@@ -395,6 +400,31 @@ docker compose -f docker-compose.kafka.yml exec workspace \
 The Bronze and DLQ queries use independent checkpoints. For a full replay,
 run both after the source replay has completed; for continuous ingestion,
 start both in processing mode before the replay starts.
+
+### 7. Run the Airflow DAG
+
+Start the Kafka compose stack first; this creates the shared Docker network. Then start
+the Airflow stack:
+
+```bash
+docker compose -f docker-compose.airflow.yml up -d --build
+```
+
+Open Airflow at `http://localhost:8081` (local development login: `admin` /
+`admin_local_dev`). For a complete historical backfill, trigger
+`streambharat_nightly` manually with DAG run configuration:
+
+```json
+{
+  "start_date": "2026-10-01",
+  "end_date": "2026-10-31"
+}
+```
+
+Scheduled runs process the Airflow logical date only. The DAG currently orchestrates
+the seven-source replay, Bronze/DLQ, offset reconciliation, Silver player, Gold engagement
+and Postgres serving slice. See [Airflow runbook](dags/README.md) for the DAG boundary.
+
 
 Use `--available-now` for bounded replay/backfill consumption. Omit it for
 long-running processing-time ingestion. The Spark Kafka connector is fetched by

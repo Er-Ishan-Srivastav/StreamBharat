@@ -31,6 +31,29 @@ def kafka_json_stream(spark, topic: str, schema: StructType, bootstrap_servers: 
         F.col("offset").alias("_kafka_offset"),
         F.col("timestamp").alias("_kafka_timestamp"),
     ).withColumn("_payload", F.from_json(F.col("_json"), schema))
+    invalid_path = os.getenv("KAFKA_DLQ_PATH", "data/delta/quality/kafka_invalid_events")
+    def quarantine_invalid(batch_df, batch_id):
+        invalid = batch_df.filter(F.col("_payload").isNull()).select(
+            F.col("_kafka_key"),
+            F.col("_json"),
+            F.col("_kafka_topic"),
+            F.col("_kafka_partition").cast("string").alias("_kafka_partition"),
+            F.col("_kafka_offset").cast("string").alias("_kafka_offset"),
+            F.col("_kafka_timestamp").cast("string").alias("_kafka_timestamp"),
+        ).withColumn("batch_id", F.lit(batch_id)).withColumn("quarantined_at", F.current_timestamp())
+        if not invalid.isEmpty():
+            invalid.write.format("delta").mode("append").save(invalid_path)
+
+    # Keep invalid payloads on a parallel query so valid business records continue.
+    invalid_stream = decoded.filter(F.col("_payload").isNull())
+    invalid_query = (
+        invalid_stream.writeStream.foreachBatch(quarantine_invalid)
+        .option("checkpointLocation", os.getenv(
+            "KAFKA_DLQ_CHECKPOINT", "data/checkpoints/kafka_dlq_" + topic.replace(".", "_")
+        ))
+        .queryName("streambharat_kafka_dlq_" + topic.replace(".", "_"))
+        .start()
+    )
     return decoded.filter(F.col("_payload").isNotNull()).select(
         "_kafka_key", "_kafka_topic", "_kafka_partition", "_kafka_offset",
         "_kafka_timestamp", "_json", "_payload.*"

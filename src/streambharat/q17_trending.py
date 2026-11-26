@@ -1,134 +1,327 @@
-"""Q17 — Real-time trending titles from the supplied file-based stream simulator."""
+"""Q17 — Trending titles from the live simulator or Kafka topic."""
 from __future__ import annotations
-import argparse, json, os
+
+import argparse
+import json
+import os
 from datetime import date, timedelta
+
+from delta.tables import DeltaTable
 from pyspark.sql import Window
 from pyspark.sql import functions as F
 from pyspark.sql.types import StringType, StructField, StructType
-from delta.tables import DeltaTable
+
 from .spark_session import create_spark
 
 PLAYS_SCHEMA = StructType([
-    StructField("event_id", StringType(), True), StructField("user_id", StringType(), True),
-    StructField("profile_id", StringType(), True), StructField("content_id", StringType(), True),
-    StructField("language", StringType(), True), StructField("event_ts", StringType(), True),
+    StructField("event_id", StringType(), True),
+    StructField("user_id", StringType(), True),
+    StructField("profile_id", StringType(), True),
+    StructField("content_id", StringType(), True),
+    StructField("language", StringType(), True),
+    StructField("event_ts", StringType(), True),
 ])
 
-def build_historical_baseline(spark, bronze_path: str, catalog_path: str, output_path: str, as_of: str) -> None:
-    """Build per-title/language/hour average unique-viewer baseline for seven complete dates."""
+
+def build_historical_baseline(
+    spark,
+    bronze_path: str,
+    catalog_path: str,
+    output_path: str,
+    as_of: str,
+    window_minutes: int = 10,
+) -> None:
+    """Build an average unique-viewer baseline from the previous seven full days."""
+    if window_minutes < 1 or 60 % window_minutes != 0:
+        raise ValueError("window_minutes must be a positive divisor of 60")
     if not os.path.exists(catalog_path):
         raise FileNotFoundError(f"Catalogue snapshot not found: {catalog_path}")
     if not DeltaTable.isDeltaTable(spark, bronze_path):
-        raise FileNotFoundError(f"Bronze playback Delta not found at {bronze_path}. Run Q4 first.")
+        raise FileNotFoundError(f"Player Delta table not found at {bronze_path}")
+
     with open(catalog_path, "r", encoding="utf-8") as handle:
         catalog = json.load(handle)
-    rows = [(r.get("content_id"), (r.get("languages") or ["Unknown"])[0])
-            for r in catalog if r.get("type") in ("movie", "series") and r.get("content_id")]
+    rows = [
+        (row.get("content_id"), (row.get("languages") or ["Unknown"])[0])
+        for row in catalog
+        if row.get("type") in ("movie", "series") and row.get("content_id")
+    ]
     catalog_df = spark.createDataFrame(rows, ["content_id", "language"])
-    as_of_date = F.to_date(F.lit(as_of))
+
+    source = spark.read.format("delta").load(bronze_path)
+    if "event_ts_corrected" in source.columns:
+        event_time_column = "event_ts_corrected"
+    elif "server_ts" in source.columns:
+        event_time_column = "server_ts"
+    elif "event_ts" in source.columns:
+        event_time_column = "event_ts"
+    else:
+        raise ValueError(
+            "Player history must contain event_ts_corrected, server_ts or event_ts"
+        )
+
     historical = (
-        spark.read.format("delta").load(bronze_path)
-        .filter(F.col("event_type") == "start")
-        .filter(F.col("download_id").isNull() | (F.trim(F.col("download_id")) == ""))
-        .withColumn("event_ts", F.to_timestamp("server_ts"))
+        source.filter(F.col("event_type") == "start")
+        .withColumn("event_ts", F.to_timestamp(F.col(event_time_column)))
         .withColumn("event_date", F.to_date("event_ts"))
-        .filter((F.col("event_date") >= F.date_sub(as_of_date, 7)) & (F.col("event_date") < as_of_date))
-        .join(F.broadcast(catalog_df), "content_id", "inner")
+        .filter(
+            (F.col("event_date") >= F.date_sub(F.to_date(F.lit(as_of)), 7))
+            & (F.col("event_date") < F.to_date(F.lit(as_of)))
+        )
+    )
+    if "download_id" in historical.columns:
+        historical = historical.filter(
+            F.col("download_id").isNull() | (F.trim("download_id") == "")
+        )
+
+    historical = (
+        historical.join(F.broadcast(catalog_df), "content_id", "inner")
         .withColumn("hour_of_day", F.hour("event_ts"))
         .groupBy("content_id", "language", "hour_of_day", "event_date")
-        .agg(F.countDistinct("profile_id").alias("hourly_unique_viewers"))
+        .agg(F.countDistinct("profile_id").alias("window_unique_viewers"))
     )
-    baseline = historical.groupBy("content_id", "language", "hour_of_day").agg(
-        (F.avg("hourly_unique_viewers") / F.lit(6.0)).alias("baseline_avg_10m_viewers")
+    baseline_column = f"baseline_avg_{window_minutes}m_viewers"
+    baseline = historical.groupBy(
+        "content_id", "language", "hour_of_day"
+    ).agg(
+        (
+            F.avg("window_unique_viewers")
+            / F.lit(60.0 / float(window_minutes))
+        ).alias(baseline_column)
     )
     baseline.write.format("delta").mode("overwrite").save(output_path)
 
-def _merge_trends(batch_df, batch_id: int, target_path: str, baseline_df, min_viewers: int, top_n: int, spark) -> None:
-    """Replace each recomputed window/language snapshot, even when no row qualifies."""
+
+def _merge_trends(
+    batch_df,
+    batch_id: int,
+    target_path: str,
+    baseline_df,
+    min_viewers: int,
+    top_n: int,
+    spark,
+    window_minutes: int = 10,
+    kafka_bootstrap_servers: str | None = None,
+    kafka_topic: str = "ott.metrics.trending",
+) -> None:
+    """Replace each recomputed window/language snapshot and optionally publish it."""
     if batch_df.isEmpty():
         return
+
     active_keys = batch_df.select("window", "language").distinct()
+    baseline_column = f"baseline_avg_{window_minutes}m_viewers"
     enriched = (
         batch_df.withColumn("hour_of_day", F.hour("window.start"))
         .join(F.broadcast(baseline_df), ["content_id", "language", "hour_of_day"], "left")
-        .withColumn("baseline_avg_10m_viewers", F.coalesce("baseline_avg_10m_viewers", F.lit(0.0)))
-        .withColumn("growth_ratio", F.col("unique_viewers") /
-                    F.greatest(F.col("baseline_avg_10m_viewers"), F.lit(1.0)))
+        .withColumn(
+            baseline_column,
+            F.coalesce(F.col(baseline_column), F.lit(0.0)),
+        )
+        .withColumn(
+            "growth_ratio",
+            F.col("unique_viewers")
+            / F.greatest(F.col(baseline_column), F.lit(1.0)),
+        )
         .filter(F.col("unique_viewers") >= F.lit(min_viewers))
     )
-    ordering = Window.partitionBy("window.start", "window.end", "language").orderBy(
-        F.col("growth_ratio").desc(), F.col("unique_viewers").desc(), F.col("content_id")
+    ordering = Window.partitionBy(
+        "window.start", "window.end", "language"
+    ).orderBy(
+        F.col("growth_ratio").desc(),
+        F.col("unique_viewers").desc(),
+        F.col("content_id"),
     )
-    ranked = (enriched.withColumn("rank_in_language", F.row_number().over(ordering))
-              .filter(F.col("rank_in_language") <= top_n)
-              .withColumn("processed_at", F.current_timestamp()))
+    ranked = (
+        enriched.withColumn("rank_in_language", F.row_number().over(ordering))
+        .filter(F.col("rank_in_language") <= top_n)
+        .withColumn("processed_at", F.current_timestamp())
+    )
+
     if DeltaTable.isDeltaTable(spark, target_path):
         target = DeltaTable.forPath(spark, target_path)
-        target.alias("t").merge(
-            active_keys.alias("k"),
-            "t.window.start = k.window.start AND t.window.end = k.window.end AND t.language = k.language"
+        target.alias("target").merge(
+            active_keys.alias("active"),
+            """
+            target.window.start = active.window.start
+            AND target.window.end = active.window.end
+            AND target.language = active.language
+            """,
         ).whenMatchedDelete().execute()
         if not ranked.isEmpty():
             ranked.write.format("delta").mode("append").save(target_path)
     elif not ranked.isEmpty():
         ranked.write.format("delta").mode("overwrite").save(target_path)
 
-def _persist_and_recompute_trends(incoming_df, batch_id: int, live_events_path: str, output_path: str,
-                                  baseline_df, min_viewers: int, top_n: int, spark, late_minutes: int = 15) -> None:
-    """Persist unique events and recompute exact distinct viewers over the active event-time horizon."""
+    if kafka_bootstrap_servers and not ranked.isEmpty():
+        kafka_rows = ranked.select(
+            F.concat_ws(
+                "|",
+                F.date_format(F.col("window.start"), "yyyy-MM-dd'T'HH:mm:ss"),
+                F.col("language"),
+                F.col("rank_in_language").cast("string"),
+            ).alias("key"),
+            F.to_json(
+                F.struct(
+                    F.col("window.start").alias("window_start"),
+                    F.col("window.end").alias("window_end"),
+                    "language",
+                    "content_id",
+                    "unique_viewers",
+                    "hour_of_day",
+                    F.col(baseline_column).alias("baseline_avg_window_viewers"),
+                    "growth_ratio",
+                    "rank_in_language",
+                    "processed_at",
+                )
+            ).alias("value"),
+        )
+        (
+            kafka_rows.write.format("kafka")
+            .option("kafka.bootstrap.servers", kafka_bootstrap_servers)
+            .option("topic", kafka_topic)
+            .save()
+        )
+
+
+def _persist_and_recompute_trends(
+    incoming_df,
+    batch_id: int,
+    live_events_path: str,
+    output_path: str,
+    baseline_df,
+    min_viewers: int,
+    top_n: int,
+    spark,
+    late_minutes: int = 15,
+    window_minutes: int = 10,
+    slide_duration: str = "1 minute",
+    kafka_bootstrap_servers: str | None = None,
+    kafka_topic: str = "ott.metrics.trending",
+) -> None:
+    """Persist unique starts and recompute event-time windows over the late-data horizon."""
     if incoming_df.isEmpty():
         return
-    incoming = (incoming_df.filter(F.col("event_id").isNotNull())
-                .withColumn("event_ts", F.to_timestamp("event_ts"))
-                .filter(F.col("event_ts").isNotNull()).dropDuplicates(["event_id"]))
+    if late_minutes < 0 or window_minutes < 1:
+        raise ValueError("late_minutes cannot be negative and window_minutes must be positive")
+
+    incoming = (
+        incoming_df.filter(F.col("event_id").isNotNull())
+        .withColumn("event_ts", F.to_timestamp("event_ts"))
+        .filter(F.col("event_ts").isNotNull())
+        .dropDuplicates(["event_id"])
+    )
     if incoming.isEmpty():
         return
+
     if not DeltaTable.isDeltaTable(spark, live_events_path):
         incoming.write.format("delta").mode("overwrite").save(live_events_path)
     else:
-        DeltaTable.forPath(spark, live_events_path).alias("t").merge(
-            incoming.alias("s"), "t.event_id = s.event_id"
-        ).whenNotMatchedInsertAll().execute()
+        (
+            DeltaTable.forPath(spark, live_events_path)
+            .alias("target")
+            .merge(incoming.alias("source"), "target.event_id = source.event_id")
+            .whenNotMatchedInsertAll()
+            .execute()
+        )
+
     events = spark.read.format("delta").load(live_events_path)
     max_ts = events.agg(F.max("event_ts").alias("max_ts")).first()["max_ts"]
     if max_ts is None:
         return
-    lower_bound = max_ts - timedelta(minutes=10 + late_minutes)
-    recent = events.filter(F.col("event_ts") >= F.lit(lower_bound))
-    windows = (recent.groupBy(F.window("event_ts", "10 minutes", "1 minute").alias("window"),
-                              "language", "content_id")
-               .agg(F.countDistinct("profile_id").alias("unique_viewers")))
-    _merge_trends(windows, batch_id, output_path, baseline_df, min_viewers, top_n, spark)
-    DeltaTable.forPath(spark, live_events_path).delete(F.col("event_ts") < F.lit(lower_bound))
 
-def run_q17(input_path: str, bronze_path: str, catalog_path: str, baseline_path: str, output_path: str,
-            checkpoint_path: str, as_of: str, min_viewers: int = 200, top_n: int = 20,
-            max_files_per_trigger: int = 10, late_minutes: int = 15) -> None:
+    lower_bound = max_ts - timedelta(minutes=window_minutes + late_minutes)
+    recent = events.filter(F.col("event_ts") >= F.lit(lower_bound))
+    windows = (
+        recent.groupBy(
+            F.window(
+                "event_ts",
+                f"{window_minutes} minutes",
+                slide_duration,
+            ).alias("window"),
+            "language",
+            "content_id",
+        )
+        .agg(F.countDistinct("profile_id").alias("unique_viewers"))
+    )
+    _merge_trends(
+        windows,
+        batch_id,
+        output_path,
+        baseline_df,
+        min_viewers,
+        top_n,
+        spark,
+        window_minutes,
+        kafka_bootstrap_servers,
+        kafka_topic,
+    )
+    DeltaTable.forPath(spark, live_events_path).delete(
+        F.col("event_ts") < F.lit(lower_bound)
+    )
+
+
+def run_q17(
+    input_path: str,
+    bronze_path: str,
+    catalog_path: str,
+    baseline_path: str,
+    output_path: str,
+    checkpoint_path: str,
+    as_of: str,
+    min_viewers: int = 200,
+    top_n: int = 20,
+    max_files_per_trigger: int = 10,
+    late_minutes: int = 15,
+) -> None:
     if not os.path.isdir(input_path):
-        raise FileNotFoundError(f"Stream folder not found: {input_path}. Start the plays simulator first.")
+        raise FileNotFoundError(
+            f"Stream folder not found: {input_path}. Start the plays simulator first."
+        )
     if min_viewers < 1 or top_n < 1 or late_minutes < 0:
-        raise ValueError("min_viewers and top_n must be positive; late_minutes cannot be negative")
+        raise ValueError("min_viewers/top_n must be positive; late_minutes cannot be negative")
+
     spark = create_spark("StreamBharat-Q17-Real-Time-Trending")
     try:
-        build_historical_baseline(spark, bronze_path, catalog_path, baseline_path, as_of)
+        build_historical_baseline(
+            spark, bronze_path, catalog_path, baseline_path, as_of, window_minutes=10
+        )
         baseline_df = spark.read.format("delta").load(baseline_path)
-        stream = (spark.readStream.schema(PLAYS_SCHEMA).option("maxFilesPerTrigger", max_files_per_trigger)
-                  .json(input_path))
-        for directory in (os.path.dirname(os.path.abspath(checkpoint_path)),
-                          os.path.dirname(os.path.abspath(output_path))):
-            os.makedirs(directory, exist_ok=True)
+        stream = (
+            spark.readStream.schema(PLAYS_SCHEMA)
+            .option("maxFilesPerTrigger", max_files_per_trigger)
+            .json(input_path)
+        )
+        os.makedirs(os.path.dirname(os.path.abspath(checkpoint_path)), exist_ok=True)
+        os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
         live_path = os.path.join(os.path.dirname(output_path), "_live_play_events")
-        query = (stream.writeStream.foreachBatch(
-            lambda df, bid: _persist_and_recompute_trends(df, bid, live_path, output_path,
-                baseline_df, min_viewers, top_n, spark, late_minutes))
-            .option("checkpointLocation", checkpoint_path).queryName("streambharat_q17_trending")
-            .trigger(processingTime="5 seconds").start())
+        query = (
+            stream.writeStream.foreachBatch(
+                lambda df, bid: _persist_and_recompute_trends(
+                    df,
+                    bid,
+                    live_path,
+                    output_path,
+                    baseline_df,
+                    min_viewers,
+                    top_n,
+                    spark,
+                    late_minutes,
+                )
+            )
+            .option("checkpointLocation", checkpoint_path)
+            .queryName("streambharat_q17_trending")
+            .trigger(processingTime="5 seconds")
+            .start()
+        )
         query.awaitTermination()
     finally:
         spark.stop()
 
+
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Q17: Live trending with Spark Structured Streaming")
+    parser = argparse.ArgumentParser(
+        description="Q17: Live trending with Spark Structured Streaming"
+    )
     parser.add_argument("--input", default="data/stream/plays")
     parser.add_argument("--bronze", default="data/delta/bronze/playback")
     parser.add_argument("--catalog", default="data/raw/content/catalog_2026-10-01.json")
@@ -140,9 +333,21 @@ def main() -> None:
     parser.add_argument("--top-n", type=int, default=20)
     parser.add_argument("--max-files-per-trigger", type=int, default=10)
     parser.add_argument("--late-minutes", type=int, default=15)
-    a = parser.parse_args()
-    run_q17(a.input, a.bronze, a.catalog, a.baseline, a.output, a.checkpoint, a.as_of,
-            a.min_viewers, a.top_n, a.max_files_per_trigger, a.late_minutes)
+    args = parser.parse_args()
+    run_q17(
+        args.input,
+        args.bronze,
+        args.catalog,
+        args.baseline,
+        args.output,
+        args.checkpoint,
+        args.as_of,
+        args.min_viewers,
+        args.top_n,
+        args.max_files_per_trigger,
+        args.late_minutes,
+    )
+
 
 if __name__ == "__main__":
     main()

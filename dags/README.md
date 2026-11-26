@@ -7,9 +7,12 @@ data quality, CDN cost and Postgres serving.
 
 ## Start order
 
-Place the course dataset under `data/raw/` without modifying source files, then run:
+Copy `.env.example` to `.env` and replace the local passwords/token with
+values for this machine. Place the course dataset under `data/raw/` without
+modifying source files, then run:
 
 ```bash
+cp .env.example .env
 docker compose -f docker-compose.kafka.yml up -d --build
 docker compose -f docker-compose.kafka.yml exec workspace python scripts/preflight_dataset.py --data-root data/raw
 docker compose -f docker-compose.airflow.yml up -d --build
@@ -57,7 +60,14 @@ A scheduled run replays its Airflow logical date. For a single-day rerun, use:
 }
 ```
 
-For the first full historical load, trigger the DAG with:
+For the first full historical load, use the one-command trigger after both
+Compose stacks are healthy:
+
+```bash
+bash scripts/trigger_local_full_run.sh 2026-10-01 2026-10-31
+```
+
+Or trigger manually in the Airflow UI with:
 
 ```json
 {
@@ -69,7 +79,9 @@ For the first full historical load, trigger the DAG with:
 
 This replays the selected source arrival range, runs the July–September player
 backfill, rebuilds engagement/session/ad-delivery Gold across all available
-dates and loads all available Delta rows into Postgres. Later daily runs omit
+dates and loads all available Delta rows into Postgres. The replay acknowledgement
+ledger is stored at `lake/state/kafka_replay.sqlite3`; keep it with the lake
+between normal reruns. Later daily runs omit
 `full_refresh` and only replace the logical-date slice for date-partitioned
 outputs. The backfill manifest skips completed historical file days.
 

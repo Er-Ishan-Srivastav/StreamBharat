@@ -11,6 +11,7 @@ from pyspark.sql import functions as F
 from pyspark.sql.types import MapType, StringType
 
 from streambharat.bronze_ingest import SOURCE_TOPICS
+from streambharat.monitoring import attach_streaming_metrics
 from streambharat.spark_session import create_spark
 
 # Required fields and event-time columns follow the Kafka ETL workbook's raw
@@ -251,6 +252,7 @@ def run_dlq(
     if invalid:
         raise ValueError(f"Unknown DLQ topic aliases: {sorted(invalid)}")
     spark = create_spark("StreamBharat-Kafka-DLQ")
+    metrics_listener = attach_streaming_metrics(spark, bootstrap_servers)
     queries = []
     try:
         for alias in selected:
@@ -269,6 +271,7 @@ def run_dlq(
         for query in queries:
             if query.isActive:
                 query.stop()
+        spark.streams.removeListener(metrics_listener)
         spark.stop()
 
 

@@ -98,6 +98,15 @@ with DAG(
         ),
     )
 
+    subscription_state = BashOperator(
+        task_id="build_subscription_scd2_and_compacted_state",
+        cwd=PROJECT_ROOT,
+        bash_command=(
+            f"cd {PROJECT_ROOT} && {PYTHON} -m streambharat.subscription_state "
+            f"--bootstrap-servers {BOOTSTRAP}"
+        ),
+    )
+
     offset_reconciliation = BashOperator(
         task_id="reconcile_bronze_offsets",
         cwd=PROJECT_ROOT,
@@ -138,7 +147,7 @@ with DAG(
     )
 
     preflight >> create_topics >> replay_sources >> bronze_ingestion
-    bronze_ingestion >> [source_dlq, silver_player]
+    bronze_ingestion >> [source_dlq, silver_player, subscription_state]
     [source_dlq, silver_player] >> offset_reconciliation
-    silver_player >> gold_engagement >> serve_postgres
-    offset_reconciliation >> gold_engagement
+    silver_player >> gold_engagement
+    [gold_engagement, subscription_state, offset_reconciliation] >> serve_postgres

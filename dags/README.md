@@ -12,11 +12,11 @@ values for this machine. Place the course dataset under `data/raw/` without
 modifying source files, then run:
 
 ```bash
-cp .env.example .env
-docker compose -f docker-compose.kafka.yml up -d --build
-docker compose -f docker-compose.kafka.yml exec workspace python scripts/preflight_dataset.py --data-root data/raw
-docker compose -f docker-compose.airflow.yml up -d --build
+bash scripts/start_local_stack.sh
 ```
+
+The helper creates `.env` from `.env.example` only when one does not exist,
+starts Kafka/Spark/Postgres/Metabase, runs dataset preflight, then starts Airflow.
 
 Open Airflow at http://localhost:8081. Local development login: `admin` /
 `admin_local_dev`. Override local passwords with environment variables and do

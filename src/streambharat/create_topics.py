@@ -19,11 +19,7 @@ TOPICS = {
     "ott.alerts.ad_pacing": 3,
     "ott.ref.subscription_state": 3,
 }
-COMPACT_TOPICS = {
-    "ott.ref.subscription_state",
-    "ott.metrics.trending",
-    "ott.alerts.ad_pacing",
-}
+COMPACT_TOPICS = {"ott.ref.subscription_state"}
 
 
 def create_topics(bootstrap_servers: str, replication_factor: int = 1) -> dict[str, str]:

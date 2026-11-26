@@ -146,19 +146,11 @@ def _month_metric(frame: DataFrame, date_col: str, name: str, expression) -> Dat
     )
 
 
-def build_actual_monthly_metrics(gold_root: str = "lake/gold") -> DataFrame:
+def build_actual_monthly_metrics(spark, gold_root: str = "lake/gold") -> DataFrame:
     """Build the documented canonical metric set from persisted Gold outputs."""
     from delta.tables import DeltaTable
 
-    spark = None
     frames = []
-
-    # The caller's Spark session is attached to DataFrames only after read; resolve
-    # each Delta path with Spark's Delta metadata helper through a lightweight session.
-    from pyspark.sql import SparkSession
-    spark = SparkSession.getActiveSession()
-    if spark is None:
-        raise RuntimeError("An active Spark session is required")
 
     def read(name: str) -> DataFrame:
         path = os.path.join(gold_root, name)
@@ -233,7 +225,7 @@ def run_published_reconciliation(
             .csv(published_path)
         )
         aliases = spark.read.schema(ALIASES_SCHEMA).option("header", True).csv(alias_path)
-        actual = build_actual_monthly_metrics(gold_root)
+        actual = build_actual_monthly_metrics(spark, gold_root)
         compared = compare_published_metrics(published, actual, aliases, tolerance_pct)
         compared.write.format("delta").mode("overwrite").option(
             "overwriteSchema", "true"

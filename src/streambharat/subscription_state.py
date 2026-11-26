@@ -18,7 +18,8 @@ from streambharat.spark_session import create_spark
 
 ACTIVE_TYPES = (
     "subscribe", "subscribed", "activate", "activated", "active",
-    "renew", "renewal", "renewed", "payment_success", "payment_succeeded",
+    "renew", "renewal", "renewed", "downgrade", "downgraded",
+    "payment_success", "payment_succeeded",
     "subscription_success", "subscription_activated", "resume", "resumed",
     "reactivate", "upgrade", "upgraded",
 )

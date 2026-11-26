@@ -111,7 +111,10 @@ def merge_silver(spark, source_df, target_path: str):
         DeltaTable.forPath(spark, target_path).alias("t").merge(
             latest.alias("s"), "t.event_id = s.event_id"
         ).whenMatchedUpdateAll(
-            condition="s.kafka_timestamp >= t.kafka_timestamp"
+            condition=(
+                "COALESCE(s.server_time, s.kafka_timestamp) >= "
+                "COALESCE(t.server_time, t.kafka_timestamp)"
+            )
         ).whenNotMatchedInsertAll().execute()
 
 

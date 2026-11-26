@@ -5,6 +5,7 @@ import argparse
 from pathlib import Path
 
 
+REPO_ROOT = Path(__file__).resolve().parents[1]
 REQUIRED = {
     "player_events": ("player", "playback_*.json"),
     "billing_subscr": ("billing", "subscription_events.json"),
@@ -51,6 +52,9 @@ def validate_dataset(data_root: str = "data/raw") -> list[str]:
     for label, relative in ADDITIONAL:
         if not (root / relative).is_file():
             errors.append(f"{label}: expected {root / relative}")
+    alias_file = REPO_ROOT / "config" / "quality" / "published_metric_aliases.csv"
+    if not alias_file.is_file():
+        errors.append(f"published metric alias file missing: {alias_file}")
     for relative in MONTHLY_CATALOGS:
         if not (root / relative).is_file():
             errors.append(f"monthly catalogue snapshot missing: {root / relative}")

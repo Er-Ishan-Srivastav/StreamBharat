@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-CONTAINER="\${KAFKA_CONTAINER:-streambharat-kafka}"
+CONTAINER="${KAFKA_CONTAINER:-streambharat-kafka}"
 topics=(
   "ott.player.events:6"
   "ott.billing.subscr:3"
@@ -18,7 +18,7 @@ topics=(
   "ott.ref.subscription_state:3"
 )
 
-for spec in "\${topics[@]}"; do
+for spec in "${topics[@]}"; do
   IFS=: read -r topic partitions <<< "$spec"
   docker exec "$CONTAINER" /opt/kafka/bin/kafka-topics.sh \
     --bootstrap-server localhost:29092 --create --if-not-exists \

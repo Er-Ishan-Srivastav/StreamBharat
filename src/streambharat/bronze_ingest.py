@@ -41,7 +41,7 @@ def build_bronze_stream(spark, topic: str, bootstrap_servers: str,
             F.col("timestamp").alias("kafka_timestamp"),
             F.col("key").cast("string").alias("kafka_key"),
             F.to_json(F.col("headers")).alias("kafka_headers_json"),
-        )
+        ).withColumn("kafka_headers", F.col("headers"))
         .withColumn("ingested_at", F.current_timestamp())
         .withColumn("ingestion_date", F.to_date("ingested_at"))
     )

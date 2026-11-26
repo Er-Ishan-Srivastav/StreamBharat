@@ -13,7 +13,7 @@ from streambharat.q1_catalog import read_catalog_snapshot
 from streambharat.spark_session import create_spark
 
 
-CHARGE_EVENT_TYPES = ("subscribe", "renew", "upgrade")
+CHARGE_EVENT_TYPES = ("subscribe", "renew", "upgrade", "downgrade")
 
 
 def _map_payload(bronze: DataFrame) -> DataFrame:

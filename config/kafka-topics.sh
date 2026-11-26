@@ -25,11 +25,9 @@ for spec in "${topics[@]}"; do
     --topic "$topic" --partitions "$partitions" --replication-factor 1
 done
 
-for compact_topic in ott.ref.subscription_state ott.metrics.trending ott.alerts.ad_pacing; do
-  docker exec "$CONTAINER" /opt/kafka/bin/kafka-configs.sh --bootstrap-server localhost:29092 \
-    --entity-type topics --entity-name "$compact_topic" \
-    --alter --add-config cleanup.policy=compact
-done
+docker exec "$CONTAINER" /opt/kafka/bin/kafka-configs.sh --bootstrap-server localhost:29092 \
+  --entity-type topics --entity-name ott.ref.subscription_state \
+  --alter --add-config cleanup.policy=compact
 
 docker exec "$CONTAINER" /opt/kafka/bin/kafka-topics.sh \
   --bootstrap-server localhost:29092 --list

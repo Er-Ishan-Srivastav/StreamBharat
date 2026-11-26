@@ -211,6 +211,15 @@ def run_batch_master(
         profiles.write.format("delta").mode("overwrite").option(
             "overwriteSchema", "true"
         ).save(os.path.join(output_root, "profiles"))
+        city_state = (
+            spark.read.option("header", True).option("inferSchema", True)
+            .csv(os.path.join(data_root, "reference", "city_state.csv"))
+            .select(F.trim("city").alias("city"), F.trim("state").alias("state"))
+            .dropDuplicates(["city"])
+        )
+        city_state.write.format("delta").mode("overwrite").option(
+            "overwriteSchema", "true"
+        ).save(os.path.join(output_root, "city_state"))
 
         partners = (
             spark.read.schema(PARTNER_SCHEMA).option("header", True)

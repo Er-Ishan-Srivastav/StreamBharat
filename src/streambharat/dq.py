@@ -141,7 +141,7 @@ def classify_subscription_quality(
 
 
 def build_rule_metrics(
-    input_count: int,
+    input_count: int | dict[str, int],
     violations: list[tuple[str, str, DataFrame]],
     batch_id: str,
 ) -> DataFrame:
@@ -163,7 +163,8 @@ def build_rule_metrics(
                 frame.select(identity).dropDuplicates().count()
                 if identity else frame.count()
             )
-        rows.append((batch_id, rule_name, severity, max(input_count - failed, 0), failed))
+        total = input_count.get(rule_name, 0) if isinstance(input_count, dict) else input_count
+        rows.append((batch_id, rule_name, severity, max(total - failed, 0), failed))
     return spark.createDataFrame(
         rows,
         ["batch_id", "rule_name", "severity", "passed_rows", "failed_rows"],

@@ -21,6 +21,7 @@ def test_published_metric_reconciliation_applies_half_percent_tolerance_and_flag
             StructField("published_ts", StringType(), True),
         ])
         published = spark.createDataFrame([
+            ("2026-10", "Total Watch Hours", 999.0, "2026-10-31T00:00:00"),
             ("2026-10", "Total Watch Hours", 100.0, "2026-11-01T00:00:00"),
             ("2026-10", "Total Watch Hours - Revised", 100.0, "2026-11-02T00:00:00"),
             ("2026-10", "Unmapped Course KPI", 42.0, "2026-11-01T00:00:00"),

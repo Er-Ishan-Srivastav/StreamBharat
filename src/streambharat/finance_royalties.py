@@ -78,6 +78,10 @@ def build_revenue_reconciliation(
             F.element_at("_payload", F.lit("amount_inr")).cast("decimal(18,2)").alias("settlement_amount"),
             F.to_timestamp(F.element_at("_payload", F.lit("settled_ts"))).alias("settlement_ts"),
             F.lower(F.trim(F.element_at("_payload", F.lit("event_type")))).alias("event_type"),
+            F.element_at("_payload", F.lit("settlement_id")).alias("source_settlement_id"),
+            F.col("source_topic") if "source_topic" in settlement_payload.columns else F.lit(None).cast("string").alias("source_topic"),
+            F.col("kafka_partition") if "kafka_partition" in settlement_payload.columns else F.lit(None).cast("int").alias("kafka_partition"),
+            F.col("kafka_offset") if "kafka_offset" in settlement_payload.columns else F.lit(None).cast("long").alias("kafka_offset"),
         )
         .filter(
             F.col("user_id").isNotNull()
@@ -88,13 +92,19 @@ def build_revenue_reconciliation(
         )
         .withColumn(
             "settlement_id",
-            F.sha2(
-                F.concat_ws(
-                    "|", F.coalesce("gateway", F.lit("")),
-                    "user_id", F.col("settlement_amount").cast("string"),
-                    F.col("settlement_ts").cast("string"), "event_type",
+            F.coalesce(
+                F.col("source_settlement_id"),
+                F.sha2(
+                    F.concat_ws(
+                        "|", F.coalesce("gateway", F.lit("")),
+                        "user_id", F.col("settlement_amount").cast("string"),
+                        F.col("settlement_ts").cast("string"), "event_type",
+                        F.coalesce(F.col("source_topic"), F.lit("")),
+                        F.coalesce(F.col("kafka_partition").cast("string"), F.lit("")),
+                        F.coalesce(F.col("kafka_offset").cast("string"), F.lit("")),
+                    ),
+                    256,
                 ),
-                256,
             ),
         )
         .dropDuplicates(["settlement_id"])

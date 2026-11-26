@@ -1,0 +1,20 @@
+FROM apache/airflow:2.10.4-python3.11
+
+USER root
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      openjdk-17-jre-headless bash ca-certificates curl gcc g++ procps \
+    && rm -rf /var/lib/apt/lists/*
+
+ENV JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64 \
+    PATH="/usr/lib/jvm/java-17-openjdk-amd64/bin:$PATH" \
+    PYTHONUNBUFFERED=1 \
+    PYSPARK_PYTHON=python
+
+USER airflow
+WORKDIR /opt/streambharat
+COPY --chown=airflow:root pyproject.toml README.md ./
+COPY --chown=airflow:root src ./src
+RUN python -m pip install --no-cache-dir -e ".[kafka,postgres]"
+
+COPY --chown=airflow:root . .
+EXPOSE 8080

@@ -69,3 +69,29 @@ SELECT activity_date, campaign_id, impressions, spend_inr, daily_budget_inr, pac
        CASE WHEN pacing_ratio > 1.2 THEN 'AHEAD / OVERSPENDING'
             WHEN pacing_ratio < 0.7 THEN 'BEHIND PLAN' ELSE 'ON TRACK' END AS pacing_label
 FROM ottdw.campaign_daily;
+
+CREATE TABLE IF NOT EXISTS ottdw.subscriptions_scd2 (
+    user_id TEXT NOT NULL,
+    valid_from TIMESTAMPTZ NOT NULL,
+    plan TEXT,
+    status TEXT NOT NULL,
+    event_id TEXT NOT NULL,
+    event_type TEXT NOT NULL,
+    valid_to TIMESTAMPTZ,
+    is_current BOOLEAN NOT NULL,
+    churn_type TEXT,
+    is_synthetic BOOLEAN NOT NULL DEFAULT FALSE,
+    kafka_timestamp TIMESTAMPTZ,
+    kafka_partition INTEGER,
+    kafka_offset BIGINT,
+    refreshed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (user_id, valid_from)
+);
+CREATE INDEX IF NOT EXISTS idx_subscriptions_current
+    ON ottdw.subscriptions_scd2(user_id) WHERE is_current = TRUE;
+
+CREATE TABLE IF NOT EXISTS ottdw.subscription_churn (
+    churn_type TEXT PRIMARY KEY CHECK (churn_type IN ('VOLUNTARY','INVOLUNTARY')),
+    users BIGINT NOT NULL,
+    refreshed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);

@@ -123,3 +123,7 @@ volumes:
   kafka-data:
   postgres-data:
   metabase-data:
+
+networks:
+  default:
+    name: streambharat-network

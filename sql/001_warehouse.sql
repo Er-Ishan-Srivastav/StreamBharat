@@ -205,3 +205,30 @@ ALTER TABLE ottdw.stream_metrics
 ALTER TABLE ottdw.stream_metrics
     ADD CONSTRAINT stream_metrics_pkey
     PRIMARY KEY (metric_ts, query_name, topic);
+
+
+CREATE TABLE IF NOT EXISTS ottdw.cdn_egress_daily (
+    activity_date DATE NOT NULL,
+    cdn TEXT NOT NULL,
+    region TEXT NOT NULL,
+    request_count BIGINT NOT NULL,
+    total_bytes BIGINT NOT NULL,
+    egress_gb DOUBLE PRECISION NOT NULL,
+    cost_inr NUMERIC(18,4),
+    missing_rate_requests BIGINT NOT NULL DEFAULT 0,
+    http_4xx BIGINT NOT NULL DEFAULT 0,
+    http_5xx BIGINT NOT NULL DEFAULT 0,
+    unique_content BIGINT NOT NULL DEFAULT 0,
+    refreshed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (activity_date, cdn, region)
+);
+CREATE INDEX IF NOT EXISTS idx_cdn_egress_region_date
+    ON ottdw.cdn_egress_daily(region, activity_date DESC);
+CREATE OR REPLACE VIEW ottdw.v_cdn_cost_by_region_month AS
+SELECT date_trunc('month', activity_date)::date AS month_start,
+       cdn, region, SUM(request_count) AS requests,
+       SUM(total_bytes) AS total_bytes, SUM(egress_gb) AS egress_gb,
+       SUM(cost_inr) AS cost_inr,
+       SUM(missing_rate_requests) AS missing_rate_requests
+FROM ottdw.cdn_egress_daily
+GROUP BY 1, 2, 3;

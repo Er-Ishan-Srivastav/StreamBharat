@@ -82,15 +82,14 @@ def build_ad_delivery(
     b = breaks.dropDuplicates(["break_id"]).alias("b")
     i = impressions.dropDuplicates(["impression_id"]).alias("i")
     bound_seconds = F.col("i.duration_sec").cast("long") + F.lit(lateness_minutes * 60)
+    impression_delay_seconds = (
+        F.unix_timestamp("i.ad_break_ts") - F.unix_timestamp("b.break_ts")
+    )
     join_condition = (
         (F.col("b.impression_id") == F.col("i.impression_id"))
         & (F.col("b.user_id") == F.col("i.user_id"))
         & (F.col("b.content_id") == F.col("i.content_id"))
-        & (
-            F.abs(
-                F.unix_timestamp("i.ad_break_ts") - F.unix_timestamp("b.break_ts")
-            ) <= bound_seconds
-        )
+        & impression_delay_seconds.between(F.lit(0), bound_seconds)
     )
     linked = b.join(i, join_condition, "left")
     matched = F.col("i.impression_id").isNotNull()
@@ -279,7 +278,23 @@ def run_ad_matching(
             impressions = impressions.filter(F.to_date("ad_break_ts") == target_date)
         campaigns = spark.read.option("header", True).option("inferSchema", True).csv(campaigns_path)
         catalog = read_catalog_snapshot(spark, catalog_path)
-        content_genres = catalog.select("content_id", "genres").dropDuplicates(["content_id"])
+        mapping_path = os.path.join(os.path.dirname(os.path.dirname(campaigns_path)), "reference", "genre_mapping.csv")
+        genre_mapping = (
+            spark.read.option("header", True).option("inferSchema", True)
+            .csv(mapping_path)
+            .select(
+                F.lower(F.trim("raw_genre")).alias("raw_genre_key"),
+                F.col("standard_genre"),
+            )
+        )
+        content_genres = (
+            catalog.select("content_id", F.explode_outer("genres").alias("raw_genre"))
+            .withColumn("raw_genre_key", F.lower(F.trim("raw_genre")))
+            .join(genre_mapping, "raw_genre_key", "left")
+            .withColumn("standard_genre", F.coalesce("standard_genre", "raw_genre"))
+            .groupBy("content_id")
+            .agg(F.collect_set("standard_genre").alias("genres"))
+        )
         delivery, campaign_day, hourly = build_ad_delivery(
             breaks, impressions, campaigns, content_genres
         )

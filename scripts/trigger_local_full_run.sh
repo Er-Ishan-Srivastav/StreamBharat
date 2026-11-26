@@ -12,13 +12,12 @@ if [[ "$END_DATE" < "$START_DATE" ]]; then
   exit 2
 fi
 
-CONF="$(python -c 'import json,os,sys; print(json.dumps({
+export FULL_REFRESH START_DATE END_DATE
+CONF="$(python -c 'import json,os; print(json.dumps({
     "full_refresh": os.environ["FULL_REFRESH"].lower() == "true",
     "start_date": os.environ["START_DATE"],
     "end_date": os.environ["END_DATE"],
 }))' )"
-
-export FULL_REFRESH START_DATE END_DATE
 echo "Triggering StreamBharat full_refresh=$FULL_REFRESH for $START_DATE through $END_DATE"
 docker compose -f docker-compose.airflow.yml exec -T airflow-scheduler \
   airflow dags trigger streambharat_nightly --conf "$CONF"

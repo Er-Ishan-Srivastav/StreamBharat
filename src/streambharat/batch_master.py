@@ -45,6 +45,11 @@ PLAN_SCHEMA = StructType([
     StructField("price_inr_per_month", StringType(), True),
     StructField("max_screens", IntegerType(), True),
 ])
+CDN_RATE_SCHEMA = StructType([
+    StructField("cdn", StringType(), True),
+    StructField("region", StringType(), True),
+    StructField("rate_inr_per_gb", StringType(), True),
+])
 
 
 def build_catalog_history(spark, catalog_dir: str, genre_mapping_path: str):
@@ -241,6 +246,14 @@ def run_batch_master(
         plans.write.format("delta").mode("overwrite").option(
             "overwriteSchema", "true"
         ).save(os.path.join(output_root, "plans"))
+        cdn_rates = (
+            spark.read.schema(CDN_RATE_SCHEMA).option("header", True)
+            .csv(os.path.join(data_root, "reference", "cdn_rates.csv"))
+            .withColumn("rate_inr_per_gb", F.col("rate_inr_per_gb").cast("double"))
+        )
+        cdn_rates.write.format("delta").mode("overwrite").option(
+            "overwriteSchema", "true"
+        ).save(os.path.join(output_root, "cdn_rates"))
 
         cdn, malformed = parse_cdn_logs(
             spark,

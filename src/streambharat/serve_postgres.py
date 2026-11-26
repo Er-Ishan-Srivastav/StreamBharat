@@ -68,6 +68,16 @@ TABLES = {
         "columns": ["churn_type","users","refreshed_at"],
         "keys": ["churn_type"],
     },
+    "viewing_sessions": {
+        "path": "lake/gold/viewing_sessions",
+        "columns": ["session_id","viewing_date","user_id","profile_id","device_id","content_id","report_content_id","title","language","session_start_ts","session_end_ts","session_duration_seconds","event_count","watched_seconds","max_position_sec","duration_sec","completion_rate","completed","dropoff_seconds"],
+        "keys": ["session_id"],
+    },
+    "content_dropoff_daily": {
+        "path": "lake/gold/content_dropoff_daily",
+        "columns": ["viewing_date","report_content_id","language","sessions","viewers","watched_seconds","completed_sessions","average_completion_rate","average_dropoff_seconds"],
+        "keys": ["viewing_date","report_content_id","language"],
+    },
 }
 
 

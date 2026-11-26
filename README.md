@@ -307,20 +307,20 @@ The CI workflow currently checks the deterministic test suite and Python compila
 
 **Automated checks:** GitHub Actions runs the pure-Python and Spark contract tests, followed by Python compilation for the source modules, scripts and Airflow DAGs. See [GitHub Actions](https://github.com/Er-Ishan-Srivastav/StreamBharat/actions).
 
-**Kafka extension status:** source replay, seven independent Bronze consumers, source DLQ validation, retained-offset reconciliation, Silver player schema/clock handling, subscription SCD2 with seven-day payment grace, Gold engagement aggregates, Kafka Q17/Q18 output topics, Postgres upsert serving and a local Airflow DAG are implemented as the first operational slice.
+**Kafka extension status:** the branch now contains seven-source replay and Bronze ingestion, DLQ validation/routing, offset reconciliation, player schema-v1/v2 and clock handling, a restartable July–September arrival-day backfill, master/reference loads and CDN log normalization, subscription SCD2/grace handling, Gold engagement and session analytics, ad-break/impression matching, revenue/settlement reconciliation, quarterly partner royalties, DQ quarantine/gating, CDN egress cost, live Q17/Q18 adapters, streaming health metrics, Postgres staging/upserts, query-ready Metabase views and a date-aware Airflow DAG.
 
-**Runtime status:** the local Docker Compose stack and Airflow DAG still need a clean-install execution with the supplied dataset. Subscription SCD2 has Spark contract coverage but needs full-dataset reconciliation. Streaming restart/failure drills, complete financial reconciliation, complete ad join/sessionisation, saved Metabase dashboards and measured throughput/latency are not yet validated. Do not treat passing CI as proof of a full data run.
+**Runtime status:** a previous CI head passed the then-current test suite and compile checks; additional tests and commits have since been added and require a fresh CI result. The full Docker/Spark/Kafka/Postgres pipeline has not yet been run here against the complete course dataset. The Metabase collection and saved dashboards still need to be assembled after data is loaded. No actual board-metric variance or throughput numbers are claimed.
 
 Treat a question as validated only after its Spark job has run against the supplied data, output schemas and key counts have been inspected, business reconciliations have passed, and the owner has walked through the implementation.
 
-## Known limitations and next milestones
+## Remaining validation and delivery work
 
-1. **Runtime proof:** execute all batch jobs using the pinned Java/PySpark/Delta versions and preserve logs, row counts and output schemas.
-2. **Streaming proof:** demonstrate restart from checkpoint, duplicate handling and late-arrival behaviour for Q17/Q18.
-3. **Integration proof:** validate Silver/Gold contracts across all six owners and run the complete dependency graph.
-4. **Performance evidence:** capture baseline versus AQE/salting timings and record cluster/runtime configuration.
-5. **ML evidence:** publish the Q16 precision@10 baseline comparison and Q20 ROC-AUC/PR-AUC from actual chronological holdouts.
-6. **Operationalisation:** finish the remaining Kafka ETL workbook jobs, provision saved Metabase dashboards, run the local Airflow DAG end to end, and only then prepare AWS resources.
+1. **Clean local deployment:** run the Compose stack, create all thirteen topics and execute the complete Airflow DAG on the supplied dataset.
+2. **Business reconciliation:** inspect source-to-Bronze offsets, July–September late arrival counts, DQ exceptions, finance/royalty totals and variance against `published_metrics.csv`.
+3. **Streaming failure drills:** demonstrate checkpoint restart, replay deduplication, late-event behaviour, broker outage and alert retry semantics.
+4. **BI completion:** connect Metabase, save the committed SQL cards and assemble the three dashboard collections using populated Postgres data.
+5. **Performance evidence:** capture Spark job durations, input/processed rates, batch duration, lag and freshness. Do not invent throughput or model metrics.
+6. **AWS:** intentionally deferred until local validation and BI sign-off are complete.
 
 ## Documentation
 
@@ -334,6 +334,8 @@ Treat a question as validated only after its Spark job has run against the suppl
 - [Q17 real-time trending design](docs/implementation/q17-real-time-trending.md)
 - [Q20 churn design](docs/implementation/q20-churn-model.md)
 - [Kafka ETL pipeline and local deployment guide](docs/implementation/kafka-streaming.md)
+- [Metabase dashboard and SQL card guide](docs/dashboards.md)
+- [Local Airflow DAG and backfill instructions](dags/README.md)
 - [Airflow DAG operations](dags/README.md)
 - [AWS deployment plan (deferred)](docs/aws-deployment-plan.md)
 - [Student-facing workbook](docs/source-materials/Project-4-StreamBharat-PySpark-Workbook.pdf)

@@ -166,6 +166,7 @@ def test_partner_royalties_use_point_in_time_watch_share_and_minimum(spark):
     partners = spark.createDataFrame([
         ("P1", 50.0, 100.00),
         ("P2", 25.0, 200.00),
+        ("P3", 30.0, 75.00),
     ], partner_schema)
 
     royalties = build_partner_royalties(watch, history, revenue, partners)
@@ -179,3 +180,4 @@ def test_partner_royalties_use_point_in_time_watch_share_and_minimum(spark):
     }
     assert values["P1"] == (400.0, 0.0, 400.0)
     assert values["P2"] == (50.0, 150.0, 200.0)
+    assert values["P3"] == (0.0, 75.0, 75.0)

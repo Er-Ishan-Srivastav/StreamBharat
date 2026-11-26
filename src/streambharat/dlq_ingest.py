@@ -77,36 +77,47 @@ def add_reason_code(parsed: DataFrame, alias: str) -> DataFrame:
             "try_cast(element_at(_payload, 'position_ms') AS DOUBLE) IS NULL"
         )
         reason = reason.when(bad_sec | bad_ms, F.lit("INVALID_POSITION"))
-    elif alias in ("billing_settle", "ads_impressions"):
-        amount_field = "amount_inr" if alias == "billing_settle" else "cpm_inr"
+    elif alias == "billing_settle":
         amount_invalid = F.expr(
-            f"try_cast(element_at(_payload, '{amount_field}') AS DECIMAL(18,2)) IS NULL"
+            "try_cast(element_at(_payload, 'amount_inr') AS DECIMAL(18,2)) IS NULL"
+        ) | (
+            F.expr("try_cast(element_at(_payload, 'amount_inr') AS DECIMAL(18,2))") < 0
         )
-        reason = reason.when(amount_invalid, F.lit("INVALID_" + amount_field.upper()))
+        reason = reason.when(amount_invalid, F.lit("INVALID_AMOUNT_INR"))
     elif alias == "billing_subscr":
         charged_event = F.lower(_field("event_type")).isin("subscribe", "renew", "upgrade")
-        price_present = ~_missing("price")
+        price_missing = charged_event & _missing("price")
         price_invalid = F.expr(
             "try_cast(element_at(_payload, 'price') AS DECIMAL(18,2)) IS NULL"
+        ) | (
+            F.expr("try_cast(element_at(_payload, 'price') AS DECIMAL(18,2))") < 0
         )
+        reason = reason.when(price_missing, F.lit("MISSING_PRICE"))
         reason = reason.when(
-            charged_event & price_present & price_invalid,
+            charged_event & ~_missing("price") & price_invalid,
             F.lit("INVALID_PRICE"),
         )
     elif alias == "app_ratings":
-        rating_invalid = (
-            F.expr("try_cast(element_at(_payload, 'rating') AS DOUBLE) IS NULL")
-            | (F.expr("try_cast(element_at(_payload, 'rating') AS DOUBLE)") < 1)
-            | (F.expr("try_cast(element_at(_payload, 'rating') AS DOUBLE)") > 5)
+        rating = F.expr("try_cast(element_at(_payload, 'rating') AS DOUBLE)")
+        reason = reason.when(
+            rating.isNull() | (rating < 1) | (rating > 5),
+            F.lit("INVALID_RATING"),
         )
-        reason = reason.when(rating_invalid, F.lit("INVALID_RATING"))
-    elif alias == "ads_impressions":
-        duration_invalid = F.expr(
-            "try_cast(element_at(_payload, 'duration_sec') AS INT) IS NULL"
-        ) | (
-            F.expr("try_cast(element_at(_payload, 'duration_sec') AS INT)") <= 0
-        )
+
+    if alias == "ads_impressions":
+        cpm = F.expr("try_cast(element_at(_payload, 'cpm_inr') AS DECIMAL(18,2))")
+        amount_invalid = cpm.isNull() | (cpm < 0)
+        reason = reason.when(amount_invalid, F.lit("INVALID_CPM_INR"))
+        duration = F.expr("try_cast(element_at(_payload, 'duration_sec') AS INT)")
+        duration_invalid = duration.isNull() | (duration <= 0)
         reason = reason.when(duration_invalid, F.lit("INVALID_DURATION"))
+
+    if alias == "ads_breaks":
+        filled = F.expr("try_cast(element_at(_payload, 'filled') AS INT)")
+        reason = reason.when(
+            filled.isNull() | ~filled.isin(0, 1),
+            F.lit("INVALID_FILLED_FLAG"),
+        )
 
     return parsed.withColumn("reason_code", reason)
 

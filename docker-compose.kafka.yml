@@ -108,6 +108,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ott_local_dev}
       PYTHONPATH: /workspace/src
       PYSPARK_PYTHON: python3
+      SPARK_EXTRA_PACKAGES: org.postgresql:postgresql:42.7.4
       SPARK_LOCAL_IP: 127.0.0.1
       JUPYTER_TOKEN: ${JUPYTER_TOKEN:-streambharat-local}
     volumes:

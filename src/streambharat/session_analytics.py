@@ -88,7 +88,10 @@ def build_viewing_sessions(
         .withColumn("session_sequence", F.sum("new_session").over(preceding))
         .withColumn(
             "session_start_ts",
-            F.min(F.when(F.col("new_session") == 1, F.col("event_ts"))).over(preceding),
+            F.last(
+                F.when(F.col("new_session") == 1, F.col("event_ts")),
+                ignorenulls=True,
+            ).over(preceding),
         )
         .withColumn(
             "session_id",

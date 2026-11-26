@@ -108,13 +108,15 @@ def _read_file(path: Path, file_format: str) -> Iterator[tuple[int, dict[str, An
                 try:
                     row = json.loads(line)
                 except json.JSONDecodeError as exc:
-                    LOG.warning("Malformed JSON retained for no replay: %s:%s (%s)",
+                    LOG.warning("Malformed JSON sent through for DLQ: %s:%s (%s)",
                                 path, line_number, exc)
+                    yield line_number, {}, line.strip()
                     continue
                 if isinstance(row, dict):
                     yield line_number, row, line.strip()
                 else:
-                    LOG.warning("Skipping non-object JSON at %s:%s", path, line_number)
+                    LOG.warning("Non-object JSON sent through for DLQ: %s:%s", path, line_number)
+                    yield line_number, {}, line.strip()
         return
 
     with path.open("r", encoding="utf-8-sig", newline="") as handle:
@@ -215,6 +217,7 @@ def replay(
         "message.timeout.ms": 120000,
     })
     counts = {alias: 0 for alias in selected_topics}
+    topic_to_alias = {SOURCE_SPECS[alias].topic: alias for alias in selected_topics}
     failures = 0
     total = 0
     first_event_time: datetime | None = None
@@ -247,18 +250,21 @@ def replay(
         headers = [
             ("source_file", source_file.encode("utf-8")),
             ("source_line", str(source_line).encode("utf-8")),
-            ("source_alias", selected_topics[source_index].encode("utf-8")
-             if source_index < len(selected_topics) else b"unknown"),
+            ("source_alias", topic_to_alias[topic].encode("utf-8")),
         ]
-        producer.produce(
-            topic=topic,
-            key=key.encode("utf-8") if key is not None else None,
-            value=raw_value.encode("utf-8"),
-            headers=headers,
-            on_delivery=on_delivery,
-        )
-        counts[next(alias for alias in selected_topics
-                    if SOURCE_SPECS[alias].topic == topic)] += 1
+        while True:
+            try:
+                producer.produce(
+                    topic=topic,
+                    key=key.encode("utf-8") if key is not None else None,
+                    value=raw_value.encode("utf-8"),
+                    headers=headers,
+                    on_delivery=on_delivery,
+                )
+                break
+            except BufferError:
+                producer.poll(0.5)
+        counts[topic_to_alias[topic]] += 1
         total += 1
         if total % 5000 == 0:
             producer.poll(0)

@@ -97,6 +97,12 @@ TABLES = {
         "keys": ["hour_start"],
         "date_column": "hour_start",
     },
+    "stream_metrics": {
+        "path": "lake/gold/stream_metrics",
+        "columns": ["metric_ts","query_name","topic","input_rows_per_second","processed_rows_per_second","batch_duration_ms","event_time_max","consumer_lag","freshness_seconds"],
+        "keys": ["metric_ts","query_name","topic"],
+        "date_column": "metric_ts",
+    },
 }
 
 

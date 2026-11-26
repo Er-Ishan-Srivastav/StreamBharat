@@ -86,7 +86,9 @@ def add_reason_code(parsed: DataFrame, alias: str) -> DataFrame:
         )
         reason = reason.when(amount_invalid, F.lit("INVALID_AMOUNT_INR"))
     elif alias == "billing_subscr":
-        charged_event = F.lower(_field("event_type")).isin("subscribe", "renew", "upgrade")
+        charged_event = F.lower(_field("event_type")).isin(
+            "subscribe", "renew", "upgrade", "downgrade"
+        )
         price_missing = charged_event & _missing("price")
         price_invalid = F.expr(
             "try_cast(element_at(_payload, 'price') AS DECIMAL(18,2)) IS NULL"

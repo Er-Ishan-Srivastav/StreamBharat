@@ -24,6 +24,7 @@ ADDITIONAL = (
     ("plans", "reference/plans.csv"),
     ("content partners", "reference/content_partners.csv"),
     ("CDN edge mapping", "reference/cdn_edges.csv"),
+    ("CDN regional rate card", "reference/cdn_rates.csv"),
     ("published board metrics", "reference/published_metrics.csv"),
     ("ad campaigns", "ads/ad_campaigns.csv"),
     ("AkashCDN September log", "cdn/akashcdn_2026-09.log"),

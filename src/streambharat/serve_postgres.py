@@ -58,6 +58,16 @@ TABLES = {
         "keys": ["alert_id"],
         "json_columns": ["details"],
     },
+    "subscriptions_scd2": {
+        "path": "lake/silver/subscriptions",
+        "columns": ["user_id","valid_from","plan","status","event_id","event_type","valid_to","is_current","churn_type","is_synthetic","kafka_timestamp","kafka_partition","kafka_offset"],
+        "keys": ["user_id","valid_from"],
+    },
+    "subscription_churn": {
+        "path": "lake/gold/subscription_churn",
+        "columns": ["churn_type","users","refreshed_at"],
+        "keys": ["churn_type"],
+    },
 }
 
 

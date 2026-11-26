@@ -1,6 +1,7 @@
 import json
+from pathlib import Path
 
-from streambharat.kafka_producer import TOPICS
+from streambharat.kafka_producer import TOPICS, event_files
 
 
 def test_kafka_topic_names_are_domain_separated():
@@ -8,18 +9,14 @@ def test_kafka_topic_names_are_domain_separated():
     assert TOPICS["ads"] == "streambharat.ads"
 
 
-def test_playback_event_serializes_as_json():
-    event = {
-        "event_id": "LP000000001",
-        "user_id": "U000001",
-        "profile_id": "U000001-P1",
-        "content_id": "C001",
-        "language": "hi",
-        "event_ts": "2026-11-26T10:00:00",
-    }
-    assert json.loads(json.dumps(event))["event_id"] == "LP000000001"
+def test_event_files_ignores_temporary_simulator_files(tmp_path):
+    (tmp_path / "plays_20261126_120000.json").write_text('{"event_id":"e1"}\n')
+    (tmp_path / ".tmp_partial.json").write_text('{"event_id":"e2"}\n')
+    assert [p.name for p in event_files(tmp_path)] == ["plays_20261126_120000.json"]
 
 
-def test_ad_event_has_stable_key():
-    event = {"impression_id": "LI000000001", "campaign_id": "CMP01"}
-    assert event.get("event_id") or event.get("impression_id") == "LI000000001"
+def test_play_and_ad_payloads_have_stable_event_keys():
+    play = {"event_id": "LP000000001", "profile_id": "U1-P1"}
+    ad = {"impression_id": "LI000000001", "campaign_id": "CMP01"}
+    assert json.loads(json.dumps(play))["event_id"] == "LP000000001"
+    assert (ad.get("event_id") or ad.get("impression_id")) == "LI000000001"

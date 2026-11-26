@@ -258,17 +258,12 @@ def build_engagement_gold(
 
 def _write_gold(frame, path: str, keys: list[str], date_arg: str | None) -> None:
     if date_arg and DeltaTable.isDeltaTable(frame.sparkSession, path):
-        source = frame.dropDuplicates(keys)
-        (
-            DeltaTable.forPath(frame.sparkSession, path).alias("target")
-            .merge(
-                source.alias("source"),
-                " AND ".join(f"target.{key} = source.{key}" for key in keys),
-            )
-            .whenMatchedUpdateAll()
-            .whenNotMatchedInsertAll()
-            .execute()
+        date_column = keys[0]
+        target = DeltaTable.forPath(frame.sparkSession, path)
+        target.delete(
+            F.to_date(F.col(date_column)) == F.to_date(F.lit(date_arg))
         )
+        frame.dropDuplicates(keys).write.format("delta").mode("append").save(path)
     else:
         frame.write.format("delta").mode("overwrite").option(
             "overwriteSchema", "true"

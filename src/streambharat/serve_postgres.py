@@ -107,13 +107,11 @@ TABLES = {
         "path": "lake/gold/cdn_egress_daily",
         "columns": ["activity_date","cdn","region","request_count","total_bytes","egress_gb","cost_inr","missing_rate_requests","http_4xx","http_5xx","unique_content"],
         "keys": ["activity_date","cdn","region"],
-        "date_column": "activity_date",
     },
     "published_metrics_reconciliation": {
         "path": "lake/gold/published_metrics_reconciliation",
         "columns": ["month","metric","actual_metric","published_value","actual_value","variance_absolute","variance_pct","tolerance_pct","reconciliation_status","investigation_hint","published_ts","compared_at"],
         "keys": ["month","metric"],
-        "date_column": "month",
     },
 }
 

@@ -353,10 +353,9 @@ Copy `.env.example` to `.env` and change the local-only credentials.
 Place the supplied dataset at `data/raw/` without changing raw files.
 
 ```bash
-cp .env.example .env
-docker compose -f docker-compose.kafka.yml up -d --build
-bash config/kafka-topics.sh
+bash scripts/start_local_stack.sh
 docker compose -f docker-compose.kafka.yml exec workspace pytest -q
+bash config/kafka-topics.sh
 ```
 
 Open Kafka UI at `http://localhost:8080`, JupyterLab at

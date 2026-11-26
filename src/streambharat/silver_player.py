@@ -29,7 +29,7 @@ PLAYER_SCHEMA = StructType([
 ])
 
 
-def transform_player_events(bronze_df):
+def transform_player_events(bronze_df, device_offsets=None):
     parsed = bronze_df.withColumn("_json", F.from_json("raw_value", PLAYER_SCHEMA))
     metadata_columns = [
         "source_topic", "kafka_partition", "kafka_offset", "kafka_timestamp",
@@ -59,7 +59,7 @@ def transform_player_events(bronze_df):
         & F.col("client_time").isNotNull()
         & F.col("server_time").isNotNull()
     )
-    offsets = (
+    computed_offsets = (
         online.withColumn(
             "offset_seconds",
             F.unix_timestamp("server_time") - F.unix_timestamp("client_time")
@@ -67,6 +67,7 @@ def transform_player_events(bronze_df):
         .groupBy("device_id")
         .agg(F.expr("percentile_approx(offset_seconds, 0.5)").alias("median_clock_offset_seconds"))
     )
+    offsets = device_offsets if device_offsets is not None else computed_offsets
 
     conformed = (
         expanded.join(offsets, "device_id", "left")
@@ -88,7 +89,7 @@ def transform_player_events(bronze_df):
         .withColumn(
             "source_system",
             F.coalesce(
-                F.col("source_system") if "source_system" in conformed.columns else F.lit(None).cast("string"),
+                F.col("source_system") if "source_system" in expanded.columns else F.lit(None).cast("string"),
                 F.lit("kafka"),
             ),
         )

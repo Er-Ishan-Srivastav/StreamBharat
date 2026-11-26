@@ -14,7 +14,7 @@ from delta.tables import DeltaTable
 from pyspark.sql import functions as F
 from pyspark.sql.types import DoubleType, IntegerType, StringType, StructField, StructType
 
-from .spark_session import create_spark
+from streambharat.spark_session import create_spark
 
 AD_SCHEMA = StructType([
     StructField("impression_id", StringType(), True),

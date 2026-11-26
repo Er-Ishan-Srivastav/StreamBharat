@@ -1,6 +1,15 @@
 from datetime import datetime, timezone
 
-from streambharat.replay_kafka import SOURCE_SPECS, parse_event_time, record_time
+import pytest
+
+from streambharat.replay_kafka import (
+    SOURCE_SPECS,
+    mark_replay_record_published,
+    open_replay_state,
+    parse_event_time,
+    record_time,
+    replay_record_published,
+)
 
 
 def test_seven_source_topic_and_key_contracts():
@@ -32,3 +41,39 @@ def test_missing_timestamp_falls_back_for_quarantine_replay():
     spec = SOURCE_SPECS["player_events"]
     fallback = datetime(2026, 10, 1)
     assert record_time({"event_id": "bad"}, spec, fallback) == fallback
+
+
+
+def test_replay_ledger_skips_acknowledged_source_record(tmp_path):
+    state = open_replay_state(str(tmp_path / "replay.sqlite3"))
+    try:
+        assert not replay_record_published(
+            state, "ott.player.events", "player/day.json", 12, '{"event_id":"E12"}'
+        )
+        mark_replay_record_published(
+            state, "ott.player.events", "player/day.json", 12,
+            '{"event_id":"E12"}', 2, 101,
+        )
+        state.commit()
+        assert replay_record_published(
+            state, "ott.player.events", "player/day.json", 12, '{"event_id":"E12"}'
+        )
+    finally:
+        state.close()
+
+
+def test_replay_ledger_rejects_mutated_source_row(tmp_path):
+    state = open_replay_state(str(tmp_path / "replay.sqlite3"))
+    try:
+        mark_replay_record_published(
+            state, "ott.player.events", "player/day.json", 12,
+            '{"event_id":"E12"}', 2, 101,
+        )
+        state.commit()
+        with pytest.raises(RuntimeError, match="Source row changed"):
+            replay_record_published(
+                state, "ott.player.events", "player/day.json", 12,
+                '{"event_id":"E12","position_sec":5}',
+            )
+    finally:
+        state.close()

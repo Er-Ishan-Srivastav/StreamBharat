@@ -300,25 +300,22 @@ def run_ad_matching(
         delivery, campaign_day, hourly = build_ad_delivery(
             breaks, impressions, campaigns, content_genres
         )
-        _write_delta(spark, delivery, delivery_path, ["delivery_id"], date_arg)
-        _write_delta(spark, campaign_day, campaign_gold_path, ["activity_date", "campaign_id"], date_arg)
-        _write_delta(spark, hourly, hourly_gold_path, ["hour_start"], date_arg)
+        _write_delta(spark, delivery, delivery_path, ["delivery_id"], "activity_date", date_arg)
+        _write_delta(spark, campaign_day, campaign_gold_path, ["activity_date", "campaign_id"], "activity_date", date_arg)
+        _write_delta(spark, hourly, hourly_gold_path, ["hour_start"], "hour_start", date_arg)
     finally:
         spark.stop()
 
 
-def _write_delta(spark, frame: DataFrame, path: str, keys: list[str], date_arg: str | None):
+def _write_delta(
+    spark, frame: DataFrame, path: str, keys: list[str],
+    date_column: str, date_arg: str | None,
+):
     if date_arg and DeltaTable.isDeltaTable(spark, path):
-        (
-            DeltaTable.forPath(spark, path).alias("target")
-            .merge(
-                frame.dropDuplicates(keys).alias("source"),
-                " AND ".join(f"target.{key} = source.{key}" for key in keys),
-            )
-            .whenMatchedUpdateAll()
-            .whenNotMatchedInsertAll()
-            .execute()
+        DeltaTable.forPath(spark, path).delete(
+            F.to_date(F.col(date_column)) == F.to_date(F.lit(date_arg))
         )
+        frame.dropDuplicates(keys).write.format("delta").mode("append").save(path)
     else:
         frame.write.format("delta").mode("overwrite").option(
             "overwriteSchema", "true"

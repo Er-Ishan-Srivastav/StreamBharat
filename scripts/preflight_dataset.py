@@ -31,6 +31,13 @@ ADDITIONAL = (
 )
 
 
+MONTHLY_CATALOGS = tuple(
+    f"content/catalog_2026-{month:02d}-01.json"
+    for month in range(5, 11)
+)
+PLAYER_ARRIVAL_MONTHS = ("2026-07", "2026-08", "2026-09", "2026-10")
+
+
 def validate_dataset(data_root: str = "data/raw") -> list[str]:
     root = Path(data_root)
     errors = []
@@ -43,6 +50,15 @@ def validate_dataset(data_root: str = "data/raw") -> list[str]:
     for label, relative in ADDITIONAL:
         if not (root / relative).is_file():
             errors.append(f"{label}: expected {root / relative}")
+    for relative in MONTHLY_CATALOGS:
+        if not (root / relative).is_file():
+            errors.append(f"monthly catalogue snapshot missing: {root / relative}")
+    for month in PLAYER_ARRIVAL_MONTHS:
+        matches = list((root / "player").glob(f"playback_{month}-*.json"))
+        if not matches:
+            errors.append(
+                f"historical/live player arrival files missing for {month} in {root / 'player'}"
+            )
     return errors
 
 

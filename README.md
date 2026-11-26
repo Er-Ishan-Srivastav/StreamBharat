@@ -322,6 +322,31 @@ Treat a question as validated only after its Spark job has run against the suppl
 5. **Performance evidence:** capture Spark job durations, input/processed rates, batch duration, lag and freshness. Do not invent throughput or model metrics.
 6. **AWS:** intentionally deferred until local validation and BI sign-off are complete.
 
+
+
+## Canonical Kafka ETL project (local-first)
+
+The supplied Kafka + PySpark ETL workbook is implemented as a self-contained
+project under [StreamBharat_Kafka_ETL](StreamBharat_Kafka_ETL/README.md).
+It includes the complete Docker Compose stack, Spark jobs, replay/live producers,
+Airflow DAG, Postgres schema, Metabase SQL, tests and runbooks.
+
+Download the [complete project archive](StreamBharat_Kafka_ETL/StreamBharat_Kafka_ETL_complete.tar.gz),
+extract it to your working directory, then initialise locally from that folder:
+
+```bash
+tar -xzf StreamBharat_Kafka_ETL_complete.tar.gz
+cd StreamBharat_Kafka_ETL
+cp .env.example .env
+# Set PROJECT_DIR in .env to this folder's absolute host path.
+make init
+```
+
+The first `make init` smoke test does not need the course dataset. Add the
+provided `data/raw/` directory only for the historical data run. AWS deployment
+is intentionally deferred until local initialization and the full data run
+have been validated.
+
 ## Documentation
 
 - [Project brief](docs/project-brief.md)

@@ -1,68 +1,130 @@
-# StreamBharat Metabase dashboard specification
+# StreamBharat Metabase question and dashboard specification
 
 Connect Metabase to PostgreSQL:
-- Host: localhost (desktop) / postgres (inside Compose network)
-- Port: 5432
-- Database: ottdw
-- Username: ott
-- Password: the local POSTGRES_PASSWORD from .env
-- Schema: ottdw
+- Host: `localhost` on the desktop, or `postgres` inside Compose
+- Port: `5432`
+- Database: `ottdw`
+- Username: `ott`
+- Password: `ott_local_dev` (local development only)
+- Schema: `ottdw`
 
-Create a collection named **StreamBharat Operations & Business Intelligence**.
+Create the collection **StreamBharat Operations & Business Intelligence**.
 
 ## Dashboard 1 — Executive OTT Performance
-1. Daily watch hours: sum(watched_seconds)/3600 by viewing_date from watch_time_daily.
-2. DAU and MAU: active_users_daily by activity_date, split by metric_type.
-3. Top 10 titles by language: v_top10_titles_this_week, filter by language.
-4. Subscription mix: current rows from subscriptions_scd2 grouped by status and plan.
-5. Payment-failure grace: current payment_failed users and oldest valid_from timestamp.
-6. Campaign spend versus budget: campaign_daily combo chart.
 
-## Dashboard 2 — Streaming Operations
-1. Input and processing rate by query from stream_metrics.
-2. Latest consumer lag grouped by topic.
-3. Micro-batch duration trend from batch_duration_ms.
-4. Gold data freshness using freshness_seconds.
-5. DLQ records by reason/source once its warehouse aggregate is loaded.
+**Daily engagement overview**
+```sql
+SELECT activity_date, watch_hours, daily_viewers, dau, mau,
+       ad_spend_inr, impressions
+FROM ottdw.v_executive_daily
+ORDER BY activity_date;
+```
+
+**Top 10 titles by language**
+```sql
+SELECT activity_date, language, rank_no, title, viewers, watched_seconds
+FROM ottdw.v_top10_titles_this_week
+ORDER BY activity_date DESC, language, rank_no;
+```
+
+**Current subscription mix**
+```sql
+SELECT plan, status, users
+FROM ottdw.v_subscription_current_mix
+ORDER BY plan, users DESC;
+```
+
+**Payment failures in seven-day grace**
+```sql
+SELECT user_id, plan, payment_failed_at, grace_expires_at
+FROM ottdw.v_subscription_grace_period
+ORDER BY grace_expires_at;
+```
+
+**Daily campaign spend vs budget**
+```sql
+SELECT activity_date, campaign_id, impressions, spend_inr,
+       daily_budget_inr, pacing_ratio, alert_status
+FROM ottdw.campaign_daily
+ORDER BY activity_date, campaign_id;
+```
+
+## Dashboard 2 — Streaming & Delivery Operations
+
+**Latest stream health by query/topic**
+```sql
+SELECT metric_ts, query_name, topic, input_rows_per_second,
+       processed_rows_per_second, batch_duration_ms,
+       consumer_lag, freshness_seconds
+FROM ottdw.v_stream_health_latest
+ORDER BY query_name, topic;
+```
+
+**Hourly ad fill rate**
+```sql
+SELECT hour_start, total_breaks, filled_breaks, unfilled_breaks, fill_rate
+FROM ottdw.ad_fill_rate_hourly
+ORDER BY hour_start;
+```
+
+**Ad delivery exceptions**
+```sql
+SELECT *
+FROM ottdw.v_ad_delivery_quality_daily
+ORDER BY activity_date;
+```
+
+**Regional CDN cost**
+```sql
+SELECT month_start, cdn, region, requests, egress_gb, cost_inr,
+       missing_rate_requests
+FROM ottdw.v_cdn_monthly_cost
+ORDER BY month_start, cdn, region;
+```
 
 ## Dashboard 3 — Finance & Data Quality
-1. Unsettled/duplicate charges from revenue_reconciliation.
-2. Quarterly partner payout from royalties_quarterly.
-3. Failed DQ records by rule from dq_metrics.
-4. Voluntary versus involuntary churn from subscription_churn.
-5. Recent ad pacing alerts from ad_pacing_alerts.
 
-The SQL DDL and question spec are committed. Metabase still requires initial setup, saving questions and assembling dashboards after data is available.
-
-## Suggested SQL cards
-
-**Current subscription state by plan**
-
+**Revenue reconciliation**
 ```sql
-SELECT status, COALESCE(plan, 'unknown') AS plan, COUNT(*) AS users
-FROM ottdw.subscriptions_scd2
-WHERE is_current = TRUE
-GROUP BY status, COALESCE(plan, 'unknown')
-ORDER BY users DESC;
+SELECT settlement_status, records, charge_amount_inr, linked_settlements
+FROM ottdw.v_revenue_reconciliation_summary
+ORDER BY settlement_status;
 ```
 
-**Payment failures inside the grace period**
-
+**Partner royalties and minimum guarantee**
 ```sql
-SELECT user_id, plan, valid_from AS payment_failed_at,
-       valid_from + INTERVAL '7 days' AS grace_expires_at
-FROM ottdw.subscriptions_scd2
-WHERE is_current = TRUE AND status = 'payment_failed'
-ORDER BY valid_from;
+SELECT quarter_start, partner_id, revenue_share_inr,
+       guarantee_topup_inr, payout_inr, payout_basis
+FROM ottdw.v_royalty_payouts
+ORDER BY quarter_start, partner_id;
 ```
 
-**Voluntary versus involuntary churn**
+**DQ pass rate and failed rows**
+```sql
+SELECT batch_id, rule_name, severity, passed_rows, failed_rows, pass_rate
+FROM ottdw.v_dq_rule_status
+ORDER BY batch_id, severity, rule_name;
+```
 
+**Subscription churn**
 ```sql
 SELECT churn_type, users, refreshed_at
 FROM ottdw.subscription_churn
 ORDER BY churn_type;
 ```
 
-The question definitions are SQL-ready specifications. Metabase still requires initial
-connection, saved questions and dashboard assembly after the first successful data run.
+**Live ad pacing alerts**
+```sql
+SELECT alert_type, campaign_id, user_id, event_ts, spend_inr,
+       pacing_ratio, details
+FROM ottdw.ad_pacing_alerts
+ORDER BY event_ts DESC;
+```
+
+## Metabase setup boundary
+
+The SQL views and card queries are committed. Metabase must still be connected
+to the populated warehouse, the saved questions created from the SQL above,
+and the three dashboards assembled in the UI. The DLQ topic/Delta table does
+not yet have a Postgres aggregate table; add that serving aggregate before
+creating a DLQ chart.

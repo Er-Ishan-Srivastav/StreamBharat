@@ -95,6 +95,8 @@ flowchart LR
 
 **Live path:** the supplied simulator emits play and ad-impression JSON files. Q17 consumes play events to calculate trending; Q18 consumes ad impressions to calculate live frequency caps and spend pacing. Each stream has its own checkpoint and output.
 
+**Kafka extension:** a separate local Kafka path is being added for the live use cases. It bridges simulator events into `streambharat.plays` and `streambharat.ads`; Spark Structured Streaming reads those topics and reuses the Q17/Q18 Delta business sinks. See [Kafka integration guide](docs/implementation/kafka-streaming.md). The original file-source implementation remains the workbook baseline; Kafka runtime validation must be completed on the target environment.
+
 ## Architecture
 
 The detailed design, contracts, execution boundaries and operational principles are in **[docs/architecture.md](docs/architecture.md)**.

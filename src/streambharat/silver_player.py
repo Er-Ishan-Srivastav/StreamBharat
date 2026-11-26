@@ -31,10 +31,14 @@ PLAYER_SCHEMA = StructType([
 
 def transform_player_events(bronze_df):
     parsed = bronze_df.withColumn("_json", F.from_json("raw_value", PLAYER_SCHEMA))
-    expanded = parsed.select(
+    metadata_columns = [
         "source_topic", "kafka_partition", "kafka_offset", "kafka_timestamp",
-        "ingested_at", "_json.*"
-    )
+        "ingested_at",
+    ]
+    for optional_column in ("source_file", "source_system"):
+        if optional_column in parsed.columns:
+            metadata_columns.append(optional_column)
+    expanded = parsed.select(*metadata_columns, "_json.*")
 
     # Use Android v2 position_ms where present, otherwise the legacy position_sec.
     expanded = (
@@ -79,8 +83,15 @@ def transform_player_events(bronze_df):
             )
         )
         .withColumn("event_date", F.to_date("event_ts_corrected"))
-        .withColumn("arrival_date", F.to_date("ingested_at"))
-        .withColumn("source_system", F.lit("kafka"))
+        .withColumn("arrival_date", F.to_date("server_time"))
+        .withColumn("ingested_date", F.to_date("ingested_at"))
+        .withColumn(
+            "source_system",
+            F.coalesce(
+                F.col("source_system") if "source_system" in conformed.columns else F.lit(None).cast("string"),
+                F.lit("kafka"),
+            ),
+        )
     )
     return conformed, offsets
 

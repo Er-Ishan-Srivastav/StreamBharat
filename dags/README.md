@@ -57,9 +57,21 @@ A scheduled run replays its Airflow logical date. For a single-day rerun, use:
 }
 ```
 
-For a bounded source replay, set `start_date` and `end_date` to the desired
-arrival dates. The historical player backfill remains a separate July–September
-step and is automatically skipped file-by-file after its manifest is complete.
+For the first full historical load, trigger the DAG with:
+
+```json
+{
+  "full_refresh": true,
+  "start_date": "2026-10-01",
+  "end_date": "2026-10-31"
+}
+```
+
+This replays the selected source arrival range, runs the July–September player
+backfill, rebuilds engagement/session/ad-delivery Gold across all available
+dates and loads all available Delta rows into Postgres. Later daily runs omit
+`full_refresh` and only replace the logical-date slice for date-partitioned
+outputs. The backfill manifest skips completed historical file days.
 
 The DAG uses retries, a six-hour task timeout, and an eight-hour SLA. SLA email
 delivery requires an SMTP backend; the local stack does not configure one.

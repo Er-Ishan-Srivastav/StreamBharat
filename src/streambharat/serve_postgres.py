@@ -113,6 +113,12 @@ TABLES = {
         "columns": ["month","metric","actual_metric","published_value","actual_value","variance_absolute","variance_pct","tolerance_pct","reconciliation_status","investigation_hint","published_ts","compared_at"],
         "keys": ["month","metric"],
     },
+    "dlq_metrics_daily": {
+        "path": "lake/gold/dlq_metrics_daily",
+        "columns": ["activity_date","source_topic","reason_code","invalid_records","affected_partitions","first_seen_at","last_seen_at","first_offset","last_offset"],
+        "keys": ["activity_date","source_topic","reason_code"],
+        "date_column": "activity_date",
+    },
 }
 
 

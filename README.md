@@ -337,3 +337,47 @@ Treat a question as validated only after its Spark job has run against the suppl
 ## Data integrity
 
 All users, profiles, titles, advertisers and other entities in the supplied sample are synthetic. Instructor-only answer/seed notes and data-generation scripts are intentionally excluded. Raw source data and generated stream files remain local and untracked.
+
+
+## Local Kafka + Spark runtime
+
+The local-first runtime is a single-node development stack (Kafka in KRaft mode,
+a Spark/PySpark workspace, Postgres and Metabase). It is not a production cluster.
+Place the supplied dataset at `data/raw/` without changing raw files.
+
+```bash
+docker compose -f docker-compose.kafka.yml up -d --build
+bash config/kafka-topics.sh
+docker compose -f docker-compose.kafka.yml exec workspace pytest -q
+```
+
+Open Kafka UI at `http://localhost:8080`, JupyterLab at
+`http://localhost:8888` (development token: `streambharat-local`)
+and Metabase at `http://localhost:3000`. The Postgres warehouse is
+`localhost:5432/ottdw` (`ott` / `ott_local_dev`).
+These credentials are for local development only.
+
+Create the workbook's thirteen topics from the repository root with
+`bash config/kafka-topics.sh`. The seven source topics and
+the two live topics are distinct. The current simulator bridge feeds only
+`ott.live.plays` and `ott.live.ads`:
+
+```bash
+docker compose -f docker-compose.kafka.yml exec workspace \
+  python -m streambharat.kafka_producer --stream both
+```
+
+Start the seven Kafka-to-Delta Bronze consumers with:
+
+```bash
+docker compose -f docker-compose.kafka.yml exec workspace \
+  bash scripts/run_bronze_ingest.sh --available-now
+```
+
+Use `--available-now` for bounded replay/backfill consumption. Omit it for
+long-running processing-time ingestion. The Spark Kafka connector is fetched by
+`spark-submit` when first used; a working Maven repository connection is needed.
+For live trending and ad pacing, start the corresponding Spark jobs using
+`scripts/run_kafka_stream.sh plays` or
+`scripts/run_kafka_stream.sh ads` and run
+`python ott_stream_simulator.py --stream both` in another workspace terminal.

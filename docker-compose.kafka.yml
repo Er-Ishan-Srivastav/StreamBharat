@@ -47,7 +47,7 @@ services:
     environment:
       POSTGRES_DB: ottdw
       POSTGRES_USER: ott
-      POSTGRES_PASSWORD: ott_local_dev
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ott_local_dev}
     ports:
       - "5432:5432"
     volumes:
@@ -66,7 +66,7 @@ services:
     environment:
       POSTGRES_DB: metabase
       POSTGRES_USER: metabase
-      POSTGRES_PASSWORD: metabase_local_dev
+      POSTGRES_PASSWORD: ${METABASE_DB_PASSWORD:-metabase_local_dev}
     volumes:
       - metabase-data:/var/lib/postgresql/data
 
@@ -85,7 +85,7 @@ services:
       MB_DB_DBNAME: metabase
       MB_DB_PORT: 5432
       MB_DB_USER: metabase
-      MB_DB_PASS: metabase_local_dev
+      MB_DB_PASS: ${METABASE_DB_PASSWORD:-metabase_local_dev}
       MB_DB_HOST: metabase-db
 
   workspace:
@@ -105,11 +105,11 @@ services:
       POSTGRES_PORT: "5432"
       POSTGRES_DB: ottdw
       POSTGRES_USER: ott
-      POSTGRES_PASSWORD: ott_local_dev
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ott_local_dev}
       PYTHONPATH: /workspace/src
       PYSPARK_PYTHON: python3
       SPARK_LOCAL_IP: 127.0.0.1
-      JUPYTER_TOKEN: streambharat-local
+      JUPYTER_TOKEN: ${JUPYTER_TOKEN:-streambharat-local}
     volumes:
       - ./:/workspace
     ports:
@@ -118,7 +118,7 @@ services:
     command:
       - bash
       - -lc
-      - jupyter lab --ip=0.0.0.0 --port=8888 --no-browser --allow-root --ServerApp.token=streambharat-local
+      - jupyter lab --ip=0.0.0.0 --port=8888 --no-browser --allow-root --ServerApp.token=${JUPYTER_TOKEN:-streambharat-local}
 
 volumes:
   kafka-data:

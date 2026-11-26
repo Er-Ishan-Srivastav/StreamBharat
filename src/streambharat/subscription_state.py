@@ -254,24 +254,6 @@ def run_subscription_state(
             else:
                 invalid.write.format("delta").mode("append").save(invalid_path)
 
-            if bootstrap_servers:
-                kafka_invalid = invalid.select(
-                    F.col("dlq_id").cast("string").alias("key"),
-                    F.to_json(
-                        F.struct(
-                            "dlq_id", "source_topic", "kafka_partition",
-                            "kafka_offset", "kafka_timestamp", "raw_value",
-                            "reason_code", "quarantined_at",
-                        )
-                    ).alias("value"),
-                )
-                (
-                    kafka_invalid.write.format("kafka")
-                    .option("kafka.bootstrap.servers", bootstrap_servers)
-                    .option("topic", "ott.dlq")
-                    .save()
-                )
-
         history = build_subscription_history(events)
         history.write.format("delta").mode("overwrite").option(
             "overwriteSchema", "true"

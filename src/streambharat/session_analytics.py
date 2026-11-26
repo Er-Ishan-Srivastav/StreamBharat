@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import os
 
+from delta.tables import DeltaTable
 from pyspark.sql import DataFrame, Window
 from pyspark.sql import functions as F
 
@@ -208,20 +209,49 @@ def run_session_analytics(
     catalog_path: str = "data/raw/content/catalog_2026-10-01.json",
     session_path: str = "lake/gold/viewing_sessions",
     dropoff_path: str = "lake/gold/content_dropoff_daily",
+    date_arg: str | None = None,
 ) -> None:
     spark = create_spark("StreamBharat-Viewing-Session-Analytics")
     try:
         player = spark.read.format("delta").load(player_path)
+        if date_arg:
+            target_date = F.to_date(F.lit(date_arg))
+            # Retain the previous day as a boundary buffer for sessions crossing midnight.
+            player = player.filter(
+                F.to_date("event_ts_corrected").between(
+                    F.date_sub(target_date, 1), target_date
+                )
+            )
         catalog = read_catalog_snapshot(spark, catalog_path)
         sessions, dropoff = build_viewing_sessions(player, catalog)
-        sessions.write.format("delta").mode("overwrite").option(
-            "overwriteSchema", "true"
-        ).save(session_path)
-        dropoff.write.format("delta").mode("overwrite").option(
-            "overwriteSchema", "true"
-        ).save(dropoff_path)
+        if date_arg:
+            sessions = sessions.filter(F.col("viewing_date") == target_date)
+            dropoff = dropoff.filter(F.col("viewing_date") == target_date)
+        _write_delta(spark, sessions, session_path, ["session_id"], date_arg)
+        _write_delta(
+            spark, dropoff, dropoff_path,
+            ["viewing_date", "report_content_id", "language"], date_arg,
+        )
     finally:
         spark.stop()
+
+
+def _write_delta(spark, frame: DataFrame, path: str, keys: list[str], date_arg: str | None):
+    if date_arg and DeltaTable.isDeltaTable(spark, path):
+        (
+            DeltaTable.forPath(spark, path).alias("target")
+            .merge(
+                frame.dropDuplicates(keys).alias("source"),
+                " AND ".join(f"target.{key} = source.{key}" for key in keys),
+            )
+            .whenMatchedUpdateAll()
+            .whenNotMatchedInsertAll()
+            .execute()
+        )
+    else:
+        frame.write.format("delta").mode("overwrite").option(
+            "overwriteSchema", "true"
+        ).save(path)
 
 
 def main() -> None:
@@ -232,8 +262,11 @@ def main() -> None:
     parser.add_argument("--catalog", default="data/raw/content/catalog_2026-10-01.json")
     parser.add_argument("--sessions", default="lake/gold/viewing_sessions")
     parser.add_argument("--dropoff", default="lake/gold/content_dropoff_daily")
+    parser.add_argument("--date", help="Rebuild sessions started on this viewing date")
     args = parser.parse_args()
-    run_session_analytics(args.player, args.catalog, args.sessions, args.dropoff)
+    run_session_analytics(
+        args.player, args.catalog, args.sessions, args.dropoff, args.date
+    )
 
 
 if __name__ == "__main__":

@@ -307,9 +307,9 @@ The CI workflow currently checks the deterministic test suite and Python compila
 
 **Automated checks:** GitHub Actions runs the pure-Python and Spark contract tests, followed by Python compilation for the source modules, scripts and Airflow DAGs. See [GitHub Actions](https://github.com/Er-Ishan-Srivastav/StreamBharat/actions).
 
-**Kafka extension status:** the branch now contains seven-source replay and Bronze ingestion, DLQ validation/routing, offset reconciliation, player schema-v1/v2 and clock handling, a restartable July–September arrival-day backfill, master/reference loads and CDN log normalization, subscription SCD2/grace handling, Gold engagement and session analytics, ad-break/impression matching, revenue/settlement reconciliation, quarterly partner royalties, DQ quarantine/gating, CDN egress cost, live Q17/Q18 adapters, streaming health metrics, Postgres staging/upserts, query-ready Metabase views and a date-aware Airflow DAG.
+**Kafka extension status:** the branch now contains seven-source replay with a durable source-record acknowledgement ledger, independent Bronze consumers, source DLQ validation/routing and daily DLQ metrics, retained-offset reconciliation, player schema-v1/v2 and clock handling, a restartable July–September arrival-day backfill, master/reference loads and CDN log normalization, subscription SCD2/grace handling, Gold engagement and session analytics, ad-break/impression matching and campaign pacing, revenue/settlement reconciliation, quarterly partner royalties, DQ quarantine/gating, CDN egress cost, published-board variance reconciliation, live Q17/Q18 adapters, streaming throughput/lag/freshness metrics, Postgres JDBC staging/upserts, query-ready Metabase views, and an Airflow full-refresh/date-sliced DAG. The local stack includes Kafka, Spark workspace, Postgres, Metabase and Airflow.
 
-**Runtime status:** a previous CI head passed the then-current test suite and compile checks; additional tests and commits have since been added and require a fresh CI result. The full Docker/Spark/Kafka/Postgres pipeline has not yet been run here against the complete course dataset. The Metabase collection and saved dashboards still need to be assembled after data is loaded. No actual board-metric variance or throughput numbers are claimed.
+**Runtime status:** the previous completed CI run passed its Spark contract suite and Python compilation. A fresh CI run is executing against the latest branch head. The full Docker/Spark/Kafka/Postgres pipeline has not yet been executed here against the complete course dataset. Metabase still requires its saved questions and dashboards to be assembled after data is loaded. Published-board actuals, throughput numbers and end-to-end reconciliation are not claimed.
 
 Treat a question as validated only after its Spark job has run against the supplied data, output schemas and key counts have been inspected, business reconciliations have passed, and the owner has walked through the implementation.
 
@@ -336,7 +336,6 @@ Treat a question as validated only after its Spark job has run against the suppl
 - [Kafka ETL pipeline and local deployment guide](docs/implementation/kafka-streaming.md)
 - [Metabase dashboard and SQL card guide](docs/dashboards.md)
 - [Local Airflow DAG and backfill instructions](dags/README.md)
-- [Airflow DAG operations](dags/README.md)
 - [AWS deployment plan (deferred)](docs/aws-deployment-plan.md)
 - [Student-facing workbook](docs/source-materials/Project-4-StreamBharat-PySpark-Workbook.pdf)
 - [Team implementation guide](docs/source-materials/StreamBharat-Team-Distribution-and-Implementation-Guide.pdf)

@@ -225,6 +225,19 @@ with DAG(
         ),
     )
 
+    published_metrics_reconciliation = BashOperator(
+        task_id="reconcile_gold_metrics_to_published_course_board",
+        cwd=PROJECT_ROOT,
+        bash_command=(
+            f"cd {PROJECT_ROOT} && {PYTHON} -m streambharat.published_metrics_reconciliation "
+            "--published data/raw/reference/published_metrics.csv "
+            "--aliases config/quality/published_metric_aliases.csv "
+            "--gold-root lake/gold "
+            "--output lake/gold/published_metrics_reconciliation "
+            "--tolerance-pct 0.5"
+        ),
+    )
+
     serve_postgres = BashOperator(
         task_id="upsert_gold_and_silver_serving_tables_to_postgres",
         cwd=PROJECT_ROOT,
@@ -247,4 +260,11 @@ with DAG(
     master_data >> [ad_delivery_gold, cdn_cost_gold, quality_gate]
     bronze_ingestion >> ad_delivery_gold
     [engagement_gold, ad_delivery_gold, subscription_state] >> finance_gold
-    [source_dlq, offset_reconciliation, quality_gate, sessions_gold, cdn_cost_gold, finance_gold] >> serve_postgres
+    [
+        engagement_gold, sessions_gold, ad_delivery_gold,
+        finance_gold, cdn_cost_gold,
+    ] >> published_metrics_reconciliation
+    [
+        source_dlq, offset_reconciliation, quality_gate, sessions_gold,
+        cdn_cost_gold, finance_gold, published_metrics_reconciliation,
+    ] >> serve_postgres

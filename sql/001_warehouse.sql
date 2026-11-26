@@ -95,3 +95,42 @@ CREATE TABLE IF NOT EXISTS ottdw.subscription_churn (
     users BIGINT NOT NULL,
     refreshed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+CREATE TABLE IF NOT EXISTS ottdw.viewing_sessions (
+    session_id TEXT PRIMARY KEY,
+    viewing_date DATE NOT NULL,
+    user_id TEXT,
+    profile_id TEXT NOT NULL,
+    device_id TEXT NOT NULL,
+    content_id TEXT NOT NULL,
+    report_content_id TEXT,
+    title TEXT,
+    language TEXT,
+    session_start_ts TIMESTAMPTZ NOT NULL,
+    session_end_ts TIMESTAMPTZ NOT NULL,
+    session_duration_seconds BIGINT NOT NULL DEFAULT 0,
+    event_count BIGINT NOT NULL DEFAULT 0,
+    watched_seconds BIGINT NOT NULL DEFAULT 0,
+    max_position_sec DOUBLE PRECISION,
+    duration_sec DOUBLE PRECISION,
+    completion_rate NUMERIC(8,5),
+    completed BOOLEAN NOT NULL DEFAULT FALSE,
+    dropoff_seconds DOUBLE PRECISION,
+    refreshed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_viewing_sessions_date_profile
+    ON ottdw.viewing_sessions(viewing_date, profile_id);
+
+CREATE TABLE IF NOT EXISTS ottdw.content_dropoff_daily (
+    viewing_date DATE NOT NULL,
+    report_content_id TEXT NOT NULL,
+    language TEXT NOT NULL,
+    sessions BIGINT NOT NULL,
+    viewers BIGINT NOT NULL,
+    watched_seconds BIGINT NOT NULL,
+    completed_sessions BIGINT NOT NULL,
+    average_completion_rate NUMERIC(8,5),
+    average_dropoff_seconds DOUBLE PRECISION,
+    refreshed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (viewing_date, report_content_id, language)
+);

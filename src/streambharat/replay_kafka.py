@@ -11,8 +11,10 @@ import argparse
 import csv
 import heapq
 import json
+import hashlib
 import logging
 import os
+import sqlite3
 import time
 from dataclasses import dataclass
 from datetime import date, datetime, time as datetime_time, timedelta, timezone
@@ -145,7 +147,7 @@ def _iter_file_records(
         key = str(key_value) if key_value not in (None, "") else None
         records.append((
             event_time, spec.source_index, line_number, spec.topic, key,
-            raw_value, path.name, line_number,
+            raw_value, f"{spec.relative_path}/{path.name}", line_number,
         ))
     records.sort(key=lambda item: (item[0], item[1], item[2]))
     return records
@@ -184,6 +186,78 @@ def iter_replay_records(
     yield from heapq.merge(*streams, key=lambda item: (item[0], item[1], item[2]))
 
 
+
+
+def open_replay_state(path: str) -> sqlite3.Connection:
+    """Open a durable replay ledger, separate from Kafka's producer retry state."""
+    state_path = Path(path)
+    state_path.parent.mkdir(parents=True, exist_ok=True)
+    connection = sqlite3.connect(str(state_path))
+    connection.execute("PRAGMA journal_mode=WAL")
+    connection.execute("PRAGMA synchronous=FULL")
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS published_source_records (
+            topic TEXT NOT NULL,
+            source_file TEXT NOT NULL,
+            source_line INTEGER NOT NULL,
+            payload_sha256 TEXT NOT NULL,
+            kafka_partition INTEGER,
+            kafka_offset INTEGER,
+            published_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (topic, source_file, source_line)
+        )
+        """
+    )
+    connection.commit()
+    return connection
+
+
+def replay_record_published(
+    connection: sqlite3.Connection,
+    topic: str,
+    source_file: str,
+    source_line: int,
+    raw_value: str,
+) -> bool:
+    """Return true for an acknowledged record; fail if an immutable source row changed."""
+    digest = hashlib.sha256(raw_value.encode("utf-8")).hexdigest()
+    row = connection.execute(
+        """
+        SELECT payload_sha256 FROM published_source_records
+        WHERE topic = ? AND source_file = ? AND source_line = ?
+        """,
+        (topic, source_file, source_line),
+    ).fetchone()
+    if row is None:
+        return False
+    if row[0] != digest:
+        raise RuntimeError(
+            f"Source row changed after Kafka publication: {source_file}:{source_line}. "
+            "Use a new replay state database only for an intentionally revised source dataset."
+        )
+    return True
+
+
+def mark_replay_record_published(
+    connection: sqlite3.Connection,
+    topic: str,
+    source_file: str,
+    source_line: int,
+    raw_value: str,
+    partition: int,
+    offset: int,
+) -> None:
+    digest = hashlib.sha256(raw_value.encode("utf-8")).hexdigest()
+    connection.execute(
+        """
+        INSERT OR IGNORE INTO published_source_records
+            (topic, source_file, source_line, payload_sha256, kafka_partition, kafka_offset)
+        VALUES (?, ?, ?, ?, ?, ?)
+        """,
+        (topic, source_file, source_line, digest, partition, offset),
+    )
+
 def replay(
     data_root: str,
     selected_topics: list[str],
@@ -192,6 +266,7 @@ def replay(
     bootstrap_servers: str,
     speed: float = 1.0,
     max_events: int | None = None,
+    state_db_path: str = "lake/state/kafka_replay.sqlite3",
 ) -> dict[str, int]:
     if speed < 0:
         raise ValueError("speed must be zero (instant) or a positive replay multiplier")
@@ -220,14 +295,38 @@ def replay(
     topic_to_alias = {SOURCE_SPECS[alias].topic: alias for alias in selected_topics}
     failures = 0
     total = 0
+    skipped = 0
+    scanned = 0
+    acknowledged = 0
+    pending: set[tuple[str, str, int]] = set()
+    state_db = open_replay_state(state_db_path)
     first_event_time: datetime | None = None
     wall_start = time.monotonic()
 
-    def on_delivery(err: Any, message: Any) -> None:
-        nonlocal failures
-        if err is not None:
-            failures += 1
-            LOG.error("Kafka delivery failed: %s", err)
+    def delivery_callback(identity, raw_value):
+        def on_delivery(err: Any, message: Any) -> None:
+            nonlocal failures, acknowledged
+            pending.discard(identity)
+            if err is not None:
+                failures += 1
+                LOG.error(
+                    "Kafka delivery failed for %s:%s: %s",
+                    identity[1], identity[2], err,
+                )
+                return
+            mark_replay_record_published(
+                state_db,
+                identity[0],
+                identity[1],
+                identity[2],
+                raw_value,
+                message.partition(),
+                message.offset(),
+            )
+            acknowledged += 1
+            if acknowledged % 1000 == 0:
+                state_db.commit()
+        return on_delivery
 
     LOG.info(
         "Replaying %s through %s from %s at speed=%s (0 means no delay)",
@@ -236,8 +335,16 @@ def replay(
     for event_time, source_index, line_number, topic, key, raw_value, source_file, source_line in iter_replay_records(
         data_root, selected_topics, start, end_exclusive
     ):
-        if max_events is not None and total >= max_events:
+        if max_events is not None and scanned >= max_events:
             break
+        scanned += 1
+        identity = (topic, source_file, source_line)
+        if replay_record_published(state_db, topic, source_file, source_line, raw_value):
+            skipped += 1
+            continue
+        if identity in pending:
+            skipped += 1
+            continue
         if speed > 0:
             if first_event_time is None:
                 first_event_time = event_time
@@ -259,8 +366,9 @@ def replay(
                     key=key.encode("utf-8") if key is not None else None,
                     value=raw_value.encode("utf-8"),
                     headers=headers,
-                    on_delivery=on_delivery,
+                    on_delivery=delivery_callback(identity, raw_value),
                 )
+                pending.add(identity)
                 break
             except BufferError:
                 producer.poll(0.5)
@@ -275,9 +383,18 @@ def replay(
     remaining = producer.flush(120)
     if remaining:
         failures += remaining
-    LOG.info("Replay complete: total=%s failures=%s per_topic=%s", total, failures, counts)
+    state_db.commit()
+    state_db.close()
+    LOG.info(
+        "Replay complete: published=%s skipped_already_published=%s scanned=%s "
+        "failures=%s per_topic=%s state_db=%s",
+        total, skipped, scanned, failures, counts, state_db_path,
+    )
     if failures:
-        raise RuntimeError(f"{failures} Kafka messages failed or remained unconfirmed")
+        raise RuntimeError(
+            f"{failures} Kafka messages failed or remained unconfirmed; "
+            "unacknowledged rows remain eligible for the next replay"
+        )
     return counts
 
 
@@ -294,6 +411,11 @@ def main() -> None:
     parser.add_argument("--speed", type=float, default=1.0,
                         help="1 = one simulated day per minute; 0 = fastest possible")
     parser.add_argument("--max-events", type=int, help="Optional cap for a small smoke replay")
+    parser.add_argument(
+        "--state-db",
+        default=os.getenv("KAFKA_REPLAY_STATE_DB", "lake/state/kafka_replay.sqlite3"),
+        help="Durable acknowledgement ledger; persist this file across normal reruns",
+    )
     args = parser.parse_args()
     logging.basicConfig(
         level=os.getenv("LOG_LEVEL", "INFO"),
@@ -308,7 +430,7 @@ def main() -> None:
         parser.error(f"Unknown source aliases: {sorted(invalid)}")
     replay(
         args.data_root, selected, args.start_date, args.end_date,
-        args.bootstrap_servers, args.speed, args.max_events,
+        args.bootstrap_servers, args.speed, args.max_events, args.state_db,
     )
 
 

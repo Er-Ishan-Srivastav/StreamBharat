@@ -24,7 +24,7 @@ COMPACT_TOPICS = {"ott.ref.subscription_state"}
 
 def create_topics(bootstrap_servers: str, replication_factor: int = 1) -> dict[str, str]:
     try:
-        from confluent_kafka.admin import AdminClient, NewTopic
+        from confluent_kafka.admin import AdminClient, ConfigResource, NewTopic, ResourceType
         from confluent_kafka import KafkaException
     except ImportError as exc:
         raise RuntimeError("Install the Kafka extra: pip install -e '.[kafka]'") from exc
@@ -66,6 +66,24 @@ def create_topics(bootstrap_servers: str, replication_factor: int = 1) -> dict[s
             except KafkaException as exc:
                 if "TOPIC_ALREADY_EXISTS" not in str(exc):
                     raise
+
+    # Keep cleanup semantics explicit even when topics pre-date this deployment.
+    config_resources = [
+        ConfigResource(
+            ResourceType.TOPIC,
+            name,
+            set_config={
+                "cleanup.policy": "compact" if name in COMPACT_TOPICS else "delete"
+            },
+        )
+        for name in TOPICS
+    ]
+    config_futures = admin.alter_configs(config_resources)
+    for name, future in config_futures.items():
+        try:
+            future.result()
+        except KafkaException as exc:
+            raise RuntimeError(f"Could not set cleanup policy for {name}: {exc}") from exc
 
     # Re-read metadata after creation and verify every required topic/partition count.
     verified = admin.list_topics(timeout=20)

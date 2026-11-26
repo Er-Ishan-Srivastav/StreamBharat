@@ -29,6 +29,19 @@ REQUIRED_FIELDS = {
                         "campaign_id", "ad_break_ts", "duration_sec", "completed", "cpm_inr"),
 }
 
+KNOWN_SUBSCRIPTION_EVENT_TYPES = {
+    "subscribe", "subscribed", "activate", "activated", "active",
+    "renew", "renewal", "renewed", "downgrade", "downgraded",
+    "payment_success", "payment_succeeded", "subscription_success",
+    "subscription_activated", "resume", "resumed", "reactivate",
+    "upgrade", "upgraded", "trial", "trial_start", "trial_started",
+    "start_trial", "pause", "paused", "subscription_paused",
+    "payment_failed", "payment_failure", "failed_payment",
+    "charge_failed", "renewal_failed", "payment_declined",
+    "cancel", "cancelled", "canceled", "subscription_cancelled",
+    "subscription_canceled", "voluntary_cancel",
+}
+
 TIMESTAMP_FIELDS = {
     "player_events": "server_ts",
     "billing_subscr": "event_ts",
@@ -99,6 +112,13 @@ def add_reason_code(parsed: DataFrame, alias: str) -> DataFrame:
         reason = reason.when(
             charged_event & ~_missing("price") & price_invalid,
             F.lit("INVALID_PRICE"),
+        )
+        normalized_event_type = F.lower(
+            F.regexp_replace(_field("event_type"), r"[^A-Za-z0-9]+", "_")
+        )
+        reason = reason.when(
+            ~normalized_event_type.isin(*KNOWN_SUBSCRIPTION_EVENT_TYPES),
+            F.lit("UNKNOWN_SUBSCRIPTION_EVENT"),
         )
     elif alias == "app_ratings":
         rating = F.expr("try_cast(element_at(_payload, 'rating') AS DOUBLE)")

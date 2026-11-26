@@ -3,8 +3,7 @@ import os
 import pytest
 from pyspark.sql import SparkSession
 from pyspark.sql.types import (
-    ArrayType, BooleanType, DateType, DecimalType, DoubleType, IntegerType,
-    LongType, StringType, StructField, StructType, TimestampType,
+    ArrayType, DoubleType, IntegerType, LongType, StringType, StructField, StructType,
 )
 
 from streambharat.ad_matching import build_ad_delivery
@@ -32,7 +31,7 @@ def test_ad_break_matching_fill_rate_and_campaign_metrics(spark):
         StructField("user_id", StringType(), False),
         StructField("profile_id", StringType(), False),
         StructField("content_id", StringType(), False),
-        StructField("break_ts", TimestampType(), False),
+        StructField("break_ts", StringType(), False),
         StructField("filled", IntegerType(), False),
         StructField("kafka_partition", IntegerType(), True),
         StructField("kafka_offset", LongType(), True),
@@ -48,10 +47,10 @@ def test_ad_break_matching_fill_rate_and_campaign_metrics(spark):
         StructField("profile_id", StringType(), False),
         StructField("content_id", StringType(), False),
         StructField("campaign_id", StringType(), False),
-        StructField("ad_break_ts", TimestampType(), False),
+        StructField("ad_break_ts", StringType(), False),
         StructField("duration_sec", IntegerType(), False),
         StructField("completed", IntegerType(), False),
-        StructField("cpm_inr", DecimalType(18, 4), False),
+        StructField("cpm_inr", DoubleType(), False),
         StructField("kafka_partition", IntegerType(), True),
         StructField("kafka_offset", LongType(), True),
     ])
@@ -63,8 +62,8 @@ def test_ad_break_matching_fill_rate_and_campaign_metrics(spark):
     campaign_schema = StructType([
         StructField("campaign_id", StringType(), False),
         StructField("budget_inr", DoubleType(), False),
-        StructField("start_date", DateType(), False),
-        StructField("end_date", DateType(), False),
+        StructField("start_date", StringType(), False),
+        StructField("end_date", StringType(), False),
         StructField("daily_frequency_cap", IntegerType(), False),
         StructField("target_genres", StringType(), False),
     ])
@@ -132,7 +131,7 @@ def test_revenue_reconciliation_matches_once_and_flags_exceptions(spark):
 
 def test_partner_royalties_use_point_in_time_watch_share_and_minimum(spark):
     watch_schema = StructType([
-        StructField("viewing_date", DateType(), False),
+        StructField("viewing_date", StringType(), False),
         StructField("content_id", StringType(), False),
         StructField("watched_seconds", LongType(), False),
     ])
@@ -143,16 +142,16 @@ def test_partner_royalties_use_point_in_time_watch_share_and_minimum(spark):
     history_schema = StructType([
         StructField("content_id", StringType(), False),
         StructField("partner_id", StringType(), False),
-        StructField("valid_from", DateType(), False),
-        StructField("valid_to", DateType(), True),
+        StructField("valid_from", StringType(), False),
+        StructField("valid_to", StringType(), True),
     ])
     history = spark.createDataFrame([
         ("C1", "P1", "2026-07-01", None),
         ("C2", "P2", "2026-07-01", None),
     ], history_schema)
     revenue_schema = StructType([
-        StructField("charge_ts", TimestampType(), True),
-        StructField("charge_amount", DecimalType(18, 2), True),
+        StructField("charge_ts", StringType(), True),
+        StructField("charge_amount", DoubleType(), True),
         StructField("settlement_status", StringType(), False),
     ])
     revenue = spark.createDataFrame([
@@ -162,7 +161,7 @@ def test_partner_royalties_use_point_in_time_watch_share_and_minimum(spark):
     partner_schema = StructType([
         StructField("partner_id", StringType(), False),
         StructField("revenue_share_pct", DoubleType(), False),
-        StructField("minimum_guarantee_inr_per_quarter", DecimalType(18, 2), False),
+        StructField("minimum_guarantee_inr_per_quarter", DoubleType(), False),
     ])
     partners = spark.createDataFrame([
         ("P1", 50.0, 100.00),

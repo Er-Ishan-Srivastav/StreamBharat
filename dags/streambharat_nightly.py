@@ -225,6 +225,16 @@ with DAG(
         ),
     )
 
+    dlq_metrics = BashOperator(
+        task_id="aggregate_dlq_records_by_source_and_reason",
+        cwd=PROJECT_ROOT,
+        bash_command=(
+            f"cd {PROJECT_ROOT} && {PYTHON} -m streambharat.dlq_metrics "
+            "--source lake/bronze/dlq "
+            "--output lake/gold/dlq_metrics_daily"
+        ),
+    )
+
     published_metrics_reconciliation = BashOperator(
         task_id="reconcile_gold_metrics_to_published_course_board",
         cwd=PROJECT_ROOT,
@@ -265,6 +275,6 @@ with DAG(
         finance_gold, cdn_cost_gold,
     ] >> published_metrics_reconciliation
     [
-        source_dlq, offset_reconciliation, quality_gate, sessions_gold,
+        source_dlq, dlq_metrics, offset_reconciliation, quality_gate, sessions_gold,
         cdn_cost_gold, finance_gold, published_metrics_reconciliation,
     ] >> serve_postgres

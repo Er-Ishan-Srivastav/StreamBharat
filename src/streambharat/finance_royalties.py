@@ -291,10 +291,25 @@ def build_partner_royalties(
         .groupBy("quarter_start")
         .agg(F.sum("charge_amount").cast("decimal(18,2)").alias("collected_revenue_inr"))
     )
+    quarter_domain = (
+        total_watch.select("quarter_start")
+        .unionByName(revenue_pool.select("quarter_start"))
+        .dropDuplicates()
+    )
+    quarter_partners = quarter_domain.crossJoin(partners)
     allocated = (
-        partner_watch.join(total_watch, "quarter_start")
+        quarter_partners
+        .join(partner_watch, ["quarter_start", "partner_id"], "left")
+        .join(total_watch, "quarter_start", "left")
         .join(revenue_pool, "quarter_start", "left")
-        .join(partners, "partner_id", "left")
+        .withColumn(
+            "partner_watched_seconds",
+            F.coalesce(F.col("partner_watched_seconds"), F.lit(0)).cast("long"),
+        )
+        .withColumn(
+            "total_watched_seconds",
+            F.coalesce(F.col("total_watched_seconds"), F.lit(0)).cast("long"),
+        )
         .withColumn(
             "watch_time_share",
             F.when(

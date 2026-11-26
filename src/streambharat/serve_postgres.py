@@ -103,6 +103,12 @@ TABLES = {
         "keys": ["metric_ts","query_name","topic"],
         "date_column": "metric_ts",
     },
+    "cdn_egress_daily": {
+        "path": "lake/gold/cdn_egress_daily",
+        "columns": ["activity_date","cdn","region","request_count","total_bytes","egress_gb","cost_inr","missing_rate_requests","http_4xx","http_5xx","unique_content"],
+        "keys": ["activity_date","cdn","region"],
+        "date_column": "activity_date",
+    },
 }
 
 

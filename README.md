@@ -145,7 +145,7 @@ See [the complete question register](docs/questions-and-ownership.md) and [imple
 | pytest | Deterministic business-rule tests |
 | GitHub Actions | Python tests and compilation checks |
 
-The Kafka extension adds Apache Kafka 3.8 (KRaft), PySpark 3.5.3 with Delta Lake 3.2, PostgreSQL 16, Metabase and a Jupyter workspace for local development. Airflow remains a separate scheduling scaffold and is not yet an operational dependency of the local compose stack.
+The Kafka extension adds Apache Kafka 3.8 (KRaft), PySpark 3.5.3 with Delta Lake 3.2, PostgreSQL 16, Metabase, a Jupyter workspace and a separate Airflow 2.10.4 stack for local orchestration. Airflow shares the Kafka/Postgres Docker network and runs the implemented replay-to-Gold pipeline in Spark local mode.
 
 ## Repository layout
 
@@ -307,9 +307,9 @@ The CI workflow currently checks the deterministic test suite and Python compila
 
 **Automated checks:** GitHub Actions runs the pure-Python and Spark contract tests, followed by Python compilation for the source modules, scripts and Airflow DAGs. See [GitHub Actions](https://github.com/Er-Ishan-Srivastav/StreamBharat/actions).
 
-**Kafka extension status:** source replay, seven independent Bronze consumers, source DLQ validation, retained-offset reconciliation, Silver player schema/clock handling, Gold engagement aggregates, Kafka Q17/Q18 output topics, Postgres upsert serving and the local Airflow DAG are implemented as a first end-to-end slice.
+**Kafka extension status:** source replay, seven independent Bronze consumers, source DLQ validation, retained-offset reconciliation, Silver player schema/clock handling, subscription SCD2 with seven-day payment grace, Gold engagement aggregates, Kafka Q17/Q18 output topics, Postgres upsert serving and a local Airflow DAG are implemented as the first operational slice.
 
-**Runtime status:** the local Docker Compose stack and Airflow DAG still need a clean-install execution with the supplied dataset. Streaming restart/failure drills, complete financial reconciliation, full subscription lifecycle, complete ad join/sessionisation, saved Metabase dashboards and measured throughput/latency are not yet validated. Do not treat passing CI as proof of a full data run.
+**Runtime status:** the local Docker Compose stack and Airflow DAG still need a clean-install execution with the supplied dataset. Subscription SCD2 has Spark contract coverage but needs full-dataset reconciliation. Streaming restart/failure drills, complete financial reconciliation, complete ad join/sessionisation, saved Metabase dashboards and measured throughput/latency are not yet validated. Do not treat passing CI as proof of a full data run.
 
 Treat a question as validated only after its Spark job has run against the supplied data, output schemas and key counts have been inspected, business reconciliations have passed, and the owner has walked through the implementation.
 

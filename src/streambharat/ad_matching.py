@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import os
 
+from delta.tables import DeltaTable
 from pyspark.sql import DataFrame, Window
 from pyspark.sql import functions as F
 from pyspark.sql.types import MapType, StringType
@@ -266,22 +267,45 @@ def run_ad_matching(
     delivery_path: str = "lake/silver/ad_delivery",
     campaign_gold_path: str = "lake/gold/campaign_daily",
     hourly_gold_path: str = "lake/gold/ad_fill_rate_hourly",
+    date_arg: str | None = None,
 ) -> None:
     spark = create_spark("StreamBharat-Ad-Delivery-Reconciliation")
     try:
         breaks = parse_breaks(spark.read.format("delta").load(breaks_path))
         impressions = parse_impressions(spark.read.format("delta").load(impressions_path))
+        if date_arg:
+            target_date = F.to_date(F.lit(date_arg))
+            breaks = breaks.filter(F.to_date("break_ts") == target_date)
+            impressions = impressions.filter(F.to_date("ad_break_ts") == target_date)
         campaigns = spark.read.option("header", True).option("inferSchema", True).csv(campaigns_path)
         catalog = read_catalog_snapshot(spark, catalog_path)
         content_genres = catalog.select("content_id", "genres").dropDuplicates(["content_id"])
         delivery, campaign_day, hourly = build_ad_delivery(
             breaks, impressions, campaigns, content_genres
         )
-        delivery.write.format("delta").mode("overwrite").option("overwriteSchema", "true").save(delivery_path)
-        campaign_day.write.format("delta").mode("overwrite").option("overwriteSchema", "true").save(campaign_gold_path)
-        hourly.write.format("delta").mode("overwrite").option("overwriteSchema", "true").save(hourly_gold_path)
+        _write_delta(spark, delivery, delivery_path, ["delivery_id"], date_arg)
+        _write_delta(spark, campaign_day, campaign_gold_path, ["activity_date", "campaign_id"], date_arg)
+        _write_delta(spark, hourly, hourly_gold_path, ["hour_start"], date_arg)
     finally:
         spark.stop()
+
+
+def _write_delta(spark, frame: DataFrame, path: str, keys: list[str], date_arg: str | None):
+    if date_arg and DeltaTable.isDeltaTable(spark, path):
+        (
+            DeltaTable.forPath(spark, path).alias("target")
+            .merge(
+                frame.dropDuplicates(keys).alias("source"),
+                " AND ".join(f"target.{key} = source.{key}" for key in keys),
+            )
+            .whenMatchedUpdateAll()
+            .whenNotMatchedInsertAll()
+            .execute()
+        )
+    else:
+        frame.write.format("delta").mode("overwrite").option(
+            "overwriteSchema", "true"
+        ).save(path)
 
 
 def main() -> None:
@@ -293,10 +317,11 @@ def main() -> None:
     parser.add_argument("--delivery", default="lake/silver/ad_delivery")
     parser.add_argument("--campaign-gold", default="lake/gold/campaign_daily")
     parser.add_argument("--hourly-gold", default="lake/gold/ad_fill_rate_hourly")
+    parser.add_argument("--date", help="Rebuild ad delivery for one ad-break date")
     args = parser.parse_args()
     run_ad_matching(
         args.breaks, args.impressions, args.campaigns, args.catalog,
-        args.delivery, args.campaign_gold, args.hourly_gold,
+        args.delivery, args.campaign_gold, args.hourly_gold, args.date,
     )
 
 

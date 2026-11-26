@@ -263,6 +263,7 @@ with DAG(
     bronze_ingestion >> [
         source_dlq, offset_reconciliation, silver_player, subscription_state
     ]
+    source_dlq >> dlq_metrics
     [silver_player, master_data] >> player_backfill
     player_backfill >> [
         engagement_gold, sessions_gold, quality_gate

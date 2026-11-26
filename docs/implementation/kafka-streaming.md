@@ -2,260 +2,303 @@
 
 ## Scope and topic contracts
 
-This extension follows the separate Kafka ETL workbook. The original PySpark workbook's
-Q-number mapping remains intact; the new workbook uses its own jobs and contracts.
+This extension implements the separate Kafka ETL workbook alongside the original
+PySpark workbook. Original Q1–Q20 modules and their orchestrator remain intact.
 
 | Stream | Topic | Partitions | Key |
 |---|---|---:|---|
-| Player events | ott.player.events | 6 | user_id |
-| Subscription events | ott.billing.subscr | 3 | user_id |
-| Gateway settlements | ott.billing.settle | 3 | user_id |
-| Search logs | ott.app.search | 3 | profile_id |
-| Ratings | ott.app.ratings | 1 | profile_id |
-| Ad breaks | ott.ads.breaks | 3 | user_id |
-| Ad impressions | ott.ads.impressions | 3 | user_id |
-| Live plays | ott.live.plays | 6 | user_id |
-| Live ad impressions | ott.live.ads | 6 | user_id |
-| Dead-letter queue | ott.dlq | 3 | source topic/partition/offset |
-| Trending output | ott.metrics.trending | 3 | window/language/rank |
-| Pacing alerts | ott.alerts.ad_pacing | 3 | stable alert identifier |
-| Current subscription state | ott.ref.subscription_state | 3 | user_id (compacted) |
+| Player events | `ott.player.events` | 6 | `user_id` |
+| Subscription events | `ott.billing.subscr` | 3 | `user_id` |
+| Gateway settlements | `ott.billing.settle` | 3 | `user_id` |
+| Search logs | `ott.app.search` | 3 | `profile_id` |
+| Ratings | `ott.app.ratings` | 1 | `profile_id` |
+| Ad breaks | `ott.ads.breaks` | 3 | `user_id` |
+| Ad impressions | `ott.ads.impressions` | 3 | `user_id` |
+| Live plays | `ott.live.plays` | 6 | `user_id` |
+| Live ad impressions | `ott.live.ads` | 6 | `user_id` |
+| Dead-letter queue | `ott.dlq` | 3 | source topic/partition/offset |
+| Trending output | `ott.metrics.trending` | 3 | window/language/rank |
+| Pacing alerts | `ott.alerts.ad_pacing` | 3 | stable alert identifier |
+| Current subscription state | `ott.ref.subscription_state` | 3 | `user_id` (compacted) |
 
-The first seven source feeds are replayed from the course dataset. The two live topics are
-fed from the supplied simulator through the producer bridge. They are separate event
-contracts: the live play stream does not replace the player history source topic.
+Only `ott.ref.subscription_state` uses Kafka log compaction. Trending and ad
+pacing outputs are event/update topics and are not compacted by the local topic
+provisioner.
+
+The first seven source feeds are replayed from the raw course dataset. The two live
+topics are fed from the supplied simulator through a producer bridge. Live play
+events do not replace the historical player events source topic.
 
 ## Architecture
 
 ```mermaid
 flowchart LR
-  SRC[Seven source files] --> RP[Chronological replay producer]
+  SRC[Seven source feeds] --> RP[Timestamp-ordered replay]
   RP --> K[(Seven source topics)]
-  K --> BR[Seven independent Bronze queries]
-  BR --> BD[(Bronze Delta tables)]
-  K --> DV[Source schema validation]
-  DV --> DLQ[(Delta DLQ + ott.dlq)]
-  SIM[Live simulator files] --> PB[SQLite-backed Kafka bridge]
+  K --> BR[Seven independent Bronze consumers]
+  BR --> BD[(Bronze Delta)]
+  K --> VAL[Schema and semantic validation]
+  VAL --> DLQ[(Delta DLQ + ott.dlq)]
+  BD --> SIL[Silver: player / subscription / master]
+  SIL --> GOLD[Gold: engagement / ads / finance / DQ / CDN]
+  GOLD --> PG[(Postgres ottdw)]
+  PG --> MB[Metabase views and dashboards]
+  SIM[Live simulator] --> PB[SQLite-backed Kafka producer]
   PB --> LP[(ott.live.plays)]
   PB --> LA[(ott.live.ads)]
   LP --> TR[5-minute / 30-second trending]
-  LA --> AP[Frequency caps / pacing]
+  LA --> AP[Frequency cap and pacing]
   TR --> TRK[(ott.metrics.trending)]
   AP --> APK[(ott.alerts.ad_pacing)]
-  BR --> SIL[Silver transforms]
-  SIL --> GOLD[Gold metrics]
-  GOLD --> PG[(Postgres ottdw)]
-  PG --> MB[Metabase]
-  AIR[Airflow scaffold] -. schedule .-> SIL
+  AIR[Airflow nightly DAG] --> RP
+  AIR --> BR
+  AIR --> SIL
+  AIR --> GOLD
 ```
 
-## Local stack
+## Local runtime
 
-The local stack includes Kafka 3.8 KRaft, Kafka UI, Postgres 16, Metabase and a Python 3.11
-workspace with Java 17, PySpark 3.5.3, Delta Lake 3.2, JupyterLab and the Confluent Kafka
-client. Spark currently runs in local mode within the workspace container; a separate
-Spark master/worker cluster is not included yet. The single broker, PLAINTEXT listeners
-and replication factor 1 are development-only.
+The local stack includes Kafka 3.8 KRaft, Kafka UI, Postgres 16, Metabase, a
+Python 3.11 workspace with Java 17, PySpark 3.5.3, Delta Lake 3.2, JupyterLab
+and the Confluent Kafka client. Spark runs in local mode inside the workspace
+and Airflow containers; a separate Spark master/worker cluster is not configured.
+The single broker, PLAINTEXT listeners and replication factor 1 are development
+settings, not production security or high availability.
 
 From the repository root:
 
 ```bash
 docker compose -f docker-compose.kafka.yml up -d --build
+docker compose -f docker-compose.kafka.yml exec workspace \
+  python scripts/preflight_dataset.py --data-root data/raw
 bash config/kafka-topics.sh
 docker compose -f docker-compose.kafka.yml exec workspace pytest -q
 ```
 
 Services:
 - Kafka UI: http://localhost:8080
-- JupyterLab: http://localhost:8888 (local token: streambharat-local)
+- JupyterLab: http://localhost:8888 (local token: `streambharat-local`)
 - Metabase: http://localhost:3000
-- Postgres warehouse: localhost:5432, database ottdw
+- Postgres warehouse: localhost:5432, database `ottdw`
 
-The supplied dataset is not stored in Git. Copy the course data directory to data/raw/
-using the layout in docs/source-materials/StreamBharat-Dataset-README.md.
+The course dataset is not stored in Git. Copy the supplied data folder to
+`data/raw/` without editing the source files.
 
-## Seven-source replay, Bronze and DLQ
+## Source replay, Bronze and DLQ
 
-Replay the October source data into the seven workbook topics:
+Replay October source feeds:
 
 ```bash
 docker compose -f docker-compose.kafka.yml exec workspace \
-  python -m streambharat.replay_kafka --start-date 2026-10-01 --end-date 2026-10-31 --speed 0
+  python -m streambharat.replay_kafka \
+  --start-date 2026-10-01 --end-date 2026-10-31 --speed 0
 ```
 
-For a small smoke replay, add --max-events 2000. The replay uses the field-specific event
-timestamp and the workbook's partition key. Playback files are named by server-arrival
-date. Ad impressions are scheduled at ad-break timestamp plus duration, as those events
-are sent when the ad has finished.
+For a small smoke test, add `--max-events 2000`. The replay uses source-specific
+event/arrival timestamps and the workbook's key fields. Player files are named
+by server-arrival date. Ad impressions are emitted according to their
+ad-break/impression timestamps.
 
-Start each Bronze query with its own checkpoint:
+Seven separate Structured Streaming queries write append-only Bronze Delta
+tables. Each preserves the raw value string, topic, partition, offset, broker
+timestamp, Kafka key, headers, ingestion timestamp and ingestion date. Each
+topic has its own checkpoint under `lake/_checkpoints`.
 
 ```bash
 docker compose -f docker-compose.kafka.yml exec workspace \
   bash scripts/run_bronze_ingest.sh --available-now
-```
-
-Bronze is an append-only, unparsed copy. It preserves the raw value plus topic, partition,
-offset, broker timestamp, key and headers. It adds ingestion timestamp/date, partitions
-by ingestion date and uses one checkpoint per source topic under lake/_checkpoints/.
-
-Run the source-contract validator independently:
-
-```bash
 docker compose -f docker-compose.kafka.yml exec workspace \
   bash scripts/run_dlq_ingest.sh --available-now
 ```
 
-The validator checks required identifiers, field types, timestamps, player position
-schema-v1/schema-v2, subscription amounts, ratings, ad flags, ad duration and CPM.
-Invalid records go to lake/bronze/dlq and ott.dlq with raw value and original Kafka
-lineage. Delta DLQ rows are MERGEd by source topic/partition/offset. Bronze remains
-unchanged even when a record is rejected by the downstream validator.
+The source validator checks identifiers, event timestamps, selected semantic
+types, player position schema-v1/schema-v2, subscription amount, ratings and ad
+payload constraints. Invalid records are merged to Delta DLQ using the stable
+source topic/partition/offset key, then published to `ott.dlq` with original
+payload and reason code.
 
-Start Bronze and DLQ in processing mode before a continuous replay; for a finished replay,
-run both with --available-now. Do not delete checkpoints for normal restarts. The Kafka
-Spark connector is fetched as a Maven package and needs a repository connection on first use.
+The retained-offset report compares Bronze records with Kafka's current
+[low, high) range. It proves completeness only within the broker's retained
+range; when the low watermark has advanced, earlier expired offsets cannot be
+proven from the broker.
 
-The offset reconciliation report checks Bronze rows within the currently retained Kafka
-[low, high) offset range. A non-zero low watermark means Kafka has already expired earlier
-offsets; the report distinguishes current-retention reconciliation from proof of full
-historical completeness.
+For continuous replay, start Bronze and DLQ without `--available-now` before
+replaying. For a completed replay, run them with `--available-now`. Preserve
+checkpoints across normal restarts.
 
-## Silver player starter
+## Master/reference data and historical backfill
 
-After Bronze player data is available:
-
-```bash
-docker compose -f docker-compose.kafka.yml exec workspace \
-  python -m streambharat.silver_player --bronze lake/bronze/player_events
-```
-
-This first Silver job parses both player schema versions, converts position_ms to seconds,
-estimates per-device median clock offset from online events, preserves client time for
-offline downloads, records corrected event and arrival dates, and MERGEs by event_id.
-Malformed or un-timestamped events are written to a separate quarantine path. The device
-offset table is retained for audit.
-
-## Subscription SCD2 and seven-day payment grace period
-
-Run the subscription state rebuild after the subscription Bronze table is available:
+Run the master/reference load:
 
 ```bash
-python -m streambharat.subscription_state \
-  --bronze lake/bronze/billing_subscr \
-  --silver lake/silver/subscriptions \
-  --churn lake/gold/subscription_churn \
-  --bootstrap-servers localhost:9092
+python -m streambharat.batch_master --data-root data/raw --output-root lake/silver
 ```
 
-The job parses subscription event type, user, plan and event timestamp. It canonicalises
-trial, active/renewal, paused, payment-failed and cancellation events, deduplicates by
-event_id (or a deterministic event fingerprint), and orders events by event time. It
-rebuilds a valid-from/valid-to SCD2 history and preserves Kafka partition/offset lineage.
+It loads all monthly catalog snapshots May–October into title/episode history,
+genre bridges and parent/episode references; it also loads licences, users,
+profiles, city/state, partners, plans, CDN rates and parses AkashCDN and
+NimbusEdge September logs into a common request schema. Malformed CDN records
+are kept separately.
 
-A payment-failed event enters payment_failed rather than churn immediately. If an active
-or renewal event occurs within seven days in event time, the failure state ends at that
-renewal and no synthetic churn is emitted. Otherwise, a deterministic synthetic cancelled
-state is created at failure timestamp + 7 days and classified as involuntary churn.
-Explicit cancellation events are voluntary churn. Late-arriving source events cause the
-history to be rebuilt in event-time order so valid_to boundaries are recalculated.
+Run the restartable July–September player backfill:
 
-The current state per user is published to ott.ref.subscription_state with user_id as the
-Kafka key. The topic is compacted by key. Malformed or unrecognised subscription events
-are MERGEd into lake/bronze/dlq/subscriptions and sent to ott.dlq using the stable
-source-topic/partition/offset identifier.
+```bash
+python -m streambharat.backfill_player_history \
+  --data-root data/raw --start-date 2026-07-01 --end-date 2026-09-30
+```
 
-The current implementation is a deterministic full-history rebuild from Bronze, which is
-easy to re-run safely for this learning dataset. It is not yet a streaming incremental SCD2
-processor optimised for production-scale history.
+Backfill selection is by the playback file's server-arrival date. Per-device
+clock medians are calculated across the selected history. Each arrival-day file
+is merged by event_id and recorded in a Delta manifest so retries safely skip
+completed files. Outputs include:
+- `lake/gold/recon_player_daily`: event date vs arrival date reconciliation
+- `lake/gold/recon_september_arrivals`: September viewing events arriving in October
 
-## Live Kafka event path
+The actual reconciliation counts are generated only when the supplied course
+dataset is executed; none are hardcoded.
 
-The simulator creates completed JSONL files under data/stream/plays and data/stream/ads.
-The Kafka bridge reads those files, uses user_id as the Kafka key for both topics, writes
-event metadata headers and persists acknowledged event identities in
-lake/state/kafka_producer.sqlite3.
+## Silver player and subscription state
+
+The player Silver transform normalizes schema-v1 `position_sec` and schema-v2
+`position_ms`, estimates per-device median online clock offset, preserves
+client time for offline download playback, records server-arrival and ingestion
+dates separately, and MERGEs by event_id. The backfill can pass one shared
+device-offset table across all arrival-day files.
+
+Subscription state is rebuilt from Bronze using event-time ordering. It creates
+valid-from/valid-to SCD2 transitions, handles trial/active/paused/payment_failed/
+cancelled states, applies a seven-day payment-failure grace period, and publishes
+the current per-user state keyed by user_id to compacted
+`ott.ref.subscription_state`. Expired payment failures become deterministic
+synthetic involuntary cancellations; explicit cancellations remain voluntary.
+Malformed and unknown subscription events are quarantined and routed to DLQ.
+
+The subscription job currently rebuilds the learning dataset's full history,
+rather than using an incremental production SCD2 state processor.
+
+## Gold engagement and viewing sessions
+
+`streambharat.gold_analytics` produces daily watch time, DAU, rolling 30-day MAU
+and top 10 titles per language, rolling episode events to their parent series.
+Watched-time credit is limited to forward-progress heartbeat intervals capped
+at five minutes and excludes seek jumps.
+
+`streambharat.session_analytics` builds profile/device/content sessions with a
+30-minute inactivity boundary, heartbeat time credit, session duration,
+completion rate and content drop-off. Both jobs accept a date argument and
+replace only that date's Delta slice on rerun.
+
+## Ad delivery and campaign analytics
+
+`streambharat.ad_matching` parses Bronze ad breaks and impressions, links them
+by impression_id, user and content within a forward event-time bound, and
+classifies delivered, unfilled, filled-without-impression and orphan-impression
+rows. It retains Kafka offset lineage, applies campaign genre targets, measures
+per-user/campaign/day frequency-cap breaches, computes CPM spend and emits
+hourly source break fill-rate metrics. Campaign/day Gold and ad-delivery
+outputs are date-rebuildable.
+
+Unfilled breaks do not carry a campaign_id in the supplied source contract, so
+they are reported at break/hour level rather than attributed to a campaign.
+
+## Finance and partner royalties
+
+`streambharat.finance_royalties` reconciles subscription charge events with
+gateway settlements by user, amount, event type and a bounded event-time window.
+Each settlement can match at most one charge; charges and unused settlements
+are labelled SETTLED, UNSETTLED_CHARGE, DUPLICATE_SETTLEMENT or
+ORPHAN_SETTLEMENT.
+
+Partner royalty allocation joins watch time to the catalogue partner valid at
+the viewing date, allocates settled subscription revenue using the quarter's
+partner watch-time share and revenue-share percentage, then applies the
+quarterly minimum guarantee. The supplied published-metrics board file is
+preflight-checked but a metric-name mapping and actual variance report still
+need to be validated against the raw values.
+
+## Data quality and quarantine
+
+Player DQ checks include unknown content, kids-profile age rating,
+state-specific expired licences, position beyond duration and missing profile.
+Subscription price-plan mismatches compare charged events against the plan
+reference. Violations are stored in rule-specific Delta quarantine paths and
+summarized into `lake/gold/dq_metrics`; FAIL-severity findings fail the Airflow
+quality gate. The quality rule counts and quarantine outputs still require
+full-data inspection after the first local run.
+
+## CDN egress and cost
+
+`streambharat.cdn_analytics` joins normalized AkashCDN/NimbusEdge requests to
+the regional `cdn_rates.csv` reference. It produces daily request/byte counts,
+decimal-GB egress, cost, HTTP 4xx/5xx counts, unique content and requests with
+missing rate-card matches. These metrics are served to Postgres for regional
+cost analysis.
+
+## Live Kafka streams: trending and ad pacing
+
+The simulator emits JSONL files under `data/stream/plays` and
+`data/stream/ads`. The Kafka bridge uses user_id keys and an SQLite delivery
+ledger at `lake/state/kafka_producer.sqlite3`.
 
 ```bash
 # Workspace terminal 1
 python ott_stream_simulator.py --stream both
-
 # Workspace terminal 2
 python -m streambharat.kafka_producer --stream both
-
-# Workspace terminal 3 — live trending
+# Workspace terminals 3 and 4
 bash scripts/run_kafka_stream.sh plays
-
-# Workspace terminal 4 — live ad pacing
 bash scripts/run_kafka_stream.sh ads
 ```
 
-For Q17, first create lake/silver/player_events with the Silver job. Q17 builds a
-seven-day per-title/language/hour baseline from that table and then computes the Kafka
-live feed using 5-minute event-time windows sliding every 30 seconds. It keeps the
-12-minute late-event allowance, ranks the top 10 titles per language and writes snapshots
-to both lake/gold/trending and ott.metrics.trending. The trending output topic is compacted
-by window/language/rank so each rank slot retains its latest snapshot.
+Q17 uses five-minute event-time windows sliding every 30 seconds, a 12-minute
+late-event allowance and ranks ten titles per language into
+`ott.metrics.trending`. Q18 maintains a Delta impression ledger, recomputes
+frequency caps and campaign pacing, and emits frequency/pacing alerts to
+`ott.alerts.ad_pacing`. Alert IDs are tracked in Delta to suppress normal
+repeat publication.
 
-Q18 deduplicates impression IDs in a Delta event ledger, recomputes per-user/campaign/day
-frequency counts and campaign spend, and writes current cap/pacing state to Delta. It
-publishes frequency-cap and campaign-pacing events to ott.alerts.ad_pacing using stable
-alert keys. The alert topic is compacted so repeated updates replace the prior state for
-the same campaign/day or user/campaign/day.
+The Kafka alert sink is at-least-once across a crash between Kafka acknowledgement
+and the Delta published-ID ledger commit. Do not describe this as atomic
+exactly-once delivery.
 
-Both live streaming adapters route malformed or semantically invalid records to the
-Delta live DLQ and ott.dlq. Their Spark queries use independent checkpoints under
-lake/_checkpoints/kafka_q17, lake/_checkpoints/kafka_q18 and
-lake/_checkpoints/dlq_live_*.
+## Streaming monitoring
 
-## Delivery semantics and limitations
+A Structured Streaming listener captures input and processed rates, trigger
+duration, maximum event time, freshness and topic lag. Lag is computed as the
+broker high watermark minus Spark's processed Kafka end offset per partition,
+then aggregated by query/topic; Spark Kafka source offsets are not consumer
+group offsets. Metrics are written to `lake/gold/stream_metrics` and served to
+Postgres. Runtime behaviour under broker outage/restart still requires a drill.
 
-- Producer idempotence handles retriable producer sends, while SQLite records acknowledged
-  events across normal bridge restarts. It is a local state file and must be retained with
-  the lake and checkpoints.
-- Bronze is append-only and uses an independent checkpoint per source topic.
-- Silver player MERGE uses event_id as its business key.
-- DLQ Delta idempotency uses source topic/partition/offset. The Delta and Kafka DLQ writes
-  are separate sinks; a retry can publish a duplicate Kafka DLQ key.
-- Live trending snapshots use window/language/rank keys. Pacing alerts use stable alert IDs.
-  Both output topics are compacted by key.
-- This platform is at-least-once with idempotent Delta effects. There is no claim of an
-  atomic exactly-once transaction spanning Kafka offsets, Delta and Postgres.
-- Airflow now runs the implemented replay, Bronze/DLQ, player/subscription Silver, Gold engagement, offset reconciliation and Postgres serving tasks. It does not orchestrate all twenty workbook requirements yet.
-- PostgreSQL DDL and dashboard question specifications are present, but Gold-to-Postgres
-  loads and a saved Metabase dashboard still need runtime verification.
-- The local stack is one Kafka broker and one local-mode Spark process. It is not
-  production high availability, production security or a distributed Spark cluster.
+## Airflow and serving
 
-## Validation checklist
+`streambharat_nightly` orchestrates preflight, master data, topic creation,
+source replay, Bronze/DLQ, offset reconciliation, player Silver, July–September
+backfill, subscription SCD2, engagement, sessions, ad delivery, finance,
+quality gate, CDN cost and Postgres serving. It is date-aware and has retries,
+a task timeout and an SLA configuration.
 
-- [ ] Compose stack starts and all thirteen Kafka topics are created with correct partitions.
-- [ ] October replay publishes records to all seven source topics.
-- [ ] Seven Bronze Delta tables preserve raw value and offset/header lineage.
-- [ ] Retained-offset reconciliation has no unexplained count differences.
-- [ ] Invalid input appears in both Delta DLQ and ott.dlq with a reason code.
-- [ ] Player v1/v2 positions normalise to seconds; clock offset outliers are inspected.
-- [ ] Duplicate event_id values do not duplicate Silver player rows.
-- [ ] Q17 output shows 5-minute windows / 30-second slides and writes trending snapshots.
-- [ ] Q18 produces frequency-cap or pacing alerts from the live simulator.
-- [ ] Stop/restart streams with existing checkpoints and verify recovery.
-- [ ] Capture throughput, batch duration, event freshness and processing lag.
-- [ ] Gold tables load to Postgres and Metabase dashboards query actual warehouse rows.
+Postgres loading uses a Spark JDBC staging table followed by a transaction:
+for date-scoped tables, the target date slice is deleted and replaced from the
+stage; history tables use primary-key upserts. DDL lives in
+`sql/001_warehouse.sql`; query-ready Metabase views are in
+`sql/003_dashboard_views.sql`. Metabase still needs its initial warehouse
+connection, saved questions and dashboards assembled from the committed SQL
+specification.
 
-## Remaining Kafka workbook work
+## Validation boundary and remaining work
 
-The following are not complete in this implementation slice: full nested catalog/licence/user
-dimension loading, July–September player backfill, real-time sessionisation, ad break/impression
-stream join and target-genre checks, complete Gold revenue/royalty reconciliation, full
-Airflow coverage for all workbook jobs, stream metrics/lag monitoring, saved Metabase
-dashboard provisioning, and failure/performance drills.
-These require additional modules and runtime validation against the supplied dataset.
+The local compose stack is a single broker + Spark local-mode development
+environment. The repository contains Spark contract tests and CI compilation,
+but the full 590 MB course dataset has not yet been run end-to-end by this
+implementation session. The following evidence is still required:
+- successful clean local stack and all thirteen topic partition counts;
+- full replay, per-partition Bronze reconciliation and complete source row counts;
+- actual DQ violation review and corrected/accepted business exceptions;
+- charge/settlement and published board metric variance reconciliation;
+- stream stop/restart, Kafka outage, late-event and duplicate/replay drills;
+- Metabase saved questions/dashboards using populated tables;
+- measured throughput, latency and job-duration baselines.
 
-## References
-
-- Spark 3.5.3 Structured Streaming + Kafka:
-  https://spark.apache.org/docs/3.5.3/structured-streaming-kafka-integration.html
-- Confluent Kafka Python client:
-  https://docs.confluent.io/kafka-clients/python/current/index.html
-- Apache Kafka delivery semantics:
-  https://kafka.apache.org/design/#semantics
+AWS deployment is explicitly deferred until the local pipeline and dashboards
+have been validated.

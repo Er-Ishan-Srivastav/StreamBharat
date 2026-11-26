@@ -156,8 +156,20 @@ def _merge_trends(
     elif not ranked.isEmpty():
         ranked.write.format("delta").mode("overwrite").save(target_path)
 
-    if kafka_bootstrap_servers and not ranked.isEmpty():
-        kafka_rows = ranked.select(
+    if kafka_bootstrap_servers:
+        ranked_slots = ranked.select("window", "language", "rank_in_language")
+        rank_numbers = spark.range(1, top_n + 1).select(
+            F.col("id").cast("int").alias("rank_in_language")
+        )
+        empty_slots = (
+            active_keys.crossJoin(rank_numbers)
+            .join(
+                ranked_slots,
+                ["window", "language", "rank_in_language"],
+                "left_anti",
+            )
+        )
+        ranked_kafka = ranked.select(
             F.concat_ws(
                 "|",
                 F.date_format(F.col("window.start"), "yyyy-MM-dd'T'HH:mm:ss"),
@@ -176,15 +188,41 @@ def _merge_trends(
                     "growth_ratio",
                     "rank_in_language",
                     "processed_at",
+                    F.lit(False).alias("is_empty"),
                 )
             ).alias("value"),
         )
-        (
-            kafka_rows.write.format("kafka")
-            .option("kafka.bootstrap.servers", kafka_bootstrap_servers)
-            .option("topic", kafka_topic)
-            .save()
+        empty_kafka = empty_slots.select(
+            F.concat_ws(
+                "|",
+                F.date_format(F.col("window.start"), "yyyy-MM-dd'T'HH:mm:ss"),
+                F.col("language"),
+                F.col("rank_in_language").cast("string"),
+            ).alias("key"),
+            F.to_json(
+                F.struct(
+                    F.col("window.start").alias("window_start"),
+                    F.col("window.end").alias("window_end"),
+                    "language",
+                    F.lit(None).cast("string").alias("content_id"),
+                    F.lit(0).cast("long").alias("unique_viewers"),
+                    F.hour(F.col("window.start")).alias("hour_of_day"),
+                    F.lit(0.0).alias("baseline_avg_window_viewers"),
+                    F.lit(0.0).alias("growth_ratio"),
+                    "rank_in_language",
+                    F.current_timestamp().alias("processed_at"),
+                    F.lit(True).alias("is_empty"),
+                )
+            ).alias("value"),
         )
+        kafka_rows = ranked_kafka.unionByName(empty_kafka)
+        if not kafka_rows.isEmpty():
+            (
+                kafka_rows.write.format("kafka")
+                .option("kafka.bootstrap.servers", kafka_bootstrap_servers)
+                .option("topic", kafka_topic)
+                .save()
+            )
 
 
 def _persist_and_recompute_trends(

@@ -5,7 +5,7 @@ import argparse
 import os
 import re
 
-from pyspark.sql import DataFrame
+from pyspark.sql import DataFrame, Window
 from pyspark.sql import functions as F
 from pyspark.sql.types import (
     DateType, DoubleType, StringType, StructField, StructType,
@@ -66,6 +66,15 @@ def compare_published_metrics(
             if "published_ts" in published.columns
             else F.lit(None).cast("timestamp"),
         )
+        .withColumn(
+            "_revision_rank",
+            F.row_number().over(
+                Window.partitionBy("month", "metric").orderBy(
+                    F.col("published_ts").desc_nulls_last()
+                )
+            ),
+        )
+        .filter(F.col("_revision_rank") == 1)
         .select("month", "metric", "metric_key", "published_value", "published_ts")
     )
     alias_rows = (

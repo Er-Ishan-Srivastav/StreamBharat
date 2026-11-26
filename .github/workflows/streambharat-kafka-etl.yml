@@ -1,0 +1,63 @@
+name: StreamBharat Kafka ETL tests
+
+on:
+  push:
+    branches: [main, feature/kafka-streaming-integration]
+    paths:
+      - 'StreamBharat_Kafka_ETL/**'
+      - '.github/workflows/streambharat-kafka-etl.yml'
+  pull_request:
+    paths:
+      - 'StreamBharat_Kafka_ETL/**'
+      - '.github/workflows/streambharat-kafka-etl.yml'
+  workflow_dispatch:
+
+jobs:
+  spark-contract-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: StreamBharat_Kafka_ETL
+    env:
+      PYTHONPATH: .
+      SPARK_LOCAL_IP: 127.0.0.1
+      PYSPARK_PYTHON: python
+      PYSPARK_DRIVER_PYTHON: python
+      SPARK_JARS_PACKAGES: io.delta:delta-spark_2.12:3.2.1
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+      - name: Install deterministic Spark test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install \
+            pyspark==3.5.3 \
+            delta-spark==3.2.1 \
+            confluent-kafka==2.6.1 \
+            pyyaml==6.0.2 \
+            pytest==8.3.3 \
+            psycopg2-binary==2.9.10
+      - name: Compile project and Airflow DAGs
+        run: python -m compileall -q sbetl producers dags tests
+      - name: Validate Compose and project config
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          import yaml
+          yaml.safe_load(Path('docker-compose.yml').read_text())
+          yaml.safe_load(Path('conf/pipeline.yaml').read_text())
+          yaml.safe_load(Path('conf/quality_rules.yaml').read_text())
+          json.loads(Path('notebooks/00_start_here.ipynb').read_text())
+          print('YAML and notebook JSON validation passed')
+          PY
+      - name: Run Spark contract suite
+        run: pytest -q

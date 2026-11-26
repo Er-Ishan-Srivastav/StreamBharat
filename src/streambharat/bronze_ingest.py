@@ -7,6 +7,7 @@ from typing import Iterable
 
 from pyspark.sql import functions as F
 
+from streambharat.monitoring import attach_streaming_metrics
 from streambharat.spark_session import create_spark
 
 SOURCE_TOPICS = {
@@ -99,6 +100,7 @@ def run_bronze(
     if invalid:
         raise ValueError(f"Unknown Bronze topic aliases: {sorted(invalid)}")
     spark = create_spark("StreamBharat-Kafka-Bronze-Ingestion")
+    metrics_listener = attach_streaming_metrics(spark, bootstrap_servers)
     queries = []
     try:
         for alias in selected:
@@ -124,6 +126,7 @@ def run_bronze(
         for query in queries:
             if query.isActive:
                 query.stop()
+        spark.streams.removeListener(metrics_listener)
         spark.stop()
 
 

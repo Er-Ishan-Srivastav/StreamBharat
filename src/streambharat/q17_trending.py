@@ -11,7 +11,7 @@ from pyspark.sql import Window
 from pyspark.sql import functions as F
 from pyspark.sql.types import StringType, StructField, StructType
 
-from .spark_session import create_spark
+from streambharat.spark_session import create_spark
 
 PLAYS_SCHEMA = StructType([
     StructField("event_id", StringType(), True),

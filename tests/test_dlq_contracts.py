@@ -1,22 +1,16 @@
 import os
 
 import pytest
-from pyspark.sql import SparkSession
 from pyspark.sql.types import MapType, StringType, StructField, StructType
 
 from streambharat.dlq_ingest import REQUIRED_FIELDS, add_reason_code
+from streambharat.spark_session import create_spark
 
 
 @pytest.fixture(scope="module")
 def spark():
     os.environ.setdefault("SPARK_LOCAL_IP", "127.0.0.1")
-    session = (
-        SparkSession.builder.master("local[1]")
-        .appName("streambharat-dlq-contract-tests")
-        .config("spark.ui.enabled", "false")
-        .config("spark.driver.host", "127.0.0.1")
-        .getOrCreate()
-    )
+    session = create_spark("streambharat-dlq-contract-tests")
     session.sparkContext.setLogLevel("ERROR")
     yield session
     session.stop()

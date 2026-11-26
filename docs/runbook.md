@@ -2,15 +2,16 @@
 
 ## Start of day
 
-1. Keep the raw dataset in `data/raw/`; do not modify it.
-2. Start the local Kafka, Postgres, Spark workspace and Metabase stack:
+1. Copy `.env.example` to `.env` and replace local-only passwords/tokens.
+2. Keep the raw dataset in `data/raw/`; do not modify it.
+3. Start the local Kafka, Postgres, Spark workspace and Metabase stack:
    `docker compose -f docker-compose.kafka.yml up -d --build`.
-3. Run dataset preflight:
+4. Run dataset preflight:
    `docker compose -f docker-compose.kafka.yml exec workspace python scripts/preflight_dataset.py --data-root data/raw`.
-4. Start Airflow after the Kafka stack has created the shared network:
+5. Start Airflow after the Kafka stack has created the shared network:
    `docker compose -f docker-compose.airflow.yml up -d --build`.
-5. Verify health with `docker compose ps` in each Compose project.
-6. Run `pytest -q` in the workspace before triggering a full data run.
+6. Verify health with `docker compose ps` in each Compose project.
+7. Run `pytest -q` in the workspace before triggering a full data run.
 
 ## Scheduled batch pipeline
 
@@ -26,10 +27,19 @@ Trigger `streambharat_nightly` in Airflow. The DAG:
 - fails on FAIL-severity data-quality rows;
 - atomically refreshes the requested date slice and upserts history/reference outputs to Postgres.
 
-For a single-day rerun, use DAG run configuration:
+For the first historical load, use:
+`bash scripts/trigger_local_full_run.sh 2026-10-01 2026-10-31`.
+This triggers `full_refresh=true`, runs the selected replay range, executes
+the July–September arrival-day backfill and rebuilds date-partitioned Gold/serving
+outputs. For a single-day rerun, use DAG run configuration:
 `{"date":"2026-10-15","start_date":"2026-10-15","end_date":"2026-10-15"}`.
 
-The historical playback backfill is file-day restartable using
+The batch Kafka replay has a durable SQLite acknowledgement ledger at
+`lake/state/kafka_replay.sqlite3`; keep this file across normal reruns. It
+skips acknowledged source file/line identities and rejects changed payloads.
+A crash between Kafka acknowledgement and the local ledger commit can still
+lead to a duplicate Kafka record; downstream business-key deduplication remains
+required. The historical playback backfill is file-day restartable using
 `lake/silver/player_backfill_files`. The resulting
 `lake/gold/recon_september_arrivals` table quantifies September views that
 arrived in October; read the measured result after the dataset run.
@@ -83,6 +93,7 @@ unless you intentionally want to erase local Kafka/Postgres data volumes.
 | Ad pacing/frequency cap alert | `ott.alerts.ad_pacing` |
 | Current subscription snapshot | `ott.ref.subscription_state` |
 | Stream rate/lag/freshness | `lake/gold/stream_metrics` and Postgres Operations view |
+| Daily DLQ counts by source/reason | `lake/gold/dlq_metrics_daily` and `ottdw.v_dlq_metrics_daily` |
 | DQ FAIL row | Delta quarantine and Airflow fail gate |
 
 ## Recovery and exact-once boundary

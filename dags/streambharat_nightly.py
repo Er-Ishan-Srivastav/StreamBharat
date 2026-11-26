@@ -170,6 +170,17 @@ with DAG(
         ),
     )
 
+    cdn_cost_gold = BashOperator(
+        task_id="build_cdn_egress_and_regional_cost",
+        cwd=PROJECT_ROOT,
+        bash_command=(
+            f"cd {PROJECT_ROOT} && {PYTHON} -m streambharat.cdn_analytics "
+            "--requests lake/silver/cdn_requests "
+            "--rates lake/silver/cdn_rates "
+            "--output lake/gold/cdn_egress_daily"
+        ),
+    )
+
     ad_delivery_gold = BashOperator(
         task_id="match_ad_breaks_and_impressions",
         cwd=PROJECT_ROOT,
@@ -229,7 +240,7 @@ with DAG(
     player_backfill >> [
         engagement_gold, sessions_gold, quality_gate
     ]
-    master_data >> [ad_delivery_gold, quality_gate]
+    master_data >> [ad_delivery_gold, cdn_cost_gold, quality_gate]
     bronze_ingestion >> ad_delivery_gold
     [engagement_gold, ad_delivery_gold, subscription_state] >> finance_gold
-    [source_dlq, offset_reconciliation, quality_gate, sessions_gold, finance_gold] >> serve_postgres
+    [source_dlq, offset_reconciliation, quality_gate, sessions_gold, cdn_cost_gold, finance_gold] >> serve_postgres

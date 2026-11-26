@@ -2,7 +2,7 @@ name: Python tests
 
 on:
   push:
-    branches: [main]
+    branches: [main, feature/kafka-streaming-integration]
   pull_request:
     branches: [main]
 

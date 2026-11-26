@@ -216,10 +216,10 @@ def run_session_analytics(
         player = spark.read.format("delta").load(player_path)
         if date_arg:
             target_date = F.to_date(F.lit(date_arg))
-            # Retain the previous day as a boundary buffer for sessions crossing midnight.
+            # Retain previous and next day as boundary buffers for sessions crossing midnight.
             player = player.filter(
                 F.to_date("event_ts_corrected").between(
-                    F.date_sub(target_date, 1), target_date
+                    F.date_sub(target_date, 1), F.date_add(target_date, 1)
                 )
             )
         catalog = read_catalog_snapshot(spark, catalog_path)

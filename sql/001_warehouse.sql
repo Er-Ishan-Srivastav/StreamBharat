@@ -71,7 +71,10 @@ CREATE INDEX IF NOT EXISTS idx_stream_metrics_query_ts ON ottdw.stream_metrics(q
 CREATE OR REPLACE VIEW ottdw.v_top10_titles_this_week AS
 SELECT activity_date, language, rank_no, content_id, title, viewers, watched_seconds
 FROM ottdw.top_titles_daily
-WHERE activity_date >= CURRENT_DATE - INTERVAL '6 days' AND rank_no <= 10;
+WHERE activity_date >= (
+    SELECT MAX(activity_date) - INTERVAL '6 days'
+    FROM ottdw.top_titles_daily
+) AND rank_no <= 10;
 
 CREATE OR REPLACE VIEW ottdw.v_campaign_pacing_status AS
 SELECT activity_date, campaign_id, impressions, spend_inr, daily_budget_inr, pacing_ratio,

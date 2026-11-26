@@ -71,9 +71,16 @@ def parse_subscription_events(bronze: DataFrame) -> tuple[DataFrame, DataFrame]:
             .when(F.col("status").isNull(), F.lit("UNKNOWN_SUBSCRIPTION_EVENT")),
         )
     )
-    invalid = parsed.filter(F.col("reason_code").isNotNull()).select(
-        "source_topic", "kafka_partition", "kafka_offset", "kafka_timestamp",
-        "raw_value", "reason_code",
+    invalid = (
+        parsed.filter(F.col("reason_code").isNotNull())
+        .select(
+            F.concat_ws(
+                ":", "source_topic", "kafka_partition", "kafka_offset"
+            ).alias("dlq_id"),
+            "source_topic", "kafka_partition", "kafka_offset",
+            "kafka_timestamp", "raw_value", "reason_code",
+        )
+        .withColumn("quarantined_at", F.current_timestamp())
     )
 
     valid = (
@@ -236,11 +243,33 @@ def run_subscription_state(
         bronze = spark.read.format("delta").load(bronze_path)
         events, invalid = parse_subscription_events(bronze)
         if not invalid.isEmpty():
-            (
-                invalid.write.format("delta")
-                .mode("append")
-                .save(invalid_path)
-            )
+            if DeltaTable.isDeltaTable(spark, invalid_path):
+                (
+                    DeltaTable.forPath(spark, invalid_path).alias("target")
+                    .merge(invalid.alias("source"), "target.dlq_id = source.dlq_id")
+                    .whenNotMatchedInsertAll()
+                    .execute()
+                )
+            else:
+                invalid.write.format("delta").mode("append").save(invalid_path)
+
+            if bootstrap_servers:
+                kafka_invalid = invalid.select(
+                    F.col("dlq_id").cast("string").alias("key"),
+                    F.to_json(
+                        F.struct(
+                            "dlq_id", "source_topic", "kafka_partition",
+                            "kafka_offset", "kafka_timestamp", "raw_value",
+                            "reason_code", "quarantined_at",
+                        )
+                    ).alias("value"),
+                )
+                (
+                    kafka_invalid.write.format("kafka")
+                    .option("kafka.bootstrap.servers", bootstrap_servers)
+                    .option("topic", "ott.dlq")
+                    .save()
+                )
 
         history = build_subscription_history(events)
         history.write.format("delta").mode("overwrite").option(

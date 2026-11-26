@@ -112,45 +112,83 @@ TABLES = {
 }
 
 
-def upsert_dataframe(df: DataFrame, table_name: str, config: dict, jdbc_url: str,
-                     jdbc_properties: dict, pg_config: dict):
+def upsert_dataframe(
+    df: DataFrame,
+    table_name: str,
+    config: dict,
+    jdbc_url: str,
+    jdbc_properties: dict,
+    pg_config: dict,
+    date_arg: str | None = None,
+) -> None:
+    """Stage a Spark frame, then atomically replace one date or upsert all rows."""
     if not re.fullmatch(r"[a-z_]+", table_name):
         raise ValueError("Unsafe table name")
     stage = f"stg_{table_name}_{uuid.uuid4().hex[:10]}"
-    selected=df.select(*config["columns"])
-    (selected.write.format("jdbc").option("url",jdbc_url)
-     .option("dbtable",f"ottdw.{stage}").option("user",jdbc_properties["user"])
-     .option("password",jdbc_properties["password"]).option("driver","org.postgresql.Driver")
-     .option("batchsize","5000").mode("error").save())
+    selected = df.select(*config["columns"])
+    (
+        selected.write.format("jdbc")
+        .option("url", jdbc_url)
+        .option("dbtable", f"ottdw.{stage}")
+        .option("user", jdbc_properties["user"])
+        .option("password", jdbc_properties["password"])
+        .option("driver", "org.postgresql.Driver")
+        .option("batchsize", "5000")
+        .mode("error")
+        .save()
+    )
 
-    keys=set(config["keys"])
-    cols=config["columns"]
-    updates=[c for c in cols if c not in keys]
-    insert_cols=", ".join(cols)
-    key_cols=", ".join(config["keys"])
-    update_sql=", ".join(f"{c}=EXCLUDED.{c}" for c in updates)
-    select_cols = ", ".join(
-        f"{name}::jsonb AS {name}" if name in config.get("json_columns", []) else name
-        for name in cols
+    columns = config["columns"]
+    keys = config["keys"]
+    updates = [column for column in columns if column not in keys]
+    insert_columns = ", ".join(columns)
+    key_columns = ", ".join(keys)
+    update_sql = ", ".join(
+        f"{column}=EXCLUDED.{column}" for column in updates
+    )
+    select_columns = ", ".join(
+        f"{column}::jsonb AS {column}"
+        if column in config.get("json_columns", [])
+        else column
+        for column in columns
     )
     conflict_action = (
         f"DO UPDATE SET {update_sql}" if update_sql else "DO NOTHING"
     )
-    sql=(
-        f"INSERT INTO ottdw.{table_name} ({insert_cols}) "
-        f"SELECT {select_cols} FROM ottdw.{stage} "
-        f"ON CONFLICT ({key_cols}) {conflict_action}; "
-        f"DROP TABLE ottdw.{stage};"
+    insert_sql = (
+        f"INSERT INTO ottdw.{table_name} ({insert_columns}) "
+        f"SELECT {select_columns} FROM ottdw.{stage} "
+        f"ON CONFLICT ({key_columns}) {conflict_action}"
     )
-    conn=psycopg2.connect(**pg_config)
+
+    date_column = config.get("date_column")
+    if date_arg and date_column:
+        if not re.fullmatch(r"[a-z_]+", date_column):
+            raise ValueError("Unsafe date column")
+        delete_sql = (
+            f"DELETE FROM ottdw.{table_name} "
+            f"WHERE DATE({date_column}) = %s"
+        )
+    else:
+        delete_sql = None
+
+    conn = psycopg2.connect(**pg_config)
     try:
         with conn:
-            with conn.cursor() as cur:
-                cur.execute(sql)
+            with conn.cursor() as cursor:
+                if delete_sql:
+                    cursor.execute(delete_sql, (date_arg,))
+                cursor.execute(insert_sql)
+                cursor.execute(f"DROP TABLE ottdw.{stage}")
     except Exception:
-        with conn:
-            with conn.cursor() as cur:
-                cur.execute(f"DROP TABLE IF EXISTS ottdw.{stage}")
+        # Stage creation is committed by Spark JDBC outside the transaction.
+        # Clean it up without masking the original transaction exception.
+        try:
+            with conn:
+                with conn.cursor() as cursor:
+                    cursor.execute(f"DROP TABLE IF EXISTS ottdw.{stage}")
+        except Exception:
+            pass
         raise
     finally:
         conn.close()
@@ -190,7 +228,9 @@ def run_serving(date_arg: str | None = None):
                 date_column = config["date_column"]
                 if date_column in df.columns:
                     df = df.filter(F.to_date(F.col(date_column)) == F.to_date(F.lit(date_arg)))
-            upsert_dataframe(df, table, config, jdbc_url, jdbc_properties, pg_config)
+            upsert_dataframe(
+                df, table, config, jdbc_url, jdbc_properties, pg_config, date_arg
+            )
     finally:
         spark.stop()
 

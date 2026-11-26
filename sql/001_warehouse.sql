@@ -235,3 +235,22 @@ SELECT date_trunc('month', activity_date)::date AS month_start,
        SUM(missing_rate_requests) AS missing_rate_requests
 FROM ottdw.cdn_egress_daily
 GROUP BY 1, 2, 3;
+
+
+CREATE TABLE IF NOT EXISTS ottdw.published_metrics_reconciliation (
+    month DATE NOT NULL,
+    metric TEXT NOT NULL,
+    actual_metric TEXT,
+    published_value DOUBLE PRECISION,
+    actual_value DOUBLE PRECISION,
+    variance_absolute DOUBLE PRECISION,
+    variance_pct DOUBLE PRECISION,
+    tolerance_pct DOUBLE PRECISION NOT NULL DEFAULT 0.5,
+    reconciliation_status TEXT NOT NULL,
+    investigation_hint TEXT,
+    published_ts TIMESTAMPTZ,
+    compared_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (month, metric)
+);
+CREATE INDEX IF NOT EXISTS idx_published_metrics_status_month
+    ON ottdw.published_metrics_reconciliation(reconciliation_status, month DESC);

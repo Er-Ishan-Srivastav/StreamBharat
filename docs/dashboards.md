@@ -36,7 +36,7 @@ Create the collection **StreamBharat Operations & Business Intelligence**.
 | Ad fill rate by hour | `ad_fill_rate_hourly` | Time series |
 | Delivered, unfilled, orphan and genre mismatch counts | `v_ad_delivery_quality_daily` | Stacked bar |
 | CDN egress and cost by region/provider | `v_cdn_monthly_cost` | Monthly trend and region table |
-| Invalid source messages | Bronze DLQ Delta / `ott.dlq` | Load aggregate into warehouse before charting |
+| Invalid source messages by source/reason/day | `v_dlq_metrics_daily` | Stacked bar + detail table |
 
 ## Dashboard 3 — Finance & Data Quality
 

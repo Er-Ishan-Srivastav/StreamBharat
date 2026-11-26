@@ -16,6 +16,7 @@ from streambharat.q17_trending import (
     build_historical_baseline,
 )
 from streambharat.q18_live_ad_pacing import AD_SCHEMA, _process_ads_batch
+from streambharat.monitoring import attach_streaming_metrics
 from streambharat.spark_session import create_spark
 
 LIVE_REQUIRED_FIELDS = {
@@ -199,6 +200,7 @@ def run_plays(
         raise ValueError("window_minutes and slide_seconds must be positive")
 
     spark = create_spark("StreamBharat-Kafka-Q17-Trending")
+    metrics_listener = attach_streaming_metrics(spark, bootstrap_servers)
     queries = []
     try:
         build_historical_baseline(
@@ -241,6 +243,7 @@ def run_plays(
         for query in queries:
             if query.isActive:
                 query.stop()
+        spark.streams.removeListener(metrics_listener)
         spark.stop()
 
 
@@ -263,6 +266,7 @@ def run_ads(
         raise ValueError("match_hours must be positive")
 
     spark = create_spark("StreamBharat-Kafka-Q18-Ad-Pacing")
+    metrics_listener = attach_streaming_metrics(spark, bootstrap_servers)
     queries = []
     try:
         campaigns = (

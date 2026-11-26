@@ -191,3 +191,17 @@ ALTER TABLE ottdw.campaign_daily
     ADD COLUMN IF NOT EXISTS orphan_impressions BIGINT NOT NULL DEFAULT 0,
     ADD COLUMN IF NOT EXISTS frequency_cap_breaches BIGINT NOT NULL DEFAULT 0,
     ADD COLUMN IF NOT EXISTS genre_mismatch_count BIGINT NOT NULL DEFAULT 0;
+
+
+-- Upgrade existing local development volumes without discarding warehouse data.
+ALTER TABLE ottdw.ad_delivery
+    ADD COLUMN IF NOT EXISTS break_filled INTEGER;
+
+UPDATE ottdw.stream_metrics SET topic = 'unknown' WHERE topic IS NULL;
+ALTER TABLE ottdw.stream_metrics
+    ALTER COLUMN topic SET NOT NULL;
+ALTER TABLE ottdw.stream_metrics
+    DROP CONSTRAINT IF EXISTS stream_metrics_pkey;
+ALTER TABLE ottdw.stream_metrics
+    ADD CONSTRAINT stream_metrics_pkey
+    PRIMARY KEY (metric_ts, query_name, topic);

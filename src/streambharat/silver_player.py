@@ -149,7 +149,7 @@ def main():
     p.add_argument("--bronze", default="lake/bronze/player_events")
     p.add_argument("--silver", default="lake/silver/player_events")
     p.add_argument("--offsets", default="lake/silver/device_clock_offsets")
-    p.add_argument("--quarantine", default="lake/bronze/dlq/player_events")
+    p.add_argument("--quarantine", default="lake/silver/quarantine/player_events")
     a = p.parse_args()
     run_silver_player(a.bronze, a.silver, a.offsets, a.quarantine)
 

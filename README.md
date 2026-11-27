@@ -360,8 +360,17 @@ docker compose -f docker-compose.kafka.yml exec -T workspace \
 
 It writes synthetic inputs to `data/demo/raw/` and exercises Kafka, Bronze/DLQ,
 Silver, engagement/session Gold, ad delivery, revenue/royalties, PostgreSQL and
-Metabase. See the [synthetic demo runbook](docs/demo-runbook.md). It does not
-replace the full Q1–Q20 historical dataset run.
+Metabase. The runner validates minimum source-row counts for all seven feeds,
+executes every committed dashboard SQL query against PostgreSQL, checks the
+Metabase dashboards/cards, and saves timestamped logs under
+`logs/synthetic_demo/`. See the [synthetic demo runbook](docs/demo-runbook.md).
+It does not replace the full Q1–Q20 historical dataset run.
+
+A manual [Docker end-to-end acceptance workflow](https://github.com/Er-Ishan-Srivastav/StreamBharat/actions/workflows/local-stack-acceptance.yml)
+is also available under GitHub Actions. It builds the local Compose stack,
+runs the synthetic pipeline, and uploads diagnostic logs as a seven-day artifact.
+This cloud-hosted run is useful for repeatable integration checks, but it does
+not replace validation on the developer's local machine.
 
 | Local service | Address |
 |---|---|

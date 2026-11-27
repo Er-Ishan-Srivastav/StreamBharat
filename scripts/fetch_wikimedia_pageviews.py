@@ -86,15 +86,24 @@ def main() -> int:
             for attempt in range(3):
                 try:
                     items = fetch_pageviews(article, start, end, args.user_agent, args.timeout)
+                    time.sleep(1)
                     break
                 except HTTPError as exc:
                     error_message = f"HTTP {exc.code}"
                     if exc.code not in (429, 500, 502, 503, 504):
                         break
+                    retry_after = exc.headers.get("Retry-After") if exc.headers else None
                 except (URLError, TimeoutError, json.JSONDecodeError) as exc:
                     error_message = str(exc)
+                    retry_after = None
+                else:
+                    retry_after = None
                 if attempt < 2:
-                    time.sleep(2 ** (attempt + 1))
+                    try:
+                        delay = max(1, min(int(retry_after), 60)) if retry_after else 2 ** (attempt + 1)
+                    except (TypeError, ValueError):
+                        delay = 2 ** (attempt + 1)
+                    time.sleep(delay)
 
             if items is None:
                 failed_articles.append({"title": article, "error": error_message})

@@ -64,7 +64,7 @@ class MetabaseAPI:
             "GET", "/api/session/properties", authenticated=False
         )
         if properties.get("setup-token"):
-            result = self.request(
+            self.request(
                 "POST",
                 "/api/setup",
                 {
@@ -83,8 +83,14 @@ class MetabaseAPI:
                 },
                 authenticated=False,
             )
+            result = self.request(
+                "POST",
+                "/api/session",
+                {"username": ADMIN_EMAIL, "password": ADMIN_PASSWORD},
+                authenticated=False,
+            )
             self.session_id = result["id"]
-            print("Created the initial Metabase administrator.")
+            print("Created and authenticated the initial Metabase administrator.")
         else:
             result = self.request(
                 "POST",

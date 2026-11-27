@@ -324,28 +324,36 @@ Treat a question as validated only after its Spark job has run against the suppl
 
 
 
-## Canonical Kafka ETL project (local-first)
+## Initialize the local Kafka platform
 
-The supplied Kafka + PySpark ETL workbook is implemented as a self-contained
-project under [StreamBharat_Kafka_ETL](StreamBharat_Kafka_ETL/README.md).
-It includes the complete Docker Compose stack, Spark jobs, replay/live producers,
-Airflow DAG, Postgres schema, Metabase SQL, tests and runbooks.
+The Kafka ETL implementation is integrated into this repository under
+`src/streambharat/`; the supplied starter ZIP is the reference scaffold, not a
+second project that needs to be copied into a nested folder.
 
-Download the [complete project archive](StreamBharat_Kafka_ETL/StreamBharat_Kafka_ETL_complete.tar.gz),
-extract it to your working directory, then initialise locally from that folder:
+From the repository root, run:
 
 ```bash
-tar -xzf StreamBharat_Kafka_ETL_complete.tar.gz
-cd StreamBharat_Kafka_ETL
 cp .env.example .env
-# Set PROJECT_DIR in .env to this folder's absolute host path.
-make init
+# Review local-only credentials, then:
+bash scripts/start_local_stack.sh
 ```
 
-The first `make init` smoke test does not need the course dataset. Add the
-provided `data/raw/` directory only for the historical data run. AWS deployment
-is intentionally deferred until local initialization and the full data run
-have been validated.
+The script builds and starts Kafka, the PySpark workspace, PostgreSQL,
+Metabase and Airflow, then creates and verifies all 13 Kafka topics. Dataset
+preflight runs automatically if `data/raw/` exists; otherwise initialization
+still completes and data preflight is deferred until you copy the supplied
+dataset into that directory.
+
+After the dataset is present, the first historical Airflow run is triggered by:
+
+```bash
+bash scripts/trigger_local_full_run.sh 2026-10-01 2026-10-31
+```
+
+The project uses the supplied workbook's topic names and partition counts.
+Android 7.3 player events are emitted with schema version 2 from 15 October
+2026, with `position_ms` and the added `network` field. The seven-source
+replay keeps a durable acknowledgement ledger under `lake/state/`.
 
 ## Documentation
 

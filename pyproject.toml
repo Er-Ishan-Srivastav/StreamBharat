@@ -16,7 +16,7 @@ dependencies = [
 kafka = ["confluent-kafka==2.6.1"]
 postgres = ["psycopg2-binary==2.9.10"]
 notebook = ["jupyterlab==4.3.0", "pandas==2.2.3", "pyarrow==17.0.0"]
-test = ["pytest>=8.0", "pyyaml==6.0.2"]
+test = ["pytest>=8.0", "pyyaml==6.0.2", "psycopg2-binary==2.9.10"]
 
 [tool.setuptools.packages.find]
 where = ["src"]

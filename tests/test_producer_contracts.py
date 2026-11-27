@@ -14,13 +14,14 @@ def test_source_producer_uses_all_seven_workbook_topics_and_keys():
         "ratings", "ad_breaks", "impressions",
     }
     assert contracts["player"].topic == "ott.player.events"
-    assert contracts["player"].key_fields == ("user_id", "profile_id")
+    assert contracts["player"].key_fields == ("user_id",)
     assert contracts["subscriptions"].topic == "ott.billing.subscr"
     assert contracts["settlements"].topic == "ott.billing.settle"
     assert contracts["search"].key_fields == ("profile_id",)
     assert contracts["ratings"].topic == "ott.app.ratings"
     assert contracts["ad_breaks"].topic == "ott.ads.breaks"
     assert contracts["impressions"].topic == "ott.ads.impressions"
+    assert contracts["impressions"].key_fields == ("user_id",)
 
 
 def test_android_73_player_schema_switches_at_2026_10_15():

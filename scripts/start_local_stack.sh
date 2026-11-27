@@ -13,9 +13,15 @@ echo "[2/7] Creating and verifying the 13 workbook Kafka topics..."
 bash config/kafka-topics.sh
 
 if [[ -d data/raw ]]; then
-  echo "[3/7] Validating the supplied StreamBharat dataset..."
-  docker compose -f docker-compose.kafka.yml exec -T workspace \
-    python scripts/preflight_dataset.py --data-root data/raw
+  echo "[3/7] Checking whether the full supplied StreamBharat dataset is present..."
+  if docker compose -f docker-compose.kafka.yml exec -T workspace \
+      python scripts/preflight_dataset.py --data-root data/raw; then
+    echo "Full course dataset preflight passed."
+  else
+    echo "Dataset preflight did not pass; continuing with infrastructure startup."
+    echo "A synthetic demo dataset is sufficient for scripts/run_synthetic_demo.sh."
+    echo "The full Airflow historical DAG still requires the complete course dataset."
+  fi
 else
   echo "[3/7] Dataset not found; skipping data preflight."
   echo "      Copy the supplied dataset's data/raw directory into ./data/raw before replaying or triggering Airflow."

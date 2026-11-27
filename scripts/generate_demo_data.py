@@ -130,7 +130,8 @@ def generate(data_root: Path, demo_date: date, users: int) -> dict[str, int]:
         break_id = f"{user}-BREAK-1"
         campaign = "DEMO-CAMPAIGN-001"
         breaks.append({
-            "break_id": break_id, "user_id": user, "profile_id": profile,
+            "break_id": break_id, "impression_id": f"{user}-IMP-1",
+            "user_id": user, "profile_id": profile,
             "content_id": content, "break_ts": (base + timedelta(minutes=35)).isoformat(timespec="seconds"),
             "filled": 1,
         })

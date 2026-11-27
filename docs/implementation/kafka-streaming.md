@@ -25,9 +25,14 @@ Only `ott.ref.subscription_state` uses Kafka log compaction. Trending and ad
 pacing outputs are event/update topics and are not compacted by the local topic
 provisioner.
 
-The first seven source feeds are replayed from the raw course dataset. The two live
-topics are fed from the supplied simulator through a producer bridge. Live play
-events do not replace the historical player events source topic.
+The seven source feeds are replayed from the raw course dataset by
+`producers/replay.py`. It adds the workbook's late arrivals, upstream
+duplicates, poisoned messages followed by corrected re-sends, and the Android
+7.3 schema-v2 rollout. The optional `streambharat.replay_kafka` path provides
+a clean replay with a durable local acknowledgement ledger. The live
+`producers/live.py` simulator writes directly to `ott.live.plays` and
+`ott.live.ads`; the original file simulator bridge remains available for the
+PySpark workbook's Q17/Q18 baseline.
 
 ## Architecture
 
@@ -58,27 +63,31 @@ flowchart LR
 
 ## Local runtime
 
-The local stack includes Kafka 3.8 KRaft, Kafka UI, Postgres 16, Metabase, a
-Python 3.11 workspace with Java 17, PySpark 3.5.3, Delta Lake 3.2, JupyterLab
-and the Confluent Kafka client. Spark runs in local mode inside the workspace
-and Airflow containers; a separate Spark master/worker cluster is not configured.
-The single broker, PLAINTEXT listeners and replication factor 1 are development
-settings, not production security or high availability.
+The local stack includes Kafka 3.8 KRaft, Spark 3.5.3 standalone master/worker,
+the PySpark/Jupyter workspace, PostgreSQL 16, Metabase and Airflow 2.10.4.
+Kafka, Delta 3.2.1 and PostgreSQL connector JARs are preinstalled in the Spark
+image. The single broker, PLAINTEXT listeners and replication factor 1 are
+development settings, not production security or high availability.
 
 From the repository root:
 
 ```bash
-docker compose -f docker-compose.kafka.yml up -d --build
-docker compose -f docker-compose.kafka.yml exec workspace \
-  python scripts/preflight_dataset.py --data-root data/raw
-bash config/kafka-topics.sh
-docker compose -f docker-compose.kafka.yml exec workspace pytest -q
+cp .env.example .env
+bash scripts/start_local_stack.sh
 ```
+
+The initializer builds the services, creates and validates the thirteen topic
+contracts, waits for a live Spark worker, and runs Kafka/Spark/Delta/Postgres
+connectivity smoke checks. Dataset preflight is run automatically when
+`data/raw/` exists; it is deferred when the dataset has not yet been copied.
 
 Services:
 - Kafka UI: http://localhost:8080
-- JupyterLab: http://localhost:8888 (local token: `streambharat-local`)
+- Spark master UI: http://localhost:8082
+- Spark worker UI: http://localhost:8083
+- JupyterLab: http://localhost:8888
 - Metabase: http://localhost:3000
+- Airflow: http://localhost:8081
 - Postgres warehouse: localhost:5432, database `ottdw`
 
 The course dataset is not stored in Git. Copy the supplied data folder to

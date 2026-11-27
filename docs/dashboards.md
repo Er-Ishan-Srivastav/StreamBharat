@@ -10,7 +10,7 @@ Connect Metabase to:
 - Port: `5432`
 - Database: `ottdw`
 - User: `ott`
-- Password: `ott_local_dev` (local development only)
+- Password: the `POSTGRES_PASSWORD` value in `.env`
 - Schema: `ottdw`
 
 Create the collection **StreamBharat Operations & Business Intelligence**.
@@ -51,7 +51,8 @@ Create the collection **StreamBharat Operations & Business Intelligence**.
 ## Minimum saved questions
 
 The SQL specification in `config/dashboard/streambharat-metabase-questions.md`
-contains example queries and the saved-question checklist. The dashboards are
-not pre-seeded in Metabase: first-run connection, saved cards, filters and
-dashboard assembly must be completed in the Metabase UI after data is loaded.
-No sample data or screenshots are presented as if they were measured output.
+is parsed by `scripts/bootstrap_metabase.py` during local initialization. The
+script creates the initial administrator, warehouse connection, collection,
+saved SQL questions and three dashboards. Cards start as tables for reliable
+inspection; charts and filters can be refined after the first data load. No
+sample data or screenshots are presented as if they were measured output.

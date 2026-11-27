@@ -7,6 +7,7 @@ from pyspark.sql import functions as F
 from pyspark.sql.types import LongType, StringType, StructField, StructType
 from delta.tables import DeltaTable
 
+from .dlq_utils import exclude_dlq_offsets
 from .spark_session import create_spark
 
 PLAYER_SCHEMA = StructType([

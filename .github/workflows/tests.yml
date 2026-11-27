@@ -26,4 +26,4 @@ jobs:
       - name: Run deterministic and Spark contract tests
         run: pytest -q
       - name: Compile Python modules and Airflow DAGs
-        run: python -m compileall -q src/streambharat dags tests scripts
+        run: python -m compileall -q src/streambharat producers dags tests scripts

@@ -32,14 +32,14 @@ def test_play_and_ad_payloads_have_stable_partition_keys():
 def test_all_kafka_topics_match_the_supplied_etl_workbook():
     assert KAFKA_TOPIC_PARTITIONS == {
         "ott.player.events": 6,
-        "ott.billing.subscriptions": 3,
-        "ott.billing.settlements": 3,
+        "ott.billing.subscr": 3,
+        "ott.billing.settle": 3,
         "ott.app.search": 3,
         "ott.app.ratings": 1,
         "ott.ads.breaks": 3,
         "ott.ads.impressions": 3,
         "ott.live.plays": 6,
-        "ott.live.ads": 3,
+        "ott.live.ads": 6,
         "ott.dlq": 1,
         "ott.metrics.trending": 1,
         "ott.alerts.ad_pacing": 1,

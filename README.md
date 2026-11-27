@@ -302,7 +302,9 @@ GitHub Actions runs a Python test/compile workflow and a Kafka ETL contract work
 | Spark/Delta integration | Actual transformations, checkpoints, Delta writes and outputs | Production-scale reliability unless load-tested |
 | Reconciliation/model evaluation | Business totals and model metrics are measured | Generalisation beyond the supplied synthetic sample |
 
-## Current implementation status (as of 27 November 2026)
+## Current implementation status
+
+_Updated 27 November 2026._
 
 **Verified locally:** the core Docker Compose stack passed its 5/5 infrastructure smoke checks. A 20-user synthetic run exercised the seven Kafka source feeds, Bronze/DLQ, retained-offset reconciliation, Silver player/subscription processing, Gold engagement/session/ad/finance outputs, PostgreSQL serving and Metabase. All 22 required Delta output contracts and 12 PostgreSQL serving tables passed row-count verification; all 20 committed warehouse SQL questions executed; Metabase verified 3 dashboards and 20 saved questions.
 
@@ -431,7 +433,7 @@ For a small clean replay smoke test (with a durable source-record ledger):
 
 ```bash
 docker compose -f docker-compose.kafka.yml exec workspace \
-  python -m streambharat.replay_kafka --start-date 2026-10-01 \
+  python3 -m streambharat.replay_kafka --start-date 2026-10-01 \
   --end-date 2026-10-31 --speed 0 --max-events 1000
 ```
 
@@ -440,7 +442,7 @@ late, duplicate and poisoned source messages. To run that producer manually:
 
 ```bash
 docker compose -f docker-compose.kafka.yml exec workspace \
-  python producers/replay.py --from 2026-10-01 --to 2026-10-31 --speed 0
+  python3 producers/replay.py --from 2026-10-01 --to 2026-10-31 --speed 0
 ```
 
 Pass `--no-chaos` for a clean source feed. The source replay uses an
@@ -452,7 +454,7 @@ For live Q14/Q15, start the producer and Spark consumer in separate terminals:
 ```bash
 # Terminal A: live event source
 docker compose -f docker-compose.kafka.yml exec workspace \
-  python producers/live.py --stream both --seconds 900
+  python3 producers/live.py --stream both --seconds 900
 
 # Terminal B: Spark Structured Streaming consumer (plays or ads)
 docker compose -f docker-compose.kafka.yml exec workspace \
@@ -514,7 +516,7 @@ the two live topics are distinct. The current simulator bridge feeds only
 
 ```bash
 docker compose -f docker-compose.kafka.yml exec workspace \
-  python -m streambharat.kafka_producer --stream both
+  python3 -m streambharat.kafka_producer --stream both
 ```
 
 
@@ -522,7 +524,7 @@ Replay the seven October source feeds into the workbook-defined topics (run this
 
 ```bash
 docker compose -f docker-compose.kafka.yml exec workspace \
-  python -m streambharat.replay_kafka --start-date 2026-10-01 --end-date 2026-10-31 --speed 0
+  python3 -m streambharat.replay_kafka --start-date 2026-10-01 --end-date 2026-10-31 --speed 0
 ```
 
 For a small replay smoke test, add `--max-events 2000`. The replay reads from `data/raw/` and does not edit source files. Start the Bronze consumer before replay for continuous ingestion; for a completed replay, run the consumer afterward with `--available-now`.

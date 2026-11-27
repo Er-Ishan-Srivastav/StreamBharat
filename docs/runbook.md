@@ -4,9 +4,11 @@
 
 1. Keep the raw dataset in `data/raw/`; do not modify it.
 2. Run `bash scripts/start_local_stack.sh`. It creates `.env` from the template
-   if needed, starts the local services, checks source files and starts Airflow.
-3. Verify health with `docker compose -f docker-compose.kafka.yml ps` and
-   `docker compose -f docker-compose.airflow.yml ps`.
+   if needed, starts Kafka/Spark/Postgres/Metabase, provisions Kafka topics and
+   runs infrastructure smoke checks. Airflow is optional on 16 GB laptops; start
+   it separately with `docker compose -f docker-compose.airflow.yml up -d --build`.
+3. Verify core services with `docker compose -f docker-compose.kafka.yml ps`.
+   If Airflow was started, also check `docker compose -f docker-compose.airflow.yml ps`.
 4. Run `docker compose -f docker-compose.kafka.yml exec workspace pytest -q`
    before triggering a full data run.
 
@@ -115,5 +117,6 @@ transactional loader. Capture logs, offsets and row counts for every failure
 drill before calling the pipeline production-ready.
 
 The local stack uses one Kafka broker and a single-worker Spark standalone
-cluster. Airflow batch tasks run local Spark inside the Airflow container.
-AWS deployment is intentionally deferred.
+cluster. Airflow is configured to use the shared Spark master when enabled;
+validate scheduler-to-worker connectivity and Python compatibility during the
+first Airflow runtime check. AWS deployment is intentionally deferred.

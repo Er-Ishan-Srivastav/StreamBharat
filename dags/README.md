@@ -16,7 +16,7 @@ bash scripts/start_local_stack.sh
 ```
 
 The helper creates `.env` from `.env.example` only when one does not exist,
-ensures the shared Docker network exists, starts Kafka, Spark master/worker,
+lets Docker Compose create the shared network, starts Kafka, Spark master/worker,
 Postgres, Metabase and Jupyter, creates/verifies the 13 topic contracts, runs
 infrastructure smoke checks and provisions the Metabase warehouse connection
 and dashboards. Airflow is optional on 16 GB laptops; start it separately with

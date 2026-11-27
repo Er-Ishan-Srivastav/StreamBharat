@@ -10,7 +10,7 @@ export SPARK_MASTER="${SPARK_MASTER:-spark://spark-master:7077}"
 export SPARK_SESSION_TIMEZONE="${SPARK_SESSION_TIMEZONE:-UTC}"
 export SPARK_SHUFFLE_PARTITIONS="${SPARK_SHUFFLE_PARTITIONS:-4}"
 
-DEMO_DATE="${1:-2026-10-01}"
+DEMO_DATE="${1:-2026-10-15}"
 USERS="${2:-5}"
 
 echo "[1/8] Generate small synthetic OTT source feeds..."

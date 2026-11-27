@@ -62,11 +62,23 @@ def run_cdn_analytics(
     requests_path: str = "lake/silver/cdn_requests",
     rates_path: str = "lake/silver/cdn_rates",
     output_path: str = "lake/gold/cdn_egress_daily",
+    rates_format: str = "delta",
 ) -> None:
     spark = create_spark("StreamBharat-CDN-Egress-Analytics")
     try:
         requests = spark.read.format("delta").load(requests_path)
-        rates = spark.read.format("delta").load(rates_path)
+        if "request_ts" not in requests.columns and "ts" in requests.columns:
+            requests = requests.withColumnRenamed("ts", "request_ts")
+        if rates_format == "delta":
+            rates = spark.read.format("delta").load(rates_path)
+        elif rates_format == "csv":
+            rates = (
+                spark.read.option("header", True)
+                .option("inferSchema", True)
+                .csv(rates_path)
+            )
+        else:
+            raise ValueError("rates_format must be 'delta' or 'csv'")
         output = build_cdn_egress_daily(requests, rates)
         output.write.format("delta").mode("overwrite").option(
             "overwriteSchema", "true"
@@ -80,8 +92,9 @@ def main() -> None:
     parser.add_argument("--requests", default="lake/silver/cdn_requests")
     parser.add_argument("--rates", default="lake/silver/cdn_rates")
     parser.add_argument("--output", default="lake/gold/cdn_egress_daily")
+    parser.add_argument("--rates-format", choices=["delta", "csv"], default="delta")
     args = parser.parse_args()
-    run_cdn_analytics(args.requests, args.rates, args.output)
+    run_cdn_analytics(args.requests, args.rates, args.output, args.rates_format)
 
 
 if __name__ == "__main__":

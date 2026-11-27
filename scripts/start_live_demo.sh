@@ -66,6 +66,9 @@ if [[ "$STREAMS" == "ads" || "$STREAMS" == "both" ]]; then
   echo "$!" > "$LOG_ROOT/q18.pid"
 fi
 
+echo "Allowing Spark streaming consumers to initialize..."
+sleep 10
+
 echo "Starting live producer for $DURATION_SECONDS seconds..."
 nohup python producers/live.py \
   --stream "$STREAMS" --seconds "$DURATION_SECONDS" --seed 9 \

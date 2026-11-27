@@ -125,6 +125,7 @@ def run_silver_player(bronze_path="lake/bronze/player_events",
     spark = create_spark("StreamBharat-Silver-Player")
     try:
         bronze = spark.read.format("delta").load(bronze_path)
+        bronze = exclude_dlq_offsets(bronze, "ott.player.events")
         good, offsets = transform_player_events(bronze)
         malformed = good.filter(
             F.col("event_id").isNull() | F.col("event_ts_corrected").isNull()

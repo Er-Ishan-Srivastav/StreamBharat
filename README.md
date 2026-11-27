@@ -339,7 +339,7 @@ cp .env.example .env  # only when .env does not already exist
 bash scripts/start_local_stack.sh
 ```
 
-The script ensures the shared Docker network exists, builds and starts Kafka,
+Docker Compose creates the named shared network while building and starting Kafka,
 a Spark 3.5.3 standalone master/worker cluster, the PySpark/Jupyter workspace,
 PostgreSQL and Metabase, then creates/verifies all 13 Kafka topics. It runs a
 connectivity smoke test across Kafka, Spark, Delta and Postgres. Airflow is

@@ -129,6 +129,7 @@ def verify(
             if name in REQUIRED_NONEMPTY_DELTA and count <= 0:
                 failures.append(f"Required Delta output is empty: {name} ({path})")
 
+        q2_root = Path(args.q2_root)
         for name, path in {
             "q1_dim_content": q1_root / "dim_content",
             "q1_content_language": q1_root / "content_language",
@@ -176,6 +177,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--data-root", default="data/hybrid/raw")
     parser.add_argument("--q1-root", required=True)
+    parser.add_argument("--q2-root", required=True)
     parser.add_argument("--q3-bronze", required=True)
     parser.add_argument("--q3-silver", required=True)
     parser.add_argument("--report", required=True)

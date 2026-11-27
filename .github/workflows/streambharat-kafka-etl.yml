@@ -165,5 +165,7 @@ jobs:
               if connection is not None:
                   connection.close()
           PY
+      - name: Execute every committed Metabase SQL question on PostgreSQL 16
+        run: python scripts/verify_warehouse_sql.py
       - name: Run Spark contract suite
         run: pytest -q

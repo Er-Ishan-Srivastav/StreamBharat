@@ -13,6 +13,9 @@
 
 > **Project boundary:** This repository contains two related tracks: the original Q1–Q20 OTT analytics coursework and a Kafka ETL / local BI extension. The local synthetic Kafka-to-BI vertical slice has been exercised and verified. The full supplied course dataset, all Q1–Q20 business outputs, continuous-stream acceptance and production deployment are separate, unfinished validation milestones.
 
+
+![StreamBharat platform architecture](docs/assets/streambharat-platform.svg)
+
 ---
 
 ## The problem this project addresses

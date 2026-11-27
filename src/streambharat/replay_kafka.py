@@ -48,11 +48,11 @@ SOURCE_SPECS = {
     ),
     "billing_subscr": SourceSpec(
         "billing_subscr", "billing", "subscription_events.json", "jsonl",
-        "event_ts", "user_id", "ott.billing.subscr", 1,
+        "event_ts", "user_id", "ott.billing.subscriptions", 1,
     ),
     "billing_settle": SourceSpec(
         "billing_settle", "billing", "gateway_settlements.csv", "csv",
-        "settled_ts", "user_id", "ott.billing.settle", 2,
+        "settled_ts", "user_id", "ott.billing.settlements", 2,
     ),
     "app_search": SourceSpec(
         "app_search", "search", "search_logs.json", "jsonl",

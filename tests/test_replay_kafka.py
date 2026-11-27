@@ -7,6 +7,7 @@ from streambharat.replay_kafka import (
     mark_replay_record_published,
     open_replay_state,
     parse_event_time,
+    prepare_kafka_payload,
     record_time,
     replay_record_published,
 )
@@ -77,3 +78,25 @@ def test_replay_ledger_rejects_mutated_source_row(tmp_path):
             )
     finally:
         state.close()
+
+
+
+def test_android_73_player_events_switch_to_schema_v2_on_october_15():
+    raw = '{"event_id":"E1","device_id":"D1","device_type":"android","app_version":"7.3.0","position_sec":12}'
+    payload, version = prepare_kafka_payload(
+        "player_events", raw, datetime(2026, 10, 15, 0, 0, 0)
+    )
+    parsed = __import__("json").loads(payload)
+    assert version == "2"
+    assert "position_sec" not in parsed
+    assert parsed["position_ms"] == 12000
+    assert parsed["network"] in {"wifi", "cellular"}
+
+
+def test_non_android_and_pre_rollout_player_events_remain_schema_v1():
+    raw = '{"event_id":"E1","device_id":"D1","device_type":"android","app_version":"7.2.9","position_sec":12}'
+    payload, version = prepare_kafka_payload(
+        "player_events", raw, datetime(2026, 10, 14, 23, 59, 59)
+    )
+    assert version == "1"
+    assert payload == raw

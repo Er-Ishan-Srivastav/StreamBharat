@@ -11,7 +11,8 @@ os.environ["SPARK_SESSION_TIMEZONE"] = "UTC"
 os.environ["SPARK_LOCAL_IP"] = "127.0.0.1"
 os.environ["SPARK_MASTER"] = "local[2]"
 os.environ["SPARK_SHUFFLE_PARTITIONS"] = "2"
-os.environ.pop("SPARK_USE_PREINSTALLED_JARS", None)
+if os.getenv("SPARK_USE_PREINSTALLED_JARS", "").lower() != "true":
+    os.environ.pop("SPARK_USE_PREINSTALLED_JARS", None)
 
 
 @pytest.fixture

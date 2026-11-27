@@ -16,7 +16,8 @@ PLAYBACK_SCHEMA = StructType([
 
 def run_q2(input_path="data/raw/player", output_path="data/delta/silver/playback_clean",
            offset_path="data/delta/silver/device_clock_offsets", min_online_events=5,
-           max_mad_seconds=300, max_offset_days=365):
+           max_mad_seconds=300, max_offset_days=365,
+           impact_path="data/delta/silver/q2_daily_clock_impact"):
     spark=create_spark("StreamBharat-Q2-Playback-Cleaning")
     try:
         raw=(spark.read.schema(PLAYBACK_SCHEMA).json(input_path)
@@ -43,12 +44,15 @@ def run_q2(input_path="data/raw/player", output_path="data/delta/silver/playback
                  (F.abs(F.col("median_offset_seconds"))<=max_offset_days*86400)))
         enriched=(clean.join(offsets,"device_id","left")
             .withColumn("is_offline",F.col("download_id").isNotNull()&(F.trim("download_id")!=""))
-            .withColumn("event_ts_corrected",F.when(F.col("offset_reliable")&F.col("client_time").isNotNull(),
-                 F.expr("timestamp_seconds(unix_timestamp(client_time) - median_offset_seconds)"))
-                .otherwise(F.col("server_time")))
+            .withColumn("event_ts_corrected",
+                F.when(F.col("is_offline")&F.col("client_time").isNotNull(),F.col("client_time"))
+                 .when(F.col("offset_reliable")&F.col("client_time").isNotNull(),
+                    F.expr("timestamp_seconds(unix_timestamp(client_time) - median_offset_seconds)"))
+                 .otherwise(F.col("server_time")))
             .withColumn("event_ts",F.col("event_ts_corrected"))
             .withColumn("event_date",F.to_date("event_ts_corrected"))
-            .withColumn("clock_correction_applied",F.col("offset_reliable")&F.col("client_time").isNotNull()))
+            .withColumn("clock_correction_applied",
+                (~F.col("is_offline"))&F.col("offset_reliable")&F.col("client_time").isNotNull()))
         enriched.write.format("delta").mode("overwrite").option("overwriteSchema","true").save(output_path)
         offsets.write.format("delta").mode("overwrite").save(offset_path)
         before=(clean.filter(F.col("event_type")=="heartbeat").withColumn("day",F.to_date("server_time"))
@@ -56,10 +60,15 @@ def run_q2(input_path="data/raw/player", output_path="data/delta/silver/playback
         after=(enriched.filter(F.col("event_type")=="heartbeat").withColumn("day",F.to_date("event_ts_corrected"))
                .groupBy("day").agg((F.count("*")*5/60).alias("estimated_corrected_day_watch_hours")))
         impact=before.join(after,"day","full")
-        impact.write.format("delta").mode("overwrite").save("data/delta/silver/q2_daily_clock_impact")
+        impact.write.format("delta").mode("overwrite").save(impact_path)
     finally: spark.stop()
 
 if __name__=="__main__":
     p=argparse.ArgumentParser(); p.add_argument("--input",default="data/raw/player"); p.add_argument("--output",default="data/delta/silver/playback_clean")
-    p.add_argument("--offset-output",default="data/delta/silver/device_clock_offsets"); p.add_argument("--min-online-events",type=int,default=5)
-    a=p.parse_args(); run_q2(a.input,a.output,a.offset_output,a.min_online_events)
+    p.add_argument("--offset-output",default="data/delta/silver/device_clock_offsets")
+    p.add_argument("--impact-output",default="data/delta/silver/q2_daily_clock_impact")
+    p.add_argument("--min-online-events",type=int,default=5)
+    a=p.parse_args(); run_q2(
+        a.input,a.output,a.offset_output,a.min_online_events,
+        impact_path=a.impact_output
+    )

@@ -10,6 +10,7 @@ from pyspark.sql import functions as F
 from pyspark.sql.types import MapType, StringType
 
 from streambharat.q1_catalog import read_catalog_snapshot
+from streambharat.dlq_utils import exclude_dlq_offsets
 from streambharat.spark_session import create_spark
 
 
@@ -385,6 +386,8 @@ def run_reconciliation(
     try:
         subscription = spark.read.format("delta").load(subscription_path)
         settlement = spark.read.format("delta").load(settlement_path)
+        subscription = exclude_dlq_offsets(subscription, "ott.billing.subscriptions")
+        settlement = exclude_dlq_offsets(settlement, "ott.billing.settlements")
         result = build_revenue_reconciliation(
             subscription, settlement, match_window_hours
         )

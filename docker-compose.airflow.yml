@@ -33,6 +33,7 @@ services:
       STREAMBHARAT_PROJECT_ROOT: /opt/streambharat
       STREAMBHARAT_DATA_ROOT: /opt/streambharat/data/raw
       PYTHONPATH: /opt/streambharat/src
+      SPARK_EXECUTOR_PYTHONPATH: /workspace/src
       JAVA_HOME: /usr/lib/jvm/java-17-openjdk-amd64
       PYSPARK_PYTHON: python
       SPARK_MASTER: spark://spark-master:7077

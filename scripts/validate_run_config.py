@@ -8,7 +8,7 @@ import re
 
 
 def parse_iso_date(name: str, value: str) -> date:
-    if not isinstance(value, str) or not re.fullmatch(r"\\d{4}-\\d{2}-\\d{2}", value):
+    if not isinstance(value, str) or not re.fullmatch(r"\d{4}-\d{2}-\d{2}", value):
         raise ValueError(f"{name} must use canonical YYYY-MM-DD format; got {value!r}")
     try:
         return date.fromisoformat(value)

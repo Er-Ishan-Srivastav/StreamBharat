@@ -44,6 +44,7 @@ TABLES = {
         ],
         "keys": ["window_start", "language", "rank_in_language"],
         "date_column": "window_start",
+        "replace_all": True,
     },
     "campaign_daily": {
         "path": "lake/gold/campaign_daily",
@@ -212,6 +213,11 @@ def upsert_dataframe(
             f"DELETE FROM ottdw.{table_name} WHERE ({date_predicates})"
         )
         delete_params = tuple(date_arg for _ in date_columns)
+    elif config.get("replace_all"):
+        # Q17 re-emits a changing top-N snapshot. Replace the serving snapshot
+        # atomically so rows removed from a recomputed window do not go stale.
+        delete_sql = f"DELETE FROM ottdw.{table_name}"
+        delete_params = ()
     else:
         delete_sql = None
         delete_params = ()

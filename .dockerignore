@@ -13,3 +13,8 @@ data/raw
 data/stream
 lake
 *.pyc
+
+# Never bake machine-local secrets into Spark or Airflow images
+.env
+.env.*
+!.env.example

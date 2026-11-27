@@ -6,18 +6,18 @@ if [[ ! -f .env ]]; then
   echo "Created .env from .env.example. Review local passwords and tokens before exposing services."
 fi
 
-echo "[0/8] Checking Docker resources, free disk, Compose configuration and port conflicts..."
+echo "[0/9] Checking Docker resources, free disk, Compose configuration and port conflicts..."
 python3 scripts/check_local_environment.py
 
-echo "[0/9] Checking Kafka, Spark master/worker, workspace, Postgres and Metabase..."
+echo "[1/9] Building and starting Kafka, Spark master/worker, workspace, Postgres and Metabase..."
 # docker-compose.kafka.yml owns and creates the named streambharat-network.
 # The Airflow compose file attaches to that network as an external network.
 docker compose -f docker-compose.kafka.yml up -d --build
 
-echo "[3/9] Creating and verifying the 13 workbook Kafka topics..."
+echo "[2/9] Creating and verifying the 13 workbook Kafka topics..."
 bash config/kafka-topics.sh
 
-echo "[4/9] Waiting for PostgreSQL and applying idempotent warehouse migrations..."
+echo "[3/9] Waiting for PostgreSQL and applying idempotent warehouse migrations..."
 for attempt in $(seq 1 30); do
   if docker compose -f docker-compose.kafka.yml exec -T postgres \
       sh -lc 'pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"' >/dev/null 2>&1; then
@@ -36,7 +36,7 @@ docker compose -f docker-compose.kafka.yml exec -T postgres \
   sh -lc 'psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB"' < sql/003_dashboard_views.sql
 
 if [[ -d data/raw ]]; then
-  echo "[5/9] Checking whether the full supplied StreamBharat dataset is present..."
+  echo "[4/9] Checking whether the full supplied StreamBharat dataset is present..."
   if docker compose -f docker-compose.kafka.yml exec -T workspace \
       python scripts/preflight_dataset.py --data-root data/raw; then
     echo "Full course dataset preflight passed."
@@ -46,11 +46,11 @@ if [[ -d data/raw ]]; then
     echo "The full Airflow historical DAG still requires the complete course dataset."
   fi
 else
-  echo "[5/9] Dataset not found; skipping data preflight."
+  echo "[4/9] Dataset not found; skipping data preflight."
   echo "      Copy the supplied dataset's data/raw directory into ./data/raw before replaying or triggering Airflow."
 fi
 
-echo "[6/9] Waiting for Spark master and worker registration..."
+echo "[5/9] Waiting for Spark master and worker registration..."
 for attempt in $(seq 1 30); do
   if docker compose -f docker-compose.kafka.yml exec -T workspace python -c '
 import json, urllib.request
@@ -69,10 +69,10 @@ done
 
 docker compose -f docker-compose.kafka.yml exec -T workspace python -m streambharat.smoke
 
-echo "[7/9] Checking core service status..."
+echo "[6/9] Checking core service status..."
 docker compose -f docker-compose.kafka.yml ps
 
-echo "[8/9] Airflow is optional to preserve memory on 16 GB developer laptops..."
+echo "[7/9] Airflow is optional to preserve memory on 16 GB developer laptops..."
 if [[ "${START_AIRFLOW:-false}" == "true" ]]; then
   docker compose -f docker-compose.airflow.yml up -d --build
   docker compose -f docker-compose.airflow.yml ps

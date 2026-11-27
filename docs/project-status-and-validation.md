@@ -1,7 +1,7 @@
 # StreamBharat — project history, implementation status and validation record
 
 **Record updated:** 27 November 2026  
-**Repository baseline:** main at merge commit 46ae729 (PR #2)  
+**Acceptance code baseline:** main at merge commit 46ae729 (PR #2); subsequent repository status documentation merged as 90930bb (PR #3)  
 **Validation profile:** local Docker Compose stack + 20-user synthetic dataset  
 **Overall status:** synthetic local vertical slice completed; full course-data and production-readiness work remain open.
 
@@ -205,4 +205,4 @@ The project repository is merged and stable on main. The full course-data worklo
 
 ### CI follow-up after the recorded acceptance
 
-After PR #3 was merged, the Kafka ETL workflow passed on main (run #448). The subsequent Python tests push run on the same main baseline (run #853) failed while Spark's Ivy resolver attempted to obtain Delta Lake 3.2.1 from Maven Central; Spark then could not load DeltaCatalog. The Python test workflow passed in the PR context (run #852), and the local test suite had passed 77 tests. This discrepancy is recorded as a CI dependency-bootstrapping issue, not as a product-level test assertion failure. A follow-up change is being prepared to install the pinned Delta JARs directly into the PySpark test runtime and make that path explicit.
+After PR #3 was merged, the Kafka ETL workflow passed on main (run #448). The subsequent Python tests push run on the same main baseline (run #853) failed while Spark's Ivy resolver attempted to obtain Delta Lake 3.2.1 from Maven Central; Spark then could not load DeltaCatalog. The Python test workflow passed in the PR context (run #852), and the local test suite had passed 77 tests. This discrepancy is recorded as a CI dependency-bootstrapping issue, not as a product-level test assertion failure. This repository-presentation PR adds a pinned Delta JAR download step, installs the files into PySpark's JAR directory and configures the CI test session to use those preinstalled JARs instead of runtime Ivy resolution. This remediation remains pending CI confirmation.

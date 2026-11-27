@@ -4,16 +4,16 @@ from __future__ import annotations
 
 import os
 from datetime import date
+import re
 
 
 def parse_iso_date(name: str, value: str) -> date:
-    try:
-        parsed = date.fromisoformat(value)
-    except (TypeError, ValueError) as exc:
-        raise ValueError(f"{name} must be a valid YYYY-MM-DD date; got {value!r}") from exc
-    if parsed.isoformat() != value:
+    if not isinstance(value, str) or not re.fullmatch(r"\\d{4}-\\d{2}-\\d{2}", value):
         raise ValueError(f"{name} must use canonical YYYY-MM-DD format; got {value!r}")
-    return parsed
+    try:
+        return date.fromisoformat(value)
+    except ValueError as exc:
+        raise ValueError(f"{name} must be a valid calendar date; got {value!r}") from exc
 
 
 def validate_run_config(

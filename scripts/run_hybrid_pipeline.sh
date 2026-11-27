@@ -5,12 +5,12 @@ set -Eeuo pipefail
 # This runs the new hybrid source files through the repository's real pipeline.
 # It does not recreate the missing course dataset or overwrite data/raw.
 
-export PYTHONPATH="\${PYTHONPATH:-src}"
-export KAFKA_BOOTSTRAP_SERVERS="\${KAFKA_BOOTSTRAP_SERVERS:-kafka:29092}"
-export KAFKA_BOOTSTRAP="\${KAFKA_BOOTSTRAP:-$KAFKA_BOOTSTRAP_SERVERS}"
-export SPARK_MASTER="\${SPARK_MASTER:-spark://spark-master:7077}"
-export SPARK_SESSION_TIMEZONE="\${SPARK_SESSION_TIMEZONE:-UTC}"
-export SPARK_SHUFFLE_PARTITIONS="\${SPARK_SHUFFLE_PARTITIONS:-4}"
+export PYTHONPATH="${PYTHONPATH:-src}"
+export KAFKA_BOOTSTRAP_SERVERS="${KAFKA_BOOTSTRAP_SERVERS:-kafka:29092}"
+export KAFKA_BOOTSTRAP="${KAFKA_BOOTSTRAP:-$KAFKA_BOOTSTRAP_SERVERS}"
+export SPARK_MASTER="${SPARK_MASTER:-spark://spark-master:7077}"
+export SPARK_SESSION_TIMEZONE="${SPARK_SESSION_TIMEZONE:-UTC}"
+export SPARK_SHUFFLE_PARTITIONS="${SPARK_SHUFFLE_PARTITIONS:-4}"
 
 DATA_ROOT="data/hybrid/raw"
 REPLAY_FROM=""
@@ -100,11 +100,11 @@ print(snapshots[0])
 PY
 )
 
-MANIFEST_FROM="\${MANIFEST_VALUES[0]}"
-MANIFEST_TO="\${MANIFEST_VALUES[1]}"
-CATALOG_PATH="\${MANIFEST_VALUES[2]}"
-REPLAY_FROM="\${REPLAY_FROM:-$MANIFEST_FROM}"
-REPLAY_TO="\${REPLAY_TO:-$MANIFEST_TO}"
+MANIFEST_FROM="${MANIFEST_VALUES[0]}"
+MANIFEST_TO="${MANIFEST_VALUES[1]}"
+CATALOG_PATH="${MANIFEST_VALUES[2]}"
+REPLAY_FROM="${REPLAY_FROM:-$MANIFEST_FROM}"
+REPLAY_TO="${REPLAY_TO:-$MANIFEST_TO}"
 
 if [[ "$REPLAY_FROM" > "$MANIFEST_FROM" || "$REPLAY_TO" < "$MANIFEST_TO" ]]; then
   echo "Replay date range must include the full manifest arrival period." >&2

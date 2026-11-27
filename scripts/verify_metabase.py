@@ -2,14 +2,11 @@
 """Verify Metabase can authenticate and that all committed cards are on dashboards."""
 from __future__ import annotations
 
-import os
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from bootstrap_metabase import (  # noqa: E402
-    ADMIN_EMAIL,
-    ADMIN_PASSWORD,
     BASE_URL,
     COLLECTION_NAME,
     MetabaseAPI,

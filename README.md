@@ -375,6 +375,27 @@ clean replay module `python -m streambharat.replay_kafka` uses a durable
 acknowledgement ledger under `lake/state/`; downstream Silver MERGE/dedup
 remains the business-level replay protection for Kafka messages.
 
+### Real-time sessions and ad delivery (Q9/Q10)
+
+Start these Spark consumers before the Airflow historical replay if you want
+to process the full source history from Kafka:
+
+```bash
+# Session windows: 30-minute inactivity gap, 12-minute event-time watermark
+docker compose -f docker-compose.kafka.yml exec workspace \
+  bash scripts/run_session_stream.sh --starting-offsets earliest
+
+# Ad break/impression stream-stream join, 45-minute watermark
+docker compose -f docker-compose.kafka.yml exec workspace \
+  bash scripts/run_ad_matching_stream.sh --starting-offsets earliest
+```
+
+They write Delta facts to `lake/silver/viewing_sessions_stream`,
+`lake/silver/ad_delivery_stream` and
+`lake/silver/orphan_impressions_stream`. The Postgres serving job exposes
+these as `ottdw.v_viewing_sessions_stream`, `ottdw.v_ad_delivery_stream`
+and `ottdw.v_orphan_impressions_stream` for Metabase.
+
 ### Optional manual Kafka replay and live streams
 
 For a small clean replay smoke test (with a durable source-record ledger):

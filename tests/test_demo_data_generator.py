@@ -60,7 +60,11 @@ def test_synthetic_demo_generator_writes_replayable_sources(tmp_path):
     assert all(row["impression_id"] for row in break_rows)
 
     campaign_path = tmp_path / "ads" / "ad_campaigns.csv"
-    assert campaign_path.is_file()
+    with campaign_path.open(encoding="utf-8", newline="") as handle:
+        campaign_rows = list(csv.DictReader(handle))
+    assert len(campaign_rows) == 1
+    assert float(campaign_rows[0]["cpm_inr"]) == 120.0
+    assert campaign_rows[0]["start_date"] <= "2026-10-15" <= campaign_rows[0]["end_date"]
     partner_path = tmp_path / "reference" / "content_partners.csv"
     assert partner_path.is_file()
     assert (tmp_path / "reference" / "genre_mapping.csv").is_file()

@@ -37,6 +37,16 @@ def create_spark(app_name: str, extra_packages: list[str] | None = None):
         .config("spark.sql.session.timeZone", os.getenv("SPARK_SESSION_TIMEZONE", "UTC"))
         .config("spark.driver.memory", os.getenv("SPARK_DRIVER_MEMORY", "1g"))
         .config("spark.executor.memory", os.getenv("SPARK_EXECUTOR_MEMORY", "1500m"))
+        # Use the canonical Maven Central endpoint explicitly. Some CI/network
+        # environments cannot resolve repo1.maven.org even when the artifact
+        # is publicly available from Maven Central.
+        .config(
+            "spark.jars.repositories",
+            os.getenv(
+                "SPARK_JARS_REPOSITORIES",
+                "https://repo.maven.apache.org/maven2",
+            ),
+        )
     )
 
     if master.startswith("spark://"):

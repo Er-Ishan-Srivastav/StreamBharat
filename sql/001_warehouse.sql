@@ -271,3 +271,79 @@ CREATE TABLE IF NOT EXISTS ottdw.dlq_metrics_daily (
 );
 CREATE INDEX IF NOT EXISTS idx_dlq_metrics_reason_date
     ON ottdw.dlq_metrics_daily(reason_code, activity_date DESC);
+
+
+CREATE TABLE IF NOT EXISTS ottdw.viewing_sessions_stream (
+    session_id TEXT PRIMARY KEY,
+    user_id TEXT,
+    profile_id TEXT NOT NULL,
+    device_id TEXT NOT NULL,
+    content_id TEXT NOT NULL,
+    title TEXT,
+    duration_sec DOUBLE PRECISION,
+    parent_series_id TEXT,
+    language TEXT,
+    session_start_ts TIMESTAMPTZ NOT NULL,
+    session_end_ts TIMESTAMPTZ,
+    event_count BIGINT,
+    heartbeat_count BIGINT,
+    max_position_sec DOUBLE PRECISION,
+    last_kafka_offset BIGINT,
+    session_duration_seconds BIGINT,
+    watched_seconds BIGINT,
+    completed BOOLEAN,
+    viewing_date DATE,
+    report_content_id TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_viewing_sessions_stream_date
+    ON ottdw.viewing_sessions_stream(viewing_date DESC);
+
+CREATE TABLE IF NOT EXISTS ottdw.ad_delivery_stream (
+    delivery_id TEXT PRIMARY KEY,
+    break_id TEXT,
+    impression_id TEXT,
+    campaign_id TEXT,
+    user_id TEXT,
+    profile_id TEXT,
+    content_id TEXT,
+    break_filled INTEGER,
+    break_ts TIMESTAMPTZ,
+    ad_break_ts TIMESTAMPTZ,
+    impression_end_ts TIMESTAMPTZ,
+    duration_sec INTEGER,
+    completed INTEGER,
+    cpm_inr NUMERIC(18,4),
+    delivery_status TEXT NOT NULL,
+    activity_date DATE,
+    break_partition INTEGER,
+    break_offset BIGINT,
+    impression_partition INTEGER,
+    impression_offset BIGINT
+);
+CREATE INDEX IF NOT EXISTS idx_ad_delivery_stream_date_status
+    ON ottdw.ad_delivery_stream(activity_date DESC, delivery_status);
+
+CREATE TABLE IF NOT EXISTS ottdw.orphan_impressions_stream (
+    delivery_id TEXT PRIMARY KEY,
+    break_id TEXT,
+    impression_id TEXT,
+    campaign_id TEXT,
+    user_id TEXT,
+    profile_id TEXT,
+    content_id TEXT,
+    break_filled INTEGER,
+    break_ts TIMESTAMPTZ,
+    ad_break_ts TIMESTAMPTZ,
+    impression_end_ts TIMESTAMPTZ,
+    duration_sec INTEGER,
+    completed INTEGER,
+    cpm_inr NUMERIC(18,4),
+    delivery_status TEXT NOT NULL,
+    activity_date DATE,
+    break_partition INTEGER,
+    break_offset BIGINT,
+    impression_partition INTEGER,
+    impression_offset BIGINT
+);
+CREATE INDEX IF NOT EXISTS idx_orphan_impressions_stream_date
+    ON ottdw.orphan_impressions_stream(activity_date DESC);

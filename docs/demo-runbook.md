@@ -35,7 +35,12 @@ The default date is 15 October 2026, the Android player schema-v2 rollout date, 
 docker compose -f docker-compose.kafka.yml exec -T workspace bash scripts/run_synthetic_demo.sh 2026-10-15 5
 ```
 
-The runner performs these steps:
+The runner performs fourteen steps and keeps a timestamped log under
+`logs/synthetic_demo/`. On failure it records `latest_failure.txt` with the
+failed stage and log location; on success it writes `latest_success.txt`.
+The verifier checks minimum row counts for all seven source feeds, executes
+every committed dashboard SQL query against PostgreSQL and confirms that
+Metabase contains all three dashboards and their saved questions.
 
 1. Generate isolated player, billing, search, ratings, advertising, campaign and partner files plus a catalogue snapshot.
 2. Replay all seven source feeds into Kafka.
@@ -50,8 +55,18 @@ The runner performs these steps:
 11. Publish available Silver/Gold Delta tables to PostgreSQL.
 12. Verify required Bronze, Silver, Gold and PostgreSQL outputs are non-empty.
 13. Refresh Metabase questions and dashboards.
+14. Verify the Metabase warehouse connection, all three dashboards and every saved question.
 
-## 3. Services and verification
+## 3. Cloud-hosted acceptance workflow
+
+Before local setup, the repository's **Actions → StreamBharat local stack
+acceptance → Run workflow** workflow can build the Docker Compose services,
+initialize Kafka/PostgreSQL/Metabase, execute the same synthetic pipeline and
+upload diagnostic logs for seven days. Choose a synthetic user count from 1 to
+20. This is a repeatable cloud-hosted integration check, not a replacement for
+running the stack on the developer's machine.
+
+## 4. Services and verification
 
 | Service | Local URL |
 |---|---|
@@ -66,7 +81,7 @@ Verify Delta outputs in `lake/bronze/`, `lake/silver/` and `lake/gold/`. In Post
 
 A successful synthetic run proves the local vertical slice only. It does not validate every Q1–Q20 workbook task, full historical reconciliation, production throughput, AWS deployment or the original course dataset.
 
-## 4. Optional live Q17/Q18 demonstration
+## 5. Optional live Q17/Q18 demonstration
 
 After the synthetic batch demo has completed, start both Kafka-backed live consumers and a bounded live producer:
 
@@ -93,7 +108,7 @@ The Metabase card **Live trending titles (Q17)** reads the latest event-time win
 
 For a lower-resource run, choose one stream: use `plays` or `ads` instead of `both`. Keep Airflow stopped during this live demonstration on a 16 GB laptop.
 
-## 5. Original course dataset
+## 6. Original course dataset
 
 When the original dataset becomes available, place its `data/raw/` tree in the repository and run:
 
@@ -105,7 +120,7 @@ bash scripts/trigger_local_full_run.sh 2026-10-01 2026-10-31
 Review the Airflow task logs and data-quality outputs before presenting full-dataset results.
 
 
-## 6. Stop the local stack safely
+## 7. Stop the local stack safely
 
 After stopping the live demo, stop Airflow and the core services without deleting Kafka/PostgreSQL volumes:
 

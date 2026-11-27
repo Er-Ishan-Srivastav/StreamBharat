@@ -78,6 +78,7 @@ POSTGRES_TABLES = (
 def verify(
     data_root: Path,
     q1_root: Path,
+    q2_root: Path,
     q3_bronze: Path,
     q3_silver: Path,
 ) -> dict:
@@ -147,7 +148,6 @@ def verify(
             if total_cost is None or float(total_cost) <= 0:
                 failures.append("CDN daily cost total is empty or non-positive")
 
-        q2_root = Path(args.q2_root)
         for name, path in {
             "q1_dim_content": q1_root / "dim_content",
             "q1_content_language": q1_root / "content_language",
@@ -207,6 +207,7 @@ def main() -> int:
     report = verify(
         Path(args.data_root),
         Path(args.q1_root),
+        Path(args.q2_root),
         Path(args.q3_bronze),
         Path(args.q3_silver),
     )

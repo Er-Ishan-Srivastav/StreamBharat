@@ -45,9 +45,9 @@ jobs:
       - name: Confirm dashboard SQL and Metabase resources
         run: |
           docker compose -f docker-compose.kafka.yml exec -T workspace \
-            python scripts/verify_warehouse_sql.py
+            python3 scripts/verify_warehouse_sql.py
           docker compose -f docker-compose.kafka.yml exec -T workspace \
-            python scripts/verify_metabase.py
+            python3 scripts/verify_metabase.py
 
       - name: Collect Docker diagnostics
         if: always()

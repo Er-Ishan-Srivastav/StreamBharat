@@ -25,13 +25,13 @@ To start Airflow later for DAG orchestration, run `docker compose -f docker-comp
 
 Execute the runner inside the workspace container:
 
-```powershell
+```bash
 docker compose -f docker-compose.kafka.yml exec -T workspace bash scripts/run_synthetic_demo.sh
 ```
 
 The default date is 15 October 2026, the Android player schema-v2 rollout date, so the replay demonstrates the versioned `position_sec` → `position_ms` payload change. Optional arguments are demo date and user count:
 
-```powershell
+```bash
 docker compose -f docker-compose.kafka.yml exec -T workspace bash scripts/run_synthetic_demo.sh 2026-10-15 5
 ```
 
@@ -79,9 +79,33 @@ running the stack on the developer's machine.
 
 Verify Delta outputs in `lake/bronze/`, `lake/silver/` and `lake/gold/`. In PostgreSQL, inspect schema `ottdw`, especially `watch_time_daily`, `active_users_daily`, `top_titles_daily`, `subscriptions_scd2`, `viewing_sessions`, `ad_delivery`, `campaign_daily`, `revenue_reconciliation`, `royalties_quarterly` and `dlq_metrics_daily`. The Kafka-to-Bronze retained-offset report is written to `lake/gold/bronze_offset_reconciliation`.
 
-A successful synthetic run proves the local vertical slice only. It does not validate every Q1–Q20 workbook task, full historical reconciliation, production throughput, AWS deployment or the original course dataset.
+A successful synthetic run proves the local vertical slice only. It does not validate every Q1–Q20 workbook task, full historical reconciliation, production throughput, AWS deployment or the original course dataset. See the [dated project status record](project-status-and-validation.md) for the acceptance actually completed on 27 November 2026.
 
-## 5. Optional live Q17/Q18 demonstration
+## 5. Recorded local acceptance — 27 November 2026
+
+The following is the observed result of the local 20-user synthetic run. The source date was 15 October 2026 and the source-generation log run ID was 20261127T091200Z. Inputs were written to data/demo/raw/; the original data/raw/ course dataset was not processed.
+
+| Check | Observed result |
+|---|---|
+| Infrastructure smoke | 5/5 passed |
+| Bronze source counts | Player 61; subscriptions 60; settlements 40; search 20; ratings 20; ad breaks 20; ad impressions 20 |
+| DLQ | 2 records: INVALID_RATING and MISSING_POSITION |
+| Kafka/Bronze offset reconciliation | 22 partitions; all reconciled; all count_delta values 0 |
+| Silver | Player events 60; subscriptions SCD2 60 |
+| Gold and ad outputs | watch_time_daily 20; active_users_daily 2; top_titles_daily 1; viewing_sessions 20; content_dropoff_daily 1; ad_delivery 20; campaign_daily 1; ad_fill_rate_hourly 1; revenue_reconciliation 40; royalties_quarterly 1; dlq_metrics_daily 2 |
+| PostgreSQL serving | 12 required tables populated and verified |
+| Warehouse SQL | 20/20 committed SQL questions executed |
+| Metabase | 3 dashboards and 20 saved questions verified |
+| Local tests | 77 passed |
+| GitHub Actions | Python tests run #849 passed; Kafka ETL run #444 passed |
+
+The run initially stopped during Bronze startup because the workspace image exposed python3 rather than python. After updating the shell entry points, the pipeline stages were resumed and verified individually. The first DLQ attempt also exposed a race when seven validations wrote to the same initially absent Delta DLQ table at once; the recovery ran the topic validations sequentially. The synthetic runner now processes the seven DLQ topic aliases sequentially so a fresh shared Delta DLQ table is not initialized concurrently.
+
+**Important reproducibility note:** the corrected one-command wrapper has not yet been independently rerun from start to finish on a fresh isolated set of Kafka topics, checkpoints and volumes. The observed acceptance above is a successful stage-by-stage recovery, not a claim that the original one-shot invocation completed. Do not replay the same synthetic date into the already-populated local stack as an ordinary retry; Kafka offsets, checkpoints, Delta and PostgreSQL state persist. Use a fresh isolated environment for a clean wrapper acceptance.
+
+The full evidence, individual row counts, issue history and remaining work are recorded in [Project history and validation record](project-status-and-validation.md).
+
+## 6. Optional live Q17/Q18 demonstration
 
 After the synthetic batch demo has completed, start both Kafka-backed live consumers and a bounded live producer:
 
@@ -108,7 +132,7 @@ The Metabase card **Live trending titles (Q17)** reads the latest event-time win
 
 For a lower-resource run, choose one stream: use `plays` or `ads` instead of `both`. Keep Airflow stopped during this live demonstration on a 16 GB laptop.
 
-## 6. Original course dataset
+## 7. Original course dataset
 
 When the original dataset becomes available, place its `data/raw/` tree in the repository and run:
 
@@ -120,7 +144,7 @@ bash scripts/trigger_local_full_run.sh 2026-10-01 2026-10-31
 Review the Airflow task logs and data-quality outputs before presenting full-dataset results.
 
 
-## 7. Stop the local stack safely
+## 8. Stop the local stack safely
 
 After stopping the live demo, stop Airflow and the core services without deleting Kafka/PostgreSQL volumes:
 

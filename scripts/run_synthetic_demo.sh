@@ -67,9 +67,14 @@ CURRENT_STEP="ingest seven Kafka topics into Bronze Delta"
 echo "[3/14] Ingest Kafka source topics into Bronze Delta..."
 bash scripts/run_bronze_ingest.sh --starting-offsets earliest --available-now
 
-CURRENT_STEP="validate source events and write DLQ records"
-echo "[4/14] Validate source events and write DLQ records..."
-bash scripts/run_dlq_ingest.sh --starting-offsets earliest --available-now
+CURRENT_STEP="validate source events and write DLQ records sequentially"
+echo "[4/14] Validate source events and write DLQ records sequentially..."
+# All seven source validators share one Delta DLQ path. Run one query at a
+# time so a fresh table is initialized once, avoiding concurrent Delta writes.
+for topic in player_events billing_subscr billing_settle app_search app_ratings ads_breaks ads_impressions; do
+  echo "  Validating DLQ records from $topic..."
+  bash scripts/run_dlq_ingest.sh --topics "$topic" --starting-offsets earliest --available-now
+done
 
 CURRENT_STEP="reconcile retained Kafka offsets against Bronze"
 echo "[5/14] Reconcile retained Kafka offsets against Bronze..."

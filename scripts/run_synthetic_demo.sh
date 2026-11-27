@@ -25,20 +25,20 @@ python producers/replay.py --data "$DEMO_DATA_ROOT" --from "$DEMO_DATE" --to "$D
 echo "[3/13] Ingest Kafka source topics into Bronze Delta..."
 bash scripts/run_bronze_ingest.sh --starting-offsets earliest --available-now
 
-echo "[4/12] Validate source events and write DLQ records..."
+echo "[4/13] Validate source events and write DLQ records..."
 bash scripts/run_dlq_ingest.sh --starting-offsets earliest --available-now
 
-echo "[5/12] Reconcile retained Kafka offsets against Bronze..."
+echo "[5/13] Reconcile retained Kafka offsets against Bronze..."
 python -m streambharat.bronze_reconcile
 
-echo "[6/12] Build Silver player events and subscription SCD2..."
+echo "[6/13] Build Silver player events and subscription SCD2..."
 python -m streambharat.silver_player \
   --bronze lake/bronze/player_events \
   --silver lake/silver/player_events \
   --offsets lake/silver/device_clock_offsets
 python -m streambharat.subscription_state --bootstrap-servers "$KAFKA_BOOTSTRAP"
 
-echo "[7/12] Build Gold engagement and viewing-session analytics..."
+echo "[7/13] Build Gold engagement and viewing-session analytics..."
 python -m streambharat.gold_analytics \
   --player lake/silver/player_events \
   --catalog "$CATALOG_PATH" \
@@ -47,22 +47,22 @@ python -m streambharat.session_analytics \
   --player lake/silver/player_events \
   --catalog "$CATALOG_PATH"
 
-echo "[8/12] Build ad delivery, campaign pacing and fill-rate analytics..."
+echo "[8/13] Build ad delivery, campaign pacing and fill-rate analytics..."
 python -m streambharat.ad_matching \
   --campaigns "$DEMO_DATA_ROOT/ads/ad_campaigns.csv" \
   --catalog "$CATALOG_PATH"
 
-echo "[9/12] Reconcile subscription charges and calculate partner royalties..."
+echo "[9/13] Reconcile subscription charges and calculate partner royalties..."
 python -m streambharat.finance_royalties \
   --subscription lake/bronze/billing_subscr \
   --settlement lake/bronze/billing_settle \
   --partners "$DEMO_DATA_ROOT/reference/content_partners.csv" \
   --catalog-dir "$DEMO_DATA_ROOT/content"
 
-echo "[10/12] Aggregate DLQ records by source and reason..."
+echo "[10/13] Aggregate DLQ records by source and reason..."
 python -m streambharat.dlq_metrics
 
-echo "[11/12] Publish Silver/Gold Delta tables to PostgreSQL..."
+echo "[11/13] Publish Silver/Gold Delta tables to PostgreSQL..."
 python -m streambharat.serve_postgres
 
 echo "[12/13] Verify non-empty Delta and PostgreSQL outputs..."

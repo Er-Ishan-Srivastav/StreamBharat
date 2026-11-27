@@ -66,7 +66,7 @@ Spark worker:    http://localhost:8083
 Spark app UI:    http://localhost:4040
 Jupyter:         http://localhost:8888
 Metabase:   http://localhost:3000
-Airflow:    http://localhost:8081
+Airflow (optional): http://localhost:8081
 Postgres:   localhost:5432 / ottdw
 
 After placing the dataset in data/raw/, trigger the historical run:

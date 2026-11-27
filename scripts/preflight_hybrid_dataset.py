@@ -119,8 +119,10 @@ class Validation:
                 "Wikimedia pageview input metadata",
                 bool(pageviews_input.get("sha256"))
                 and pageviews_input.get("license") == "CC0-1.0"
-                and int(pageviews_input.get("row_count", 0)) > 0
-                and int(pageviews_input.get("matched_catalogue_titles", 0)) > 0
+                and isinstance(pageviews_input.get("row_count"), int)
+                and pageviews_input.get("row_count", 0) > 0
+                and isinstance(pageviews_input.get("matched_catalogue_titles"), int)
+                and pageviews_input.get("matched_catalogue_titles", 0) > 0
                 and bool(pageviews_input.get("weight_formula")),
                 "pageview input hash, CC0 licence, row/title counts or sampling formula is missing",
             )

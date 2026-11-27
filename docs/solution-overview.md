@@ -145,7 +145,7 @@ As of 27 November 2026, the local 20-user synthetic run established the followin
 - PostgreSQL: 12 serving tables populated and verified.
 - BI: all 20 committed SQL questions executed; 3 dashboards and 20 saved questions verified.
 - Engineering checks: 77 local pytest tests, Python compilation, shell syntax and Kafka/Airflow Compose validation passed.
-- GitHub Actions Python and Kafka ETL contract workflows passed for the merged runtime fixes.
+- GitHub Actions: Kafka ETL main run #448 passed; Python tests passed in PR run #852, while subsequent main run #853 failed during Delta JAR resolution. The current PR adds a pinned-JAR bootstrap path and awaits CI confirmation.
 
 The synthetic run was completed by stage-by-stage recovery after runtime fixes. The corrected one-command wrapper has not yet been independently rerun on a fresh isolated set of Kafka topics, checkpoints and volumes. The acceptance data is synthetic and does not represent the full course dataset.
 

@@ -294,7 +294,7 @@ def generate(args: argparse.Namespace) -> dict:
             profile_list.append(profile)
         profiles_by_user[user_id] = profile_list
         plans_by_user[user_id] = plan
-        state_by_user[user_id] = rng.choice(STATES)
+        state_by_user[user_id] = location
         signup_by_user[user_id] = signup
     counts["users"] = write_jsonl(staging / "app" / "users.json", user_rows)
     counts["profiles"] = write_jsonl(staging / "app" / "profiles.json", profile_rows)
@@ -341,7 +341,7 @@ def generate(args: argparse.Namespace) -> dict:
                 "user_id": user_id,
                 "event_type": initial_kind,
                 "plan": plan if plan != "free" else "basic",
-                "price": "" if initial_kind == "trial_start" else f"{charge_price:.2f}",
+                "price": "" if initial_kind == "trial_start" or plan == "free" else f"{charge_price:.2f}",
                 "event_ts": iso(subscription_at),
                 "gateway": gateway,
                 "provenance": "synthetic_generated",
@@ -361,7 +361,7 @@ def generate(args: argparse.Namespace) -> dict:
                 }
             )
 
-        cycles = max(0, (args.days - 1) // 30)
+        cycles = max(0, (args.days - 1) // 30) if plan != "free" else 0
         if cycles:
             for cycle in range(1, cycles + 1):
                 renewal_at = subscription_at + timedelta(days=30 * cycle)
@@ -545,7 +545,8 @@ def generate(args: argparse.Namespace) -> dict:
                             )
                         else:
                             pop = f"POP_{edge_code.upper()}-01"
-                            epoch = int(server_time.replace(tzinfo=None).timestamp())
+                            import calendar
+                            epoch = calendar.timegm(server_time.timetuple())
                             nimbus_by_month[request_month].append(
                                 f"{epoch}\t{pop}\t{client_hash}\tvod/{content['content_id']}/{quality}/{segment}\t"
                                 f"{status}\t{bytes_sent}\t{user_agent}"
@@ -622,7 +623,7 @@ def generate(args: argparse.Namespace) -> dict:
         "dataset_type": "hybrid",
         "schema_version": "1.0",
         "generator_version": GENERATOR_VERSION,
-        "generated_at_utc": datetime.utcnow().isoformat(timespec="seconds") + "Z",
+        "generated_at_utc": datetime.now().astimezone().astimezone(__import__("datetime").timezone.utc).isoformat(timespec="seconds"),
         "business_period": {"start_date": start.isoformat(), "end_date": end.isoformat(), "days": args.days},
         "playback_arrival_period": {
             "start_date": min(player_by_arrival).isoformat() if player_by_arrival else None,

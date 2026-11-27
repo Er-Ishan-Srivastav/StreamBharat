@@ -7,6 +7,7 @@ Requests are made sequentially and the output is a dated CC0 snapshot.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import sys
 import time
@@ -135,9 +136,15 @@ def main() -> int:
                 total_rows += 1
             print(f"  [{index}/{len(titles)}] {article}: {len(items)} daily rows")
 
+    catalog_sha256 = hashlib.sha256(catalog_path.read_bytes()).hexdigest()
+    pageviews_sha256 = hashlib.sha256(output.read_bytes()).hexdigest()
     summary = {
         "source": "Wikimedia Analytics API",
         "license": LICENSE,
+        "catalog_input_file": catalog_path.name,
+        "catalog_input_sha256": catalog_sha256,
+        "output_sha256": pageviews_sha256,
+        "retrieved_at_utc": retrieved_at,
         "period_start": start.isoformat(),
         "period_end": end.isoformat(),
         "requested_articles": len(titles),

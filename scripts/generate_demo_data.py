@@ -181,7 +181,7 @@ def generate(data_root: Path, demo_date: date, users: int) -> dict[str, int]:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--data-root", default="data/raw")
-    parser.add_argument("--date", default="2026-10-01")
+    parser.add_argument("--date", default="2026-10-15")
     parser.add_argument("--users", type=int, default=5)
     args = parser.parse_args()
     if args.users < 1 or args.users > 100:

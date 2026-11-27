@@ -87,7 +87,7 @@ python3 scripts/preflight_hybrid_dataset.py \
   --report logs/hybrid_preflight/latest.json
 ~~~
 
-The Wikidata and Wikimedia requests need internet access. After the catalogue and pageview snapshots have been fetched, generation is offline and deterministic for the same catalogue snapshot, date range, scale and seed.
+The Wikidata and Wikimedia requests need internet access. After the catalogue and pageview snapshots have been fetched, generation is offline and deterministic for the same catalogue snapshot, date range, scale and seed. To reproduce the same input exactly, use the cached catalogue rather than refreshing it. If the pageview service is unavailable, the activity factory can still run without that optional signal.
 
 To run another scale or experiment, select a new output directory rather than overwriting an existing run. The generator refuses to replace a non-empty directory unless --overwrite is supplied.
 
@@ -228,7 +228,14 @@ bash scripts/run_hybrid_pipeline.sh --chaos
 
 Without `--chaos`, the generator's own device-clock offsets and offline uploads are still present. Replay-time chaos is deliberately separate so contributors can compare a clean transport run with an imperfect transport run. Use a clean, isolated Kafka/Delta/checkpoint environment for a first acceptance run. Reusing persistent Kafka topics and checkpoints is stateful; do not mistake a second replay for a fresh run.
 
-Q1, Q2 and Q3 intermediate outputs are isolated under the run's evidence directory. Q2 records per-device offset reliability and the daily impact of clock correction; offline events retain their client event time. Q3 reads all generated monthly AkashCDN and NimbusEdge log files using provider-specific parsing and the generated edge reference.
+Q1, Q2 and Q3 intermediate outputs are isolated under the run's evidence directory. Q2 records per-device offset reliability and the daily impact of clock correction; offline events retain their client event time. Q3 reads all generated monthly AkashCDN and NimbusEdge log files using provider-specific parsing and the generated edge reference, then calculates daily egress and regional cost from the generated rate card.
+
+The preparation command supports cache reuse and skipping the optional pageview signal:
+
+~~~bash
+docker compose -f docker-compose.kafka.yml exec workspace \
+  bash scripts/prepare_hybrid_dataset.sh --reuse-catalog --skip-pageviews
+~~~
 
 ## 9. Current limits — do not overstate compatibility
 

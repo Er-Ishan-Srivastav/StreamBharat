@@ -12,8 +12,8 @@ from streambharat.spark_session import create_spark
 
 SOURCE_TOPICS = {
     "player_events": "ott.player.events",
-    "billing_subscr": "ott.billing.subscriptions",
-    "billing_settle": "ott.billing.settlements",
+    "billing_subscr": "ott.billing.subscr",
+    "billing_settle": "ott.billing.settle",
     "app_search": "ott.app.search",
     "app_ratings": "ott.app.ratings",
     "ads_breaks": "ott.ads.breaks",

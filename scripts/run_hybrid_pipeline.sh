@@ -148,7 +148,15 @@ run_step "build catalogue dimensions and bridges (Q1)" \
     --genre-mapping "$DATA_ROOT/reference/genre_mapping.csv" \
     --output "$LOG_DIR/q1_catalog_delta"
 
-if [[ -f data/external/wikimedia/pageviews.jsonl && -f data/external/wikidata/catalog.json ]]; then
+if python3 - "$DATA_ROOT/manifest.json" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+manifest = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+sys.exit(0 if "wikimedia_pageviews" in manifest.get("input_snapshots", {}) else 1)
+PY
+then
   run_step "join public Wikipedia interest to content IDs" \
     python3 scripts/build_public_interest_features.py \
       --public-catalog data/external/wikidata/catalog.json \

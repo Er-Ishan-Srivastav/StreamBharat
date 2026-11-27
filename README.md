@@ -123,7 +123,7 @@ Evidence recorded on **27 November 2026** for a **20-user synthetic run**, with 
 | Metabase dashboards | 3 verified |
 | Metabase saved questions | 20 verified |
 | Local pytest suite | 77 passed |
-| GitHub Actions | Kafka ETL main run #448 passed; Python PR run #852 passed, while main run #853 hit a Delta JAR resolution error now being addressed in this PR |
+| GitHub Actions | [Kafka ETL main run #448 passed](https://github.com/Er-Ishan-Srivastav/StreamBharat/actions/runs/45998583861); [Python PR run #852 passed](https://github.com/Er-Ishan-Srivastav/StreamBharat/actions/runs/45998189980); [main run #853 hit a Delta JAR resolution error](https://github.com/Er-Ishan-Srivastav/StreamBharat/actions/runs/45998583881), with a bootstrap fix under review here |
 
 **How to interpret this result:** the local run was completed by resuming and verifying stages individually after fixing runtime issues. It was not a clean, one-shot acceptance of the corrected runner on a fresh isolated set of Kafka topics, checkpoints and volumes. Do not replay the same synthetic date into an already-populated stack as an ordinary retry. The [dated validation record](docs/project-status-and-validation.md) contains the source counts, output counts, issue history and limits of the evidence.
 
@@ -304,7 +304,7 @@ StreamBharat is a **local development and academic analytics platform**, not a p
 The following are not yet established by the recorded synthetic acceptance:
 
 1. Full execution of the supplied course dataset and reconciliation of the complete Q1–Q20 outputs.
-2. Runtime acceptance of the separate Q9/Q10 continuous session/ad streams and the Q17/Q18 live jobs.
+2. Runtime acceptance of the Kafka extension's Q9 session-window and Q10 ad-matching streams, plus the separate Q17/Q18 live jobs.
 3. Airflow full-refresh and date-sliced DAG execution with real course data.
 4. Full DQ, CDN cost and published-board metric reconciliation on the supplied references.
 5. Broker outage/recovery, long-running checkpoint restart and alert-delivery failure drills.

@@ -341,7 +341,9 @@ bash scripts/start_local_stack.sh
 
 Docker Compose creates the named shared network while building and starting Kafka,
 a Spark 3.5.3 standalone master/worker cluster, the PySpark/Jupyter workspace,
-PostgreSQL and Metabase, then creates/verifies all 13 Kafka topics. It runs a
+PostgreSQL and Metabase, then creates/verifies all 13 Kafka topics. The startup
+helper waits for PostgreSQL and reapplies the warehouse tables/views so existing
+named volumes receive schema upgrades as well as fresh installations. It runs a
 connectivity smoke test across Kafka, Spark, Delta and Postgres. Airflow is
 optional (set `START_AIRFLOW=true` to include it during startup, or launch its
 Compose file separately). Dataset preflight is attempted when `data/raw/`

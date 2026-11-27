@@ -23,14 +23,14 @@ for artifact in jars:
     urllib.request.urlretrieve(f"{base}/{artifact}", f"/opt/spark/jars/{filename}")
 PY
 
-COPY pyproject.toml README.md /tmp/streambharat/
-COPY src /tmp/streambharat/src
+COPY pyproject.toml README.md /workspace/
+COPY src /workspace/src
+WORKDIR /workspace
 RUN python3 -m pip install --no-cache-dir --upgrade pip \
- && python3 -m pip install --no-cache-dir -e "/tmp/streambharat[kafka,postgres,notebook,test]"
+ && python3 -m pip install --no-cache-dir -e ".[kafka,postgres,notebook,test]"
 
 COPY config/spark-defaults.conf /opt/spark/conf/spark-defaults.conf
 COPY . /workspace
-WORKDIR /workspace
 
 ENV SPARK_HOME=/opt/spark \
     PYSPARK_PYTHON=python3 \

@@ -151,12 +151,12 @@ Useful evidence links:
 
 ## 5. Issues found and fixes applied during acceptance
 
-The local run exposed several environment and orchestration issues. The fixes below are included in main through PR #2 unless otherwise noted.
+The local run exposed several environment and orchestration issues. The Python executable, Spark listener property and PostgreSQL identifier fixes were merged into main through PR #2. The sequential DLQ runner hardening described in item 4 is proposed in PR #3 and remains pending CI/merge.
 
 1. **Python executable mismatch:** the workspace image provides python3, while several shell entry points called python. The affected local scripts now use python3.
 2. **Spark listener property conflict:** StreamingMetricsListener previously assigned to PySpark's read-only spark property. The reference is now stored as _spark_session. A separate asynchronous callback/shutdown warning was still observed during stream teardown; this is a known limitation and is not claimed as fully resolved.
 3. **PostgreSQL table-name validation:** the original validation rejected the digit in subscriptions_scd2. The accepted pattern now permits digits after the first lowercase letter while restricting the identifier to lowercase letters, digits and underscores.
-4. **Shared DLQ Delta target:** launching all seven topic validations simultaneously caused a concurrent Delta table-initialization conflict on the first empty DLQ path. The local recovery ran the topic validations sequentially. The synthetic runner now preserves that sequential execution on fresh runs.
+4. **Shared DLQ Delta target:** launching all seven topic validations simultaneously caused a concurrent Delta table-initialization conflict on the first empty DLQ path. The local recovery ran the topic validations sequentially. In the proposed PR #3 patch, the synthetic runner is changed to preserve that sequential execution on fresh runs.
 5. **Synthetic catalogue path:** manual Gold/session/ad commands must use the generated catalogue at data/demo/raw/content/catalog_2026-10-15.json, not the default course-data path under data/raw/.
 
 The original synthetic runner invocation stopped at Bronze because of the python/python3 mismatch. After the runtime fixes, the remaining stages were completed manually and verified stage-by-stage. The corrected one-command runner has **not yet been independently re-run from start to finish on a fresh isolated set of Kafka topics, checkpoints and volumes**. Do not represent the original manual recovery as a clean one-shot runner acceptance.

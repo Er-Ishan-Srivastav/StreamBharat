@@ -35,7 +35,7 @@ STATES = [
 ]
 DEVICES = ["android", "ios", "web", "smart_tv"]
 APP_VERSIONS = ["7.3.1", "7.4.0", "7.4.2", "8.0.0"]
-PLANS = {"basic": 199.0, "premium": 399.0}
+PLANS = {"free": 0.0, "basic": 199.0, "premium": 399.0}
 GENRES_FALLBACK = ["Drama", "Comedy", "Action", "Thriller", "Documentary"]
 SEARCH_TERMS = ["new releases", "popular", "family", "crime", "romance", "sports", "comedy"]
 
@@ -450,20 +450,29 @@ def generate(args: argparse.Namespace) -> dict:
             )
             selected_content = rng.choice(catalog)
             genre = rng.choice(selected_content["genres"])
+            results_count = rng.choice([0, 0, 2, 4, 6, 10])
+            clicked_content_id = (
+                selected_content["content_id"]
+                if results_count > 0 and rng.random() < 0.42
+                else ""
+            )
             search_rows.append(
                 {
                     "search_id": f"SRCH-{user_id}-{search_no + 1}",
                     "profile_id": rng.choice(user_profiles)["profile_id"],
                     "query_text": genre if rng.random() < 0.7 else rng.choice(SEARCH_TERMS),
-                    "results_count": rng.choice([0, 0, 2, 4, 6, 10]),
-                    "clicked_content_id": selected_content["content_id"] if rng.random() < 0.42 else "",
+                    "results_count": results_count,
+                    "clicked_content_id": clicked_content_id,
                     "ts": iso(query_time),
                     "provenance": "synthetic_generated",
                 }
             )
 
         for profile in user_profiles:
-            for rating_no in range(rng.randint(1, 3)):
+            rating_content_ids = rng.sample(
+                content_ids, k=min(len(content_ids), rng.randint(1, 3))
+            )
+            for content_id in rating_content_ids:
                 rating_time = datetime.combine(
                     start + timedelta(days=rng.randrange(args.days)),
                     time(rng.randrange(8, 24), rng.randrange(60)),
@@ -471,7 +480,7 @@ def generate(args: argparse.Namespace) -> dict:
                 rating_rows.append(
                     {
                         "profile_id": profile["profile_id"],
-                        "content_id": rng.choice(content_ids),
+                        "content_id": content_id,
                         "rating": rng.randint(1, 5),
                         "ts": iso(rating_time),
                         "provenance": "synthetic_generated",
@@ -504,7 +513,13 @@ def generate(args: argparse.Namespace) -> dict:
                     event_day,
                     time(rng.randrange(6, 24), rng.randrange(60), rng.randrange(60)),
                 )
-                duration = min(content["duration_sec"], rng.randint(8, 45) * 60)
+                if rng.random() < 0.12:
+                    duration = rng.randint(
+                        max(1, int(content["duration_sec"] * 0.85)),
+                        content["duration_sec"],
+                    )
+                else:
+                    duration = min(content["duration_sec"], rng.randint(8, 45) * 60)
                 offline = rng.random() < 0.025
                 download_id = f"DL-{user_id}-{day_index:03d}-{session_no:02d}" if offline else None
                 device_id = f"DV-{user_id}-{profile['profile_id'].split('-')[-1]}"

@@ -123,7 +123,7 @@ Evidence recorded on **27 November 2026** for a **20-user synthetic run**, with 
 | Metabase dashboards | 3 verified |
 | Metabase saved questions | 20 verified |
 | Local pytest suite | 77 passed |
-| GitHub Actions | Python tests and Kafka ETL contract workflows passed for the merged runtime fixes |
+| GitHub Actions | Kafka ETL main run #448 passed; Python PR run #852 passed, while main run #853 hit a Delta JAR resolution error now being addressed in this PR |
 
 **How to interpret this result:** the local run was completed by resuming and verifying stages individually after fixing runtime issues. It was not a clean, one-shot acceptance of the corrected runner on a fresh isolated set of Kafka topics, checkpoints and volumes. Do not replay the same synthetic date into an already-populated stack as an ordinary retry. The [dated validation record](docs/project-status-and-validation.md) contains the source counts, output counts, issue history and limits of the evidence.
 

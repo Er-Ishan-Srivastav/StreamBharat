@@ -24,6 +24,7 @@ StreamBharat brings together playback, subscriptions, catalogue, search, adverti
 - [Run the project](#run-the-project)
 - [Testing and validation](#testing-and-validation)
 - [Current implementation status](#current-implementation-status)
+- [Project history and validation record](docs/project-status-and-validation.md)
 - [Known limitations and next milestones](#known-limitations-and-next-milestones)
 - [Documentation](#documentation)
 
@@ -301,28 +302,26 @@ The CI workflow currently checks the deterministic test suite and Python compila
 | Spark/Delta integration | Actual transformations, checkpoints, Delta writes and outputs | Production-scale reliability unless load-tested |
 | Reconciliation/model evaluation | Business totals and model metrics are measured | Generalisation beyond the supplied synthetic sample |
 
-## Current implementation status
+## Current implementation status (as of 27 November 2026)
 
-**Code coverage:** all 20 question modules are present, with a finite batch orchestrator and separate Q17/Q18 streaming entry points.
+**Verified locally:** the core Docker Compose stack passed its 5/5 infrastructure smoke checks. A 20-user synthetic run exercised the seven Kafka source feeds, Bronze/DLQ, retained-offset reconciliation, Silver player/subscription processing, Gold engagement/session/ad/finance outputs, PostgreSQL serving and Metabase. All 22 required Delta output contracts and 12 PostgreSQL serving tables passed row-count verification; all 20 committed warehouse SQL questions executed; Metabase verified 3 dashboards and 20 saved questions.
 
-**Automated checks:** GitHub Actions runs the pure-Python and Spark contract tests, followed by Python compilation for the source modules, scripts and Airflow DAGs. See [GitHub Actions](https://github.com/Er-Ishan-Srivastav/StreamBharat/actions).
+**Automated checks:** local pytest passed **77 tests**, Python compilation passed, and shell plus Kafka/Airflow Compose checks passed. GitHub Actions Python tests (run #849) and Kafka ETL validation (run #444) both passed for the merged changes. [View the project status and evidence record](docs/project-status-and-validation.md).
 
-**Kafka extension status:** the branch now contains seven-source chaos replay (late, duplicate, poison and corrected events), an optional clean replay with a durable source-record acknowledgement ledger, independent Bronze consumers, source DLQ validation/routing and daily DLQ metrics, retained-offset reconciliation, player schema-v1/v2 and clock handling, a restartable July–September arrival-day backfill, master/reference loads and CDN log normalization, subscription SCD2/grace handling, Gold engagement and session analytics, ad-break/impression matching and campaign pacing, revenue/settlement reconciliation, quarterly partner royalties, DQ quarantine/gating, CDN egress cost, published-board variance reconciliation, live Q17/Q18 adapters, Q17 Delta-to-Postgres/Metabase serving, streaming throughput/lag/freshness metrics, Postgres JDBC staging/upserts, query-ready Metabase views, and an Airflow full-refresh/date-sliced DAG. The core local stack includes Kafka, Spark workspace, Postgres and Metabase; Airflow is optional.
+**Important boundary:** the acceptance run used synthetic inputs under data/demo/raw/ for 20 users and business date 2026-10-15. It did not process the supplied course dataset under data/raw/ and does not validate every Q1–Q20 workbook question. The corrected one-command runner has not yet been independently rerun from start to finish on fresh isolated Kafka topics, checkpoints and volumes; the recorded synthetic run was completed by resuming and validating its stages individually after correcting runtime issues.
 
-**Runtime status:** the previous completed CI run passed 59 tests, Python compilation, Compose validation and shell syntax checks. Subsequent changes add the expanded synthetic demo, Q17 PostgreSQL/Metabase serving, and live-process lifecycle fixes; those latest commits still require a fresh completed CI result. The full Docker/Spark/Kafka/Postgres pipeline has not yet been executed locally. The course dataset is not committed to Git, and published-board actuals, throughput numbers and full-dataset reconciliation are not claimed.
+**Not yet validated:** the full course-data batch, all Q1–Q20 business outputs, Airflow DAG execution, Q9/Q10 continuous streams, Q17/Q18 live streams, broader DQ/CDN/published-board reconciliation, streaming resilience drills, throughput/latency benchmarks and AWS deployment. The local Compose topology is a development stack, not a high-availability production deployment.
 
-Treat a question as validated only after its Spark job has run against the supplied data, output schemas and key counts have been inspected, business reconciliations have passed, and the owner has walked through the implementation.
+The repository contains the Q1–Q20 modules and Kafka extension components; presence of code is not equivalent to end-to-end acceptance. Use the [project status and validation record](docs/project-status-and-validation.md) as the source of truth for what was executed and what remains open.
 
 ## Remaining validation and delivery work
 
-1. **Clean local deployment:** run the Compose stack, create all thirteen topics and execute the complete Airflow DAG on the supplied dataset.
-2. **Business reconciliation:** inspect source-to-Bronze offsets, July–September late arrival counts, DQ exceptions, finance/royalty totals and variance against `published_metrics.csv`.
-3. **Streaming failure drills:** demonstrate checkpoint restart, replay deduplication, late-event behaviour, broker outage and alert retry semantics.
-4. **BI completion:** connect Metabase, save the committed SQL cards and assemble the three dashboard collections using populated Postgres data.
-5. **Performance evidence:** capture Spark job durations, input/processed rates, batch duration, lag and freshness. Do not invent throughput or model metrics.
-6. **AWS:** intentionally deferred until local validation and BI sign-off are complete.
-
-
+1. **Course dataset onboarding:** obtain the supplied dataset, place it under data/raw/, run preflight and record its file/schema inventory.
+2. **Full workbook acceptance:** execute Q1–Q20 against the course data; validate outputs, business rules and reconciliations.
+3. **Streaming and orchestration:** validate Q9/Q10/Q17/Q18 with checkpoints and failure drills, then run Airflow full-refresh and date-sliced DAG modes.
+4. **Finance, quality and CDN:** reconcile settlements, royalties, published-board metrics, DQ exceptions and CDN cost using the actual supplied references.
+5. **Performance evidence:** measure throughput, latency, lag, job duration and resource consumption on a documented workload.
+6. **AWS:** decide and execute deployment only after local correctness, security, networking, IAM, storage/catalogue and cost requirements are reviewed.
 
 ## Initialize the local Kafka platform
 
@@ -466,6 +465,7 @@ same stream twice with the same checkpoint.
 ## Documentation
 
 - [Local synthetic demonstration runbook](docs/demo-runbook.md) — reproducible Kafka → Spark/Delta → PostgreSQL → Metabase walkthrough when the original course dataset is unavailable.
+- [Project history and validation record](docs/project-status-and-validation.md) — dated acceptance evidence, row counts, fixes, known limitations and remaining milestones.
 
 - [Project brief](docs/project-brief.md)
 - [Architecture and Mermaid diagrams](docs/architecture.md)

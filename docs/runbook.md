@@ -74,12 +74,15 @@ batch duration, maximum event time, freshness and broker high-watermark lag to
 ## BI / Postgres
 
 On a new Postgres volume, `001_warehouse.sql` and
-`003_dashboard_views.sql` run at initialization. The startup helper then
-runs `scripts/bootstrap_metabase.py` to create the local administrator,
-warehouse connection, saved SQL questions and three dashboards. For an
-existing volume, initialization scripts do not replay automatically. Apply
-both the idempotent warehouse DDL and dashboard views after schema changes
-(including the Q17 `live_trending` table):
+`003_dashboard_views.sql` run at initialization. The startup helper also
+waits for PostgreSQL and reapplies both scripts with `ON_ERROR_STOP` on every
+startup. This upgrades existing named volumes without deleting warehouse
+data; both files use repeatable DDL/migration statements. It then runs
+`scripts/bootstrap_metabase.py` to create the local administrator, warehouse
+connection, saved SQL questions and three dashboards.
+
+When changing SQL while the stack is already running, apply the scripts
+manually so the running warehouse receives the change immediately:
 ```bash
 docker compose -f docker-compose.kafka.yml exec -T postgres \
   psql -U ott -d ottdw < sql/001_warehouse.sql

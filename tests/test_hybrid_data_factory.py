@@ -123,6 +123,11 @@ def test_hybrid_factory_writes_source_contracts_and_provenance(tmp_path):
         breaks = list(csv.DictReader(handle))
     assert len(impressions) <= len(breaks)
     assert all(row["impression_id"] for row in impressions)
+    assert all(row["filled"] in {"0", "1"} for row in breaks)
+    assert all(
+        (row["filled"] == "1") == bool(row["impression_id"])
+        for row in breaks
+    )
 
     assert (root / "reference" / "cdn_edges.csv").is_file()
     with (root / "reference" / "plans.csv").open(encoding="utf-8") as handle:

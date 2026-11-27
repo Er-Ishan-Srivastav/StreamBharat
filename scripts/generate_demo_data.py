@@ -163,15 +163,16 @@ def generate(data_root: Path, demo_date: date, users: int) -> dict[str, int]:
     campaigns = [{
         "campaign_id": "DEMO-CAMPAIGN-001",
         "budget_inr": "1000.00",
-        "start_date": day,
-        "end_date": day,
+        "start_date": "2026-01-01",
+        "end_date": "2027-12-31",
         "daily_frequency_cap": 3,
         "target_genres": "Thriller|Drama",
+        "cpm_inr": "120.00",
     }]
     write_csv(
         data_root / "ads" / "ad_campaigns.csv",
         campaigns,
-        ["campaign_id", "budget_inr", "start_date", "end_date", "daily_frequency_cap", "target_genres"],
+        ["campaign_id", "budget_inr", "start_date", "end_date", "daily_frequency_cap", "target_genres", "cpm_inr"],
     )
 
     partners = [{

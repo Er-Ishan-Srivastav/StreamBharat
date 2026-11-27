@@ -99,7 +99,7 @@ The following is the observed result of the local 20-user synthetic run. The sou
 | Local tests | 77 passed |
 | GitHub Actions | Python tests run #849 passed; Kafka ETL run #444 passed |
 
-The run initially stopped during Bronze startup because the workspace image exposed python3 rather than python. After updating the shell entry points, the pipeline stages were resumed and verified individually. The first DLQ attempt also exposed a race when seven validations wrote to the same initially absent Delta DLQ table at once; the recovery ran the topic validations sequentially. The runner is being updated to use that sequential recovery pattern for future clean runs.
+The run initially stopped during Bronze startup because the workspace image exposed python3 rather than python. After updating the shell entry points, the pipeline stages were resumed and verified individually. The first DLQ attempt also exposed a race when seven validations wrote to the same initially absent Delta DLQ table at once; the recovery ran the topic validations sequentially. The synthetic runner now processes the seven DLQ topic aliases sequentially so a fresh shared Delta DLQ table is not initialized concurrently.
 
 **Important reproducibility note:** the corrected one-command wrapper has not yet been independently rerun from start to finish on a fresh isolated set of Kafka topics, checkpoints and volumes. The observed acceptance above is a successful stage-by-stage recovery, not a claim that the original one-shot invocation completed. Do not replay the same synthetic date into the already-populated local stack as an ordinary retry; Kafka offsets, checkpoints, Delta and PostgreSQL state persist. Use a fresh isolated environment for a clean wrapper acceptance.
 

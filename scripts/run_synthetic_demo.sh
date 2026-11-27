@@ -45,7 +45,10 @@ python -m streambharat.session_analytics \
 echo "[7/8] Publish available Gold/Silver Delta tables to PostgreSQL..."
 python -m streambharat.serve_postgres
 
-echo "[8/8] Refresh Metabase questions and dashboards..."
+echo "[8/9] Verify non-empty Delta and PostgreSQL outputs..."
+python scripts/verify_demo_outputs.py
+
+echo "[9/9] Refresh Metabase questions and dashboards..."
 python scripts/bootstrap_metabase.py
 
 echo

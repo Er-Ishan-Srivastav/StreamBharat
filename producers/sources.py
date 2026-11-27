@@ -43,12 +43,10 @@ def player_version(event_time, record):
 
 
 def _json_rows(path, timestamp_field, key_field, ctx):
-    month_start = f'"{timestamp_field}": "{ctx.d_from:%Y-%m}'
-    month_end = f'"{timestamp_field}": "{ctx.d_to:%Y-%m}'
     rows = []
     with open(path, encoding="utf-8") as handle:
         for line in handle:
-            if month_start not in line and month_end not in line:
+            if not line.strip():
                 continue
             row = json.loads(line)
             event_time = parse_ts(row[timestamp_field])

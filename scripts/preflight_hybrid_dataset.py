@@ -123,8 +123,12 @@ class Validation:
                 and pageviews_input.get("row_count", 0) > 0
                 and isinstance(pageviews_input.get("matched_catalogue_titles"), int)
                 and pageviews_input.get("matched_catalogue_titles", 0) > 0
-                and bool(pageviews_input.get("weight_formula")),
-                "pageview input hash, CC0 licence, row/title counts or sampling formula is missing",
+                and bool(pageviews_input.get("weight_formula"))
+                and pageviews_input.get("sampling_cutoff_date") == manifest.get("business_period", {}).get("start_date")
+                and bool(pageviews_input.get("period_start"))
+                and bool(pageviews_input.get("period_end"))
+                and pageviews_input.get("period_end") < manifest.get("business_period", {}).get("start_date", ""),
+                "pageview input hash, CC0 licence, row/title counts, sampling formula or pre-period cutoff is invalid",
             )
             self.check(
                 "pageview-weighted playback provenance",

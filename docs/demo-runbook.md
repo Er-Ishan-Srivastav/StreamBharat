@@ -16,7 +16,9 @@ Copy-Item .env.example .env
 bash scripts/start_local_stack.sh
 ```
 
-The initializer builds and starts Kafka, Spark, PostgreSQL, Metabase and Airflow, provisions the workbook Kafka topics, and runs infrastructure smoke checks. The full course-data preflight is intentionally skipped when `data/raw/` is absent.
+The initializer builds and starts Kafka, Spark, PostgreSQL and Metabase, provisions the workbook Kafka topics, and runs infrastructure smoke checks. Airflow is optional to keep memory usage lower on 16 GB laptops; start it separately only when needed. The full course-data preflight is intentionally skipped when `data/raw/` is absent.
+
+To start Airflow later for DAG orchestration, run `docker compose -f docker-compose.airflow.yml up -d --build` from the repository root. It uses the shared Spark cluster.
 
 ## 2. Run the synthetic end-to-end demo
 

@@ -19,6 +19,9 @@ def test_synthetic_demo_generator_writes_replayable_sources(tmp_path):
 
     assert counts["player_events"] == 7
     assert counts["subscription_events"] == 6
+    assert counts["settlements"] == 4
+    assert counts["campaigns"] == 1
+    assert counts["content_partners"] == 1
     assert counts["ad_breaks"] == 2
     assert counts["ad_impressions"] == 2
 
@@ -37,6 +40,19 @@ def test_synthetic_demo_generator_writes_replayable_sources(tmp_path):
         json.loads(line) for line in subscription_path.read_text().splitlines()
     ]
     assert all(row["event_ts"].startswith("2026-10-15") for row in subscription_rows)
+
+    settlements_path = tmp_path / "billing" / "gateway_settlements.csv"
+    import csv
+    with settlements_path.open(encoding="utf-8", newline="") as handle:
+        settlement_rows = list(csv.DictReader(handle))
+    assert {row["event_type"] for row in settlement_rows} == {"subscribe", "renew"}
+    assert all(row["amount_inr"] == "299.00" for row in settlement_rows)
+
+    campaign_path = tmp_path / "ads" / "ad_campaigns.csv"
+    assert campaign_path.is_file()
+    partner_path = tmp_path / "reference" / "content_partners.csv"
+    assert partner_path.is_file()
+    assert (tmp_path / "reference" / "genre_mapping.csv").is_file()
 
     catalogue = json.loads(
         (tmp_path / "content" / "catalog_2026-10-15.json").read_text()

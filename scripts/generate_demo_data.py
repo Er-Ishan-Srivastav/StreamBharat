@@ -97,16 +97,26 @@ def generate(data_root: Path, demo_date: date, users: int) -> dict[str, int]:
             },
             {
                 "event_id": f"{user}-SUB-3", "user_id": user,
-                "event_type": "renewal", "plan": "premium", "price": "299.00",
+                "event_type": "renew", "plan": "premium", "price": "299.00",
                 "event_ts": (base - timedelta(minutes=10)).isoformat(timespec="seconds"),
             },
         ])
-        settlements.append({
-            "gateway": "demo_gateway", "user_id": user,
-            "charge_id": f"{user}-CHARGE-1", "settlement_id": f"{user}-SETTLE-1",
-            "amount_inr": "299.00", "settled_ts": base.isoformat(timespec="seconds"),
-            "event_type": "settled", "status": "success",
-        })
+        settlements.extend([
+            {
+                "gateway": "demo_gateway", "user_id": user,
+                "charge_id": f"{user}-CHARGE-1", "settlement_id": f"{user}-SETTLE-1",
+                "amount_inr": "299.00",
+                "settled_ts": (base - timedelta(minutes=25)).isoformat(timespec="seconds"),
+                "event_type": "subscribe", "status": "success",
+            },
+            {
+                "gateway": "demo_gateway", "user_id": user,
+                "charge_id": f"{user}-CHARGE-2", "settlement_id": f"{user}-SETTLE-2",
+                "amount_inr": "299.00",
+                "settled_ts": (base - timedelta(minutes=5)).isoformat(timespec="seconds"),
+                "event_type": "renew", "status": "success",
+            },
+        ])
         searches.append({
             "search_id": f"{user}-SEARCH-1", "profile_id": profile,
             "query_text": "thriller", "results_count": 4,
@@ -149,6 +159,42 @@ def generate(data_root: Path, demo_date: date, users: int) -> dict[str, int]:
         ["impression_id", "user_id", "profile_id", "content_id", "campaign_id", "ad_break_ts", "duration_sec", "completed", "cpm_inr"],
     )
 
+    campaigns = [{
+        "campaign_id": "DEMO-CAMPAIGN-001",
+        "budget_inr": "1000.00",
+        "start_date": day,
+        "end_date": day,
+        "daily_frequency_cap": 3,
+        "target_genres": "Thriller|Drama",
+    }]
+    write_csv(
+        data_root / "ads" / "ad_campaigns.csv",
+        campaigns,
+        ["campaign_id", "budget_inr", "start_date", "end_date", "daily_frequency_cap", "target_genres"],
+    )
+
+    partners = [{
+        "partner_id": "DEMO-PARTNER",
+        "name": "StreamBharat Demo Studios",
+        "revenue_share_pct": "30.0",
+        "minimum_guarantee_inr_per_quarter": "100.00",
+    }]
+    reference_root = data_root / "reference"
+    write_csv(
+        reference_root / "content_partners.csv",
+        partners,
+        ["partner_id", "name", "revenue_share_pct", "minimum_guarantee_inr_per_quarter"],
+    )
+    genre_mapping = [
+        {"raw_genre": "Thriller", "standard_genre": "Thriller"},
+        {"raw_genre": "Drama", "standard_genre": "Drama"},
+    ]
+    write_csv(
+        reference_root / "genre_mapping.csv",
+        genre_mapping,
+        ["raw_genre", "standard_genre"],
+    )
+
     catalogue = {
         "content_id": "DEMO-CONTENT-001",
         "title": "The Monsoon Files",
@@ -171,6 +217,8 @@ def generate(data_root: Path, demo_date: date, users: int) -> dict[str, int]:
         "player_events": len(player),
         "subscription_events": len(subscriptions),
         "settlements": len(settlements),
+        "campaigns": len(campaigns),
+        "content_partners": len(partners),
         "search_events": len(searches),
         "ratings": len(ratings),
         "ad_breaks": len(breaks),

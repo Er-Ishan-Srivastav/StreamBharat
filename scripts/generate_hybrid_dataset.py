@@ -341,6 +341,7 @@ def generate(args: argparse.Namespace) -> dict:
             initial_kind = "trial_start" if rng.random() < 0.12 else "subscribe"
             subscription_rows.append(
                 {
+                    "event_id": f"SUB-{user_id}-INIT",
                     "user_id": user_id,
                     "event_type": initial_kind,
                     "plan": plan if plan != "free" else "basic",
@@ -374,6 +375,7 @@ def generate(args: argparse.Namespace) -> dict:
                     if failed:
                         subscription_rows.append(
                             {
+                                "event_id": f"SUB-{user_id}-{cycle + 1:03d}-FAIL",
                                 "user_id": user_id,
                                 "event_type": "payment_failed",
                                 "plan": plan,
@@ -387,6 +389,7 @@ def generate(args: argparse.Namespace) -> dict:
                             recovered = renewal_at + timedelta(days=2)
                             subscription_rows.append(
                                 {
+                                    "event_id": f"SUB-{user_id}-{cycle + 1:03d}-REC",
                                     "user_id": user_id,
                                     "event_type": "renew",
                                     "plan": plan,
@@ -411,6 +414,7 @@ def generate(args: argparse.Namespace) -> dict:
                     else:
                         subscription_rows.append(
                             {
+                                "event_id": f"SUB-{user_id}-{cycle + 1:03d}-REN",
                                 "user_id": user_id,
                                 "event_type": "renew",
                                 "plan": plan,

@@ -38,7 +38,26 @@ jobs:
   spark-contract-tests:
     runs-on: ubuntu-latest
     timeout-minutes: 35
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: ottdw
+          POSTGRES_USER: ott
+          POSTGRES_PASSWORD: streambharat_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ott -d ottdw"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     env:
+      PGHOST: localhost
+      PGPORT: "5432"
+      PGDATABASE: ottdw
+      PGUSER: ott
+      PGPASSWORD: streambharat_ci
       PYTHONPATH: src
       SPARK_LOCAL_IP: 127.0.0.1
       PYSPARK_PYTHON: python
@@ -84,5 +103,49 @@ jobs:
           bash -n scripts/*.sh config/*.sh
           docker compose -f docker-compose.kafka.yml config --quiet
           docker compose -f docker-compose.airflow.yml config --quiet
+      - name: Apply and re-apply warehouse DDL/views on PostgreSQL 16
+        run: |
+          python - <<'PY'
+          import os
+          from pathlib import Path
+          import time
+          import psycopg2
+
+          connection = None
+          for attempt in range(30):
+              try:
+                  connection = psycopg2.connect(
+                      host=os.environ["PGHOST"],
+                      port=os.environ["PGPORT"],
+                      dbname=os.environ["PGDATABASE"],
+                      user=os.environ["PGUSER"],
+                      password=os.environ["PGPASSWORD"],
+                      connect_timeout=3,
+                  )
+                  break
+              except psycopg2.OperationalError:
+                  if attempt == 29:
+                      raise
+                  time.sleep(2)
+
+          try:
+              with connection:
+                  with connection.cursor() as cursor:
+                      for _ in range(2):
+                          for sql_file in ("sql/001_warehouse.sql", "sql/003_dashboard_views.sql"):
+                              cursor.execute(Path(sql_file).read_text(encoding="utf-8"))
+                      cursor.execute("""
+                          SELECT
+                              to_regclass('ottdw.watch_time_daily') IS NOT NULL,
+                              to_regclass('ottdw.live_trending') IS NOT NULL,
+                              to_regclass('ottdw.v_executive_daily') IS NOT NULL,
+                              to_regclass('ottdw.v_live_trending_latest') IS NOT NULL
+                      """)
+                      assert all(cursor.fetchone()), "Required warehouse tables/views were not created"
+              print("Warehouse DDL and dashboard views applied twice successfully on PostgreSQL 16")
+          finally:
+              if connection is not None:
+                  connection.close()
+          PY
       - name: Run Spark contract suite
         run: pytest -q

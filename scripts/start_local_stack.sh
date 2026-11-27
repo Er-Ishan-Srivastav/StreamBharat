@@ -43,9 +43,14 @@ docker compose -f docker-compose.kafka.yml exec -T workspace python -m streambha
 echo "[5/7] Checking core service status..."
 docker compose -f docker-compose.kafka.yml ps
 
-echo "[6/7] Starting Airflow on the shared Docker network..."
-docker compose -f docker-compose.airflow.yml up -d --build
-docker compose -f docker-compose.airflow.yml ps
+echo "[6/7] Airflow is optional to preserve memory on 16 GB developer laptops..."
+if [[ "${START_AIRFLOW:-false}" == "true" ]]; then
+  docker compose -f docker-compose.airflow.yml up -d --build
+  docker compose -f docker-compose.airflow.yml ps
+else
+  echo "Skipping Airflow. Start it later with:"
+  echo "  docker compose -f docker-compose.airflow.yml up -d --build"
+fi
 
 echo "[7/7] Creating the Metabase warehouse connection, saved questions and dashboards..."
 docker compose -f docker-compose.kafka.yml exec -T workspace \

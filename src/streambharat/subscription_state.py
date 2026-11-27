@@ -230,7 +230,7 @@ def run_subscription_state(
     bronze_path: str = "lake/bronze/billing_subscr",
     silver_path: str = "lake/silver/subscriptions",
     churn_path: str = "lake/gold/subscription_churn",
-    invalid_path: str = "lake/bronze/dlq/subscriptions",
+    invalid_path: str = "lake/silver/quarantine/subscriptions",
     bootstrap_servers: str | None = None,
     topic: str = "ott.ref.subscription_state",
 ) -> None:

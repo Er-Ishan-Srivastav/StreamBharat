@@ -31,12 +31,14 @@ the July–September arrival-day backfill and rebuilds date-partitioned Gold/ser
 outputs. For a single-day rerun, use DAG run configuration:
 `{"date":"2026-10-15","start_date":"2026-10-15","end_date":"2026-10-15"}`.
 
-The batch Kafka replay has a durable SQLite acknowledgement ledger at
-`lake/state/kafka_replay.sqlite3`; keep this file across normal reruns. It
-skips acknowledged source file/line identities and rejects changed payloads.
-A crash between Kafka acknowledgement and the local ledger commit can still
-lead to a duplicate Kafka record; downstream business-key deduplication remains
-required. The historical playback backfill is file-day restartable using
+Airflow uses the workbook chaos replay producer: it deliberately emits late,
+duplicate and poisoned source messages, with corrected re-sends. A task retry
+or a new DAG run can create new Kafka offsets; producer idempotence only covers
+the producer's internal retry protocol. Silver MERGE and business-key
+deduplication are therefore mandatory. For a separate clean replay, use
+`python -m streambharat.replay_kafka`; its SQLite acknowledgement ledger is
+`lake/state/kafka_replay.sqlite3`. Keep it across clean replays. The historical
+playback backfill is file-day restartable using
 `lake/silver/player_backfill_files`. The resulting
 `lake/gold/recon_september_arrivals` table quantifies September views that
 arrived in October; read the measured result after the dataset run.
@@ -58,9 +60,11 @@ Run the Q17/Q18 consumers in separate workspace terminals:
 bash scripts/run_kafka_stream.sh plays
 bash scripts/run_kafka_stream.sh ads
 ```
-In another terminal run `python ott_stream_simulator.py --stream both`.
-The producer bridge publishes the generated play and ad events to
-`ott.live.plays` and `ott.live.ads`. Streaming progress writes throughput,
+In another terminal run the workbook Kafka producer:
+`python producers/live.py --stream both --seconds 900`. It writes directly to
+`ott.live.plays` and `ott.live.ads`. The original file-based simulator remains
+available with `python ott_stream_simulator.py --stream both` and its Kafka
+bridge. Streaming progress writes throughput,
 batch duration, maximum event time, freshness and broker high-watermark lag to
 `lake/gold/stream_metrics`.
 

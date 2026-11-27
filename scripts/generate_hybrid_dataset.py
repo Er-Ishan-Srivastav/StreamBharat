@@ -157,7 +157,9 @@ def build_catalog(records: list[dict], rng: random.Random) -> list[dict]:
 
 
 def build_playback_sampling_weights(
-    catalog: list[dict], pageviews_path: Path | None = None
+    catalog: list[dict],
+    pageviews_path: Path | None = None,
+    business_start_date: date | None = None,
 ) -> tuple[list[float], dict | None]:
     """Use public article attention only as a prior for synthetic title sampling.
 
@@ -172,6 +174,7 @@ def build_playback_sampling_weights(
 
     totals: Counter = Counter()
     row_count = 0
+    observed_dates: list[date] = []
     with pageviews_path.open("r", encoding="utf-8") as handle:
         for line_number, line in enumerate(handle, start=1):
             if not line.strip():
@@ -180,6 +183,7 @@ def build_playback_sampling_weights(
                 row = json.loads(line)
                 qid = str(row["wikidata_qid"]).strip()
                 views = int(row["pageviews"])
+                pageview_date = date.fromisoformat(str(row["date"]))
             except (json.JSONDecodeError, KeyError, TypeError, ValueError) as exc:
                 raise ValueError(
                     f"{pageviews_path}:{line_number}: invalid pageview record: {exc}"
@@ -188,6 +192,12 @@ def build_playback_sampling_weights(
                 raise ValueError(
                     f"{pageviews_path}:{line_number}: QID is required and pageviews must be non-negative"
                 )
+            if business_start_date is not None and pageview_date >= business_start_date:
+                raise ValueError(
+                    f"{pageviews_path}:{line_number}: pageview date {pageview_date} "
+                    f"must be earlier than simulation start {business_start_date}"
+                )
+            observed_dates.append(pageview_date)
             if row.get("license") != "CC0-1.0":
                 raise ValueError(
                     f"{pageviews_path}:{line_number}: pageview row must declare CC0-1.0"
@@ -209,6 +219,9 @@ def build_playback_sampling_weights(
         "sha256": hashlib.sha256(pageviews_path.read_bytes()).hexdigest(),
         "license": "CC0-1.0",
         "row_count": row_count,
+        "period_start": min(observed_dates).isoformat() if observed_dates else None,
+        "period_end": max(observed_dates).isoformat() if observed_dates else None,
+        "sampling_cutoff_date": business_start_date.isoformat() if business_start_date else None,
         "matched_catalogue_titles": len(matched_qids),
         "weight_formula": "1 + ln(1 + total_daily_wikipedia_pageviews_by_wikidata_qid)",
         "semantics": (
@@ -228,7 +241,7 @@ def generate(args: argparse.Namespace) -> dict:
         raise ValueError("The selected public catalogue slice must contain at least 10 titles.")
     pageviews_path = Path(args.pageviews) if getattr(args, "pageviews", None) else None
     playback_weights, pageviews_input = build_playback_sampling_weights(
-        catalog, pageviews_path
+        catalog, pageviews_path, start
     )
 
     target = Path(args.output)
@@ -791,6 +804,7 @@ def generate(args: argparse.Namespace) -> dict:
                 if pageviews_input is not None
                 else "uniform_no_pageview_prior"
             ),
+            "playback_sampling_cutoff_date": start.isoformat(),
         },
         "provenance": {
             "public_external": {
@@ -859,7 +873,7 @@ def main() -> int:
     parser.add_argument("--catalog", default="data/external/wikidata/catalog.json")
     parser.add_argument(
         "--pageviews",
-        help="Optional Wikimedia pageview JSONL used only as a synthetic playback title-sampling prior",
+        help="Optional Wikimedia pageview JSONL dated before --start-date, used only as a synthetic playback title-sampling prior",
     )
     parser.add_argument("--output", default="data/hybrid/raw")
     parser.add_argument("--start-date", default="2026-11-01")

@@ -66,7 +66,10 @@ def build_session_stream(spark, bootstrap_servers, topic, catalog_path,
             & F.col("device_id").isNotNull()
             & F.col("content_id").isNotNull()
             & F.col("event_ts").isNotNull()
-            & F.col("event_type").isin("start", "heartbeat", "pause", "stop", "complete", "end")
+            & F.col("event_type").isin(
+                "start", "play", "resume", "heartbeat", "pause",
+                "seek", "buffer", "stop", "complete", "end",
+            )
         )
         .withWatermark("event_ts", watermark)
         .dropDuplicates(["event_id"])

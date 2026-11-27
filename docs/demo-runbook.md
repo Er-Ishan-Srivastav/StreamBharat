@@ -43,7 +43,8 @@ The runner performs these steps:
 5. Build Silver player events with device-clock correction and subscription SCD2.
 6. Build Gold engagement, active-user, top-title, viewing-session and drop-off outputs.
 7. Publish available Gold/Silver Delta tables to PostgreSQL.
-8. Refresh the Metabase warehouse connection, questions and dashboards.
+8. Verify that required Bronze, Silver and Gold Delta tables and serving tables in PostgreSQL are non-empty.
+9. Refresh the Metabase warehouse connection, questions and dashboards.
 
 ## 3. Services and verification
 

@@ -5,6 +5,7 @@ on:
     branches: [main, feature/kafka-streaming-integration]
     paths:
       - 'src/streambharat/**'
+      - 'producers/**'
       - 'tests/**'
       - 'dags/**'
       - 'docker-compose.kafka.yml'
@@ -19,6 +20,7 @@ on:
   pull_request:
     paths:
       - 'src/streambharat/**'
+      - 'producers/**'
       - 'tests/**'
       - 'dags/**'
       - 'docker-compose.kafka.yml'
@@ -57,7 +59,7 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -e ".[kafka,postgres,test]"
       - name: Compile project and Airflow DAGs
-        run: python -m compileall -q src/streambharat dags tests scripts
+        run: python -m compileall -q src/streambharat producers dags tests scripts
       - name: Validate Compose and project configuration
         run: |
           python - <<'PY'

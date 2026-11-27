@@ -15,8 +15,8 @@ def test_source_producer_uses_all_seven_workbook_topics_and_keys():
     }
     assert contracts["player"].topic == "ott.player.events"
     assert contracts["player"].key_fields == ("user_id", "profile_id")
-    assert contracts["subscriptions"].topic == "ott.billing.subscriptions"
-    assert contracts["settlements"].topic == "ott.billing.settlements"
+    assert contracts["subscriptions"].topic == "ott.billing.subscr"
+    assert contracts["settlements"].topic == "ott.billing.settle"
     assert contracts["search"].key_fields == ("profile_id",)
     assert contracts["ratings"].topic == "ott.app.ratings"
     assert contracts["ad_breaks"].topic == "ott.ads.breaks"

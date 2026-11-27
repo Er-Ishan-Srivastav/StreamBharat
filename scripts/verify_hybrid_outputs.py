@@ -132,6 +132,21 @@ def verify(
             if name in REQUIRED_NONEMPTY_DELTA and count <= 0:
                 failures.append(f"Required Delta output is empty: {name} ({path})")
 
+        cdn_path = "lake/gold/cdn_egress_daily"
+        if DeltaTable.isDeltaTable(spark, cdn_path):
+            cdn_egress = spark.read.format("delta").load(cdn_path)
+            missing_rate_rows = cdn_egress.filter(
+                (cdn_egress["missing_rate_requests"] > 0)
+                | cdn_egress["cost_inr"].isNull()
+            ).count()
+            total_cost = cdn_egress.agg({"cost_inr": "sum"}).collect()[0][0]
+            if missing_rate_rows:
+                failures.append(
+                    f"CDN cost has {missing_rate_rows} rows with missing rate-card matches"
+                )
+            if total_cost is None or float(total_cost) <= 0:
+                failures.append("CDN daily cost total is empty or non-positive")
+
         q2_root = Path(args.q2_root)
         for name, path in {
             "q1_dim_content": q1_root / "dim_content",

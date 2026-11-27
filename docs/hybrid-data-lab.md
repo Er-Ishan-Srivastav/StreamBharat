@@ -234,7 +234,7 @@ The preparation command supports cache reuse and skipping the optional pageview 
 
 ~~~bash
 docker compose -f docker-compose.kafka.yml exec workspace \
-  bash scripts/prepare_hybrid_dataset.sh --reuse-catalog --skip-pageviews
+  bash scripts/prepare_hybrid_dataset.sh --reuse-catalog --skip-pageviews --overwrite
 ~~~
 
 ## 9. Current limits — do not overstate compatibility

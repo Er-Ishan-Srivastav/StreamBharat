@@ -19,5 +19,6 @@ def test_metabase_spec_contains_three_dashboards_and_saved_sql_cards():
     }
     assert "Daily engagement overview" in names
     assert "Live session windows (Q9)" in names
+    assert "Live trending titles (Q17)" in names
     assert "DLQ records by source and reason" in names
     assert "Published board variance (0.5% tolerance)" in names

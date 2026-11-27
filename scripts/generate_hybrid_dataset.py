@@ -13,6 +13,7 @@ import copy
 import csv
 import hashlib
 import json
+import math
 import random
 import shutil
 import sys
@@ -154,6 +155,69 @@ def build_catalog(records: list[dict], rng: random.Random) -> list[dict]:
     return catalog
 
 
+
+def build_playback_sampling_weights(
+    catalog: list[dict], pageviews_path: Path | None = None
+) -> tuple[list[float], dict | None]:
+    """Use public article attention only as a prior for synthetic title sampling.
+
+    Pageviews are not playback or demand records. The resulting playback
+    events remain synthetic; this only makes the simulated title mix respond
+    to an explicitly documented external-interest signal.
+    """
+    if pageviews_path is None:
+        return [1.0] * len(catalog), None
+    if not pageviews_path.is_file():
+        raise FileNotFoundError(f"Pageview snapshot not found: {pageviews_path}")
+
+    totals: Counter = Counter()
+    row_count = 0
+    with pageviews_path.open("r", encoding="utf-8") as handle:
+        for line_number, line in enumerate(handle, start=1):
+            if not line.strip():
+                continue
+            try:
+                row = json.loads(line)
+                qid = str(row["wikidata_qid"]).strip()
+                views = int(row["pageviews"])
+            except (json.JSONDecodeError, KeyError, TypeError, ValueError) as exc:
+                raise ValueError(
+                    f"{pageviews_path}:{line_number}: invalid pageview record: {exc}"
+                ) from exc
+            if not qid or views < 0:
+                raise ValueError(
+                    f"{pageviews_path}:{line_number}: QID is required and pageviews must be non-negative"
+                )
+            if row.get("license") != "CC0-1.0":
+                raise ValueError(
+                    f"{pageviews_path}:{line_number}: pageview row must declare CC0-1.0"
+                )
+            totals[qid] += views
+            row_count += 1
+
+    weights = [
+        1.0 + math.log1p(totals.get(str(item.get("wikidata_qid")), 0))
+        for item in catalog
+    ]
+    matched_qids = {
+        str(item.get("wikidata_qid"))
+        for item in catalog
+        if totals.get(str(item.get("wikidata_qid")), 0) > 0
+    }
+    metadata = {
+        "file_name": pageviews_path.name,
+        "sha256": hashlib.sha256(pageviews_path.read_bytes()).hexdigest(),
+        "license": "CC0-1.0",
+        "row_count": row_count,
+        "matched_catalogue_titles": len(matched_qids),
+        "weight_formula": "1 + ln(1 + total_daily_wikipedia_pageviews_by_wikidata_qid)",
+        "semantics": (
+            "Wikipedia article pageviews are an external-interest prior for selecting "
+            "synthetic playback titles; generated playback events remain synthetic."
+        ),
+    }
+    return weights, metadata
+
 def generate(args: argparse.Namespace) -> dict:
     rng = random.Random(args.seed)
     start = date.fromisoformat(args.start_date)
@@ -162,6 +226,10 @@ def generate(args: argparse.Namespace) -> dict:
     catalog = build_catalog(public_records[: args.catalog_size], rng)
     if len(catalog) < 10:
         raise ValueError("The selected public catalogue slice must contain at least 10 titles.")
+    pageviews_path = Path(args.pageviews) if getattr(args, "pageviews", None) else None
+    playback_weights, pageviews_input = build_playback_sampling_weights(
+        catalog, pageviews_path
+    )
 
     target = Path(args.output)
     target.parent.mkdir(parents=True, exist_ok=True)
@@ -547,7 +615,7 @@ def generate(args: argparse.Namespace) -> dict:
             for session_no in range(session_total):
                 session_count += 1
                 profile = rng.choice(profiles_by_user[user_id])
-                content = rng.choice(catalog)
+                content = rng.choices(catalog, weights=playback_weights, k=1)[0]
                 city, state, edge_code = state_by_user[user_id]
                 start_at = datetime.combine(
                     event_day,
@@ -688,6 +756,19 @@ def generate(args: argparse.Namespace) -> dict:
             file_hashes[relative] = hashlib.sha256(path.read_bytes()).hexdigest()
 
     catalogue_bytes = Path(args.catalog).read_bytes()
+    input_snapshots = {
+        "wikidata_catalogue": {
+            "file_name": Path(args.catalog).name,
+            "sha256": hashlib.sha256(catalogue_bytes).hexdigest(),
+            "source": public_payload.get("source", "Wikidata Query Service"),
+            "source_endpoint": public_payload.get("source_endpoint"),
+            "license": public_payload.get("license"),
+            "retrieved_at_utc": public_payload.get("retrieved_at_utc"),
+            "record_count": len(public_records),
+        }
+    }
+    if pageviews_input is not None:
+        input_snapshots["wikimedia_pageviews"] = pageviews_input
     manifest = {
         "dataset_name": "StreamBharat Hybrid OTT Lab",
         "dataset_type": "hybrid",
@@ -699,22 +780,17 @@ def generate(args: argparse.Namespace) -> dict:
             "start_date": min(player_by_arrival).isoformat() if player_by_arrival else None,
             "end_date": max(player_by_arrival).isoformat() if player_by_arrival else None,
         },
-        "input_snapshots": {
-            "wikidata_catalogue": {
-                "file_name": Path(args.catalog).name,
-                "sha256": hashlib.sha256(catalogue_bytes).hexdigest(),
-                "source": public_payload.get("source", "Wikidata Query Service"),
-                "source_endpoint": public_payload.get("source_endpoint"),
-                "license": public_payload.get("license"),
-                "retrieved_at_utc": public_payload.get("retrieved_at_utc"),
-                "record_count": len(public_records),
-            }
-        },
+        "input_snapshots": input_snapshots,
         "configuration": {
             "seed": args.seed,
             "users": args.users,
             "catalog_size": len(catalog),
             "sessions_generated": session_count,
+            "playback_title_sampling": (
+                "pageview_weighted"
+                if pageviews_input is not None
+                else "uniform_no_pageview_prior"
+            ),
         },
         "provenance": {
             "public_external": {
@@ -736,6 +812,11 @@ def generate(args: argparse.Namespace) -> dict:
         "quality_features": {
             "device_clock_skew": "A stable per-device client clock offset is applied.",
             "offline_uploads": "A small share of playback sessions arrive 1-3 days after client event time.",
+            "playback_title_sampling": (
+                pageviews_input["semantics"]
+                if pageviews_input is not None
+                else "Titles are sampled uniformly; no external-interest prior was supplied."
+            ),
             "payment_failures": "A small share of renewal attempts fail; most have a later recovery event.",
             "cdn_status_variation": "HTTP 200, 206, 403 and 503 responses are represented.",
             "ad_fill": "Some free-tier ad breaks are deliberately unfilled.",
@@ -766,6 +847,10 @@ def generate(args: argparse.Namespace) -> dict:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--catalog", default="data/external/wikidata/catalog.json")
+    parser.add_argument(
+        "--pageviews",
+        help="Optional Wikimedia pageview JSONL used only as a synthetic playback title-sampling prior",
+    )
     parser.add_argument("--output", default="data/hybrid/raw")
     parser.add_argument("--start-date", default="2026-11-01")
     parser.add_argument("--days", type=int, default=7)

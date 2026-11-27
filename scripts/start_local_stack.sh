@@ -6,6 +6,9 @@ if [[ ! -f .env ]]; then
   echo "Created .env from .env.example. Review local passwords and tokens before exposing services."
 fi
 
+echo "[0/8] Checking Docker resources, free disk, Compose configuration and port conflicts..."
+python3 scripts/check_local_environment.py
+
 echo "[1/8] Building and starting Kafka, Spark master/worker, workspace, Postgres and Metabase..."
 # docker-compose.kafka.yml owns and creates the named streambharat-network.
 # The Airflow compose file attaches to that network as an external network.

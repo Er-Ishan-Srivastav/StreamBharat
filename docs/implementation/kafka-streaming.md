@@ -76,12 +76,14 @@ cp .env.example .env
 bash scripts/start_local_stack.sh
 ```
 
-The initializer builds the services, creates and validates the thirteen topic
-contracts, waits for a live Spark worker, and runs Kafka/Spark/Delta/Postgres
-connectivity smoke checks. It also provisions the Metabase administrator,
-warehouse connection, saved questions and three dashboards. Dataset preflight
-is run automatically when `data/raw/` exists; it is deferred when the dataset
-has not yet been copied.
+The initializer ensures the shared Docker network exists, builds the core
+services, creates and validates the thirteen topic contracts, waits for a live
+Spark worker, and runs Kafka/Spark/Delta/Postgres connectivity smoke checks.
+It also provisions the Metabase administrator, warehouse connection, saved
+questions and three dashboards. Airflow is optional to preserve memory; start it
+separately with `docker compose -f docker-compose.airflow.yml up -d --build`.
+Dataset preflight is attempted when `data/raw/` exists but does not block
+infrastructure startup when the full course dataset is missing or incomplete.
 
 Services:
 - Kafka UI: http://localhost:8080
@@ -89,7 +91,7 @@ Services:
 - Spark worker UI: http://localhost:8083
 - JupyterLab: http://localhost:8888
 - Metabase: http://localhost:3000
-- Airflow: http://localhost:8081
+- Airflow (optional): http://localhost:8081
 - Postgres warehouse: localhost:5432, database `ottdw`
 
 The course dataset is not stored in Git. Copy the supplied data folder to
@@ -340,7 +342,7 @@ against populated data after the first full run.
 ## Validation boundary and remaining work
 
 The local compose stack is a single Kafka broker with a Spark 3.5.3
-standalone master/worker cluster, PostgreSQL, Metabase, Jupyter and Airflow.
+standalone master/worker cluster, PostgreSQL, Metabase and Jupyter; Airflow is optional.
 The repository contains Spark contract tests and CI compilation,
 but the full 590 MB course dataset has not yet been run end-to-end by this
 implementation session. The following evidence is still required:

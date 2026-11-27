@@ -16,10 +16,13 @@ bash scripts/start_local_stack.sh
 ```
 
 The helper creates `.env` from `.env.example` only when one does not exist,
-starts Kafka, Spark master/worker, Postgres, Metabase and Jupyter, creates and
-verifies the 13 topic contracts, runs infrastructure smoke checks, starts
-Airflow, and provisions the Metabase warehouse connection and dashboards.
-Dataset preflight is skipped when `data/raw/` is absent.
+ensures the shared Docker network exists, starts Kafka, Spark master/worker,
+Postgres, Metabase and Jupyter, creates/verifies the 13 topic contracts, runs
+infrastructure smoke checks and provisions the Metabase warehouse connection
+and dashboards. Airflow is optional on 16 GB laptops; start it separately with
+`docker compose -f docker-compose.airflow.yml up -d --build`. Dataset preflight
+is attempted when `data/raw/` exists but does not block infrastructure startup
+when the complete course dataset is absent or incomplete.
 
 Open Airflow at http://localhost:8081. Local development login: `admin` /
 `admin_local_dev`. Override local passwords with environment variables and do

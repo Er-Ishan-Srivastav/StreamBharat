@@ -18,6 +18,24 @@ CREATE TABLE IF NOT EXISTS ottdw.top_titles_daily (
     watched_seconds BIGINT NOT NULL DEFAULT 0, refreshed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     PRIMARY KEY (activity_date, language, rank_no)
 );
+-- Q17 live trending rows flattened from the Delta window struct for BI serving.
+CREATE TABLE IF NOT EXISTS ottdw.live_trending (
+    window_start TIMESTAMPTZ NOT NULL,
+    window_end TIMESTAMPTZ NOT NULL,
+    language TEXT NOT NULL,
+    content_id TEXT NOT NULL,
+    unique_viewers BIGINT NOT NULL,
+    hour_of_day INTEGER,
+    baseline_avg_window_viewers DOUBLE PRECISION,
+    growth_ratio DOUBLE PRECISION,
+    rank_in_language INTEGER NOT NULL,
+    processed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    refreshed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (window_start, language, rank_in_language)
+);
+CREATE INDEX IF NOT EXISTS idx_live_trending_latest
+    ON ottdw.live_trending(window_start DESC, language, rank_in_language);
+
 CREATE TABLE IF NOT EXISTS ottdw.campaign_daily (
     activity_date DATE NOT NULL, campaign_id TEXT NOT NULL,
     impressions BIGINT NOT NULL DEFAULT 0,

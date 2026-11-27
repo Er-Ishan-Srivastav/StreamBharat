@@ -1,0 +1,16 @@
+published_metric,actual_metric
+total_watch_hours,watch_hours
+watch_time_hours,watch_hours
+monthly_average_dau,dau_average
+average_daily_active_users,dau_average
+monthly_average_mau,mau_average
+average_monthly_active_users,mau_average
+sessions,sessions
+session_count,sessions
+completed_sessions,completed_sessions
+average_completion_rate,average_completion_rate
+ad_impressions,ad_impressions
+ad_spend_inr,ad_spend_inr
+revenue_collected_inr,revenue_collected_inr
+cdn_egress_gb,cdn_egress_gb
+cdn_cost_inr,cdn_cost_inr

@@ -1,0 +1,43 @@
+# syntax=docker/dockerfile:1.7
+# Spark 3.5.3 runtime shared by the workspace and standalone Spark workers.
+FROM apache/spark:3.5.3-scala2.12-java17-python3-ubuntu
+
+USER root
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Preinstall Kafka, Delta and PostgreSQL connectors so local runs do not need
+# to resolve Maven artifacts every time a Spark application starts.
+RUN python3 - <<'PY'
+import urllib.request
+base = "https://repo.maven.apache.org/maven2"
+jars = [
+    "org/apache/spark/spark-sql-kafka-0-10_2.12/3.5.3/spark-sql-kafka-0-10_2.12-3.5.3.jar",
+    "org/apache/spark/spark-token-provider-kafka-0-10_2.12/3.5.3/spark-token-provider-kafka-0-10_2.12-3.5.3.jar",
+    "org/apache/kafka/kafka-clients/3.4.1/kafka-clients-3.4.1.jar",
+    "org/apache/commons/commons-pool2/2.11.1/commons-pool2-2.11.1.jar",
+    "io/delta/delta-spark_2.12/3.2.1/delta-spark_2.12-3.2.1.jar",
+    "io/delta/delta-storage/3.2.1/delta-storage-3.2.1.jar",
+    "org/postgresql/postgresql/42.7.4/postgresql-42.7.4.jar",
+]
+for artifact in jars:
+    filename = artifact.rsplit("/", 1)[1]
+    urllib.request.urlretrieve(f"{base}/{artifact}", f"/opt/spark/jars/{filename}")
+PY
+
+COPY pyproject.toml README.md /workspace/
+COPY src /workspace/src
+WORKDIR /workspace
+RUN python3 -m pip install --no-cache-dir --upgrade pip \
+ && python3 -m pip install --no-cache-dir -e ".[kafka,postgres,notebook,test]"
+
+COPY config/spark-defaults.conf /opt/spark/conf/spark-defaults.conf
+COPY . /workspace
+
+ENV SPARK_HOME=/opt/spark \
+    PYSPARK_PYTHON=python3 \
+    PYTHONPATH=/opt/spark/python:/opt/spark/python/lib/py4j-0.10.9.7-src.zip:/workspace/src \
+    PATH=/opt/spark/bin:/opt/spark/sbin:$PATH \
+    PYTHONUNBUFFERED=1
+
+EXPOSE 8888 4040 7077 8080 8081
+CMD ["bash", "-lc", "sleep infinity"]

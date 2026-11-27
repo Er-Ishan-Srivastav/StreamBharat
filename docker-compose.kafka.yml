@@ -1,0 +1,190 @@
+services:
+  kafka:
+    image: apache/kafka:3.8.0
+    container_name: streambharat-kafka
+    hostname: kafka
+    ports:
+      - "9092:9092"
+      - "9093:9093"
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: INTERNAL://:29092,EXTERNAL://:9092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:29092,EXTERNAL://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_NUM_PARTITIONS: 3
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+    volumes:
+      - kafka-data:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:29092 >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 10s
+      retries: 12
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:v0.7.2
+    container_name: streambharat-kafka-ui
+    depends_on:
+      kafka:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: streambharat-local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
+
+  postgres:
+    image: postgres:16
+    container_name: streambharat-postgres
+    environment:
+      POSTGRES_DB: ottdw
+      POSTGRES_USER: ott
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ott_local_dev}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./sql/001_warehouse.sql:/docker-entrypoint-initdb.d/001_warehouse.sql:ro
+      - ./sql/003_dashboard_views.sql:/docker-entrypoint-initdb.d/003_dashboard_views.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ott -d ottdw"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  metabase-db:
+    image: postgres:16
+    container_name: streambharat-metabase-db
+    environment:
+      POSTGRES_DB: metabase
+      POSTGRES_USER: metabase
+      POSTGRES_PASSWORD: ${METABASE_DB_PASSWORD:-metabase_local_dev}
+    volumes:
+      - metabase-data:/var/lib/postgresql/data
+
+  metabase:
+    image: metabase/metabase:v0.64.1
+    container_name: streambharat-metabase
+    depends_on:
+      metabase-db:
+        condition: service_started
+      postgres:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    environment:
+      MB_DB_TYPE: postgres
+      MB_DB_DBNAME: metabase
+      MB_DB_PORT: 5432
+      MB_DB_USER: metabase
+      MB_DB_PASS: ${METABASE_DB_PASSWORD:-metabase_local_dev}
+      MB_LOAD_SAMPLE_CONTENT: "false"
+      MB_SITE_URL: http://localhost:3000
+      MB_DB_HOST: metabase-db
+
+  spark-master:
+    build:
+      context: .
+      dockerfile: Dockerfile.spark
+    image: streambharat-spark:3.5.3
+    container_name: streambharat-spark-master
+    hostname: spark-master
+    command:
+      - /opt/spark/bin/spark-class
+      - org.apache.spark.deploy.master.Master
+      - --host
+      - spark-master
+      - --port
+      - "7077"
+      - --webui-port
+      - "8080"
+    environment:
+      SPARK_NO_DAEMONIZE: "true"
+    volumes:
+      - ./:/workspace
+    ports:
+      - "8082:8080"
+
+  spark-worker:
+    image: streambharat-spark:3.5.3
+    container_name: streambharat-spark-worker
+    hostname: spark-worker
+    depends_on:
+      spark-master:
+        condition: service_started
+    command:
+      - /opt/spark/bin/spark-class
+      - org.apache.spark.deploy.worker.Worker
+      - spark://spark-master:7077
+      - --cores
+      - "2"
+      - --memory
+      - 2g
+      - --webui-port
+      - "8081"
+    environment:
+      SPARK_NO_DAEMONIZE: "true"
+      PYTHONPATH: /workspace/src
+      PYSPARK_PYTHON: python3
+    volumes:
+      - ./:/workspace
+    ports:
+      - "8083:8081"
+
+  workspace:
+    image: streambharat-spark:3.5.3
+    container_name: streambharat-workspace
+    depends_on:
+      kafka:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      spark-master:
+        condition: service_started
+      spark-worker:
+        condition: service_started
+    working_dir: /workspace
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      KAFKA_BOOTSTRAP: kafka:29092
+      SPARK_MASTER: spark://spark-master:7077
+      SPARK_DRIVER_HOST: workspace
+      SPARK_USE_PREINSTALLED_JARS: "true"
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      POSTGRES_DB: ottdw
+      POSTGRES_USER: ott
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ott_local_dev}
+      PYTHONPATH: /workspace/src
+      PYSPARK_PYTHON: python3
+      SPARK_LOCAL_IP: 0.0.0.0
+      JUPYTER_TOKEN: ${JUPYTER_TOKEN:-streambharat-local}
+      METABASE_ADMIN_EMAIL: ${METABASE_ADMIN_EMAIL:-admin@streambharat.local}
+      METABASE_ADMIN_PASSWORD: ${METABASE_ADMIN_PASSWORD:-StreamBharat2026!}
+      METABASE_URL: http://metabase:3000
+    volumes:
+      - ./:/workspace
+    ports:
+      - "8888:8888"
+      - "4040:4040"
+    command:
+      - bash
+      - -lc
+      - jupyter lab --ip=0.0.0.0 --port=8888 --no-browser --allow-root --ServerApp.token=${JUPYTER_TOKEN:-streambharat-local}
+
+volumes:
+  kafka-data:
+  postgres-data:
+  metabase-data:
+
+networks:
+  default:
+    name: streambharat-network

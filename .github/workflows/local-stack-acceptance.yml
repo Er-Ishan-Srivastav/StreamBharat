@@ -1,0 +1,77 @@
+name: StreamBharat local stack acceptance
+
+on:
+  workflow_dispatch:
+    inputs:
+      demo_users:
+        description: Number of synthetic users to generate (1–20)
+        required: true
+        default: 5
+        type: number
+
+concurrency:
+  group: streambharat-local-stack-acceptance
+  cancel-in-progress: false
+
+jobs:
+  synthetic-end-to-end:
+    name: Docker stack and synthetic end-to-end acceptance
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      START_AIRFLOW: "false"
+      DEMO_USERS: ${{ inputs.demo_users }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Validate Compose and shell entry points
+        run: |
+          bash -n scripts/*.sh config/*.sh
+          docker compose -f docker-compose.kafka.yml config --quiet
+          docker compose -f docker-compose.airflow.yml config --quiet
+          python3 -m compileall -q src/streambharat producers dags tests scripts
+
+      - name: Initialize local stack
+        run: |
+          cp .env.example .env
+          bash scripts/start_local_stack.sh
+
+      - name: Run synthetic Kafka-to-BI pipeline
+        run: |
+          docker compose -f docker-compose.kafka.yml exec -T workspace \
+            bash scripts/run_synthetic_demo.sh 2026-10-15 "$DEMO_USERS"
+
+      - name: Confirm dashboard SQL and Metabase resources
+        run: |
+          docker compose -f docker-compose.kafka.yml exec -T workspace \
+            python scripts/verify_warehouse_sql.py
+          docker compose -f docker-compose.kafka.yml exec -T workspace \
+            python scripts/verify_metabase.py
+
+      - name: Collect Docker diagnostics
+        if: always()
+        run: |
+          mkdir -p logs/acceptance
+          docker compose -f docker-compose.kafka.yml ps --all \
+            > logs/acceptance/compose-ps.txt 2>&1 || true
+          docker compose -f docker-compose.kafka.yml logs --no-color --timestamps \
+            > logs/acceptance/compose-logs.txt 2>&1 || true
+          docker compose -f docker-compose.airflow.yml ps --all \
+            > logs/acceptance/airflow-compose-ps.txt 2>&1 || true
+
+      - name: Upload acceptance logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: streambharat-local-acceptance-${{ github.run_id }}
+          path: |
+            logs/**
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Stop local stack without deleting volumes
+        if: always()
+        run: |
+          docker compose -f docker-compose.airflow.yml down --remove-orphans || true
+          docker compose -f docker-compose.kafka.yml down --remove-orphans || true

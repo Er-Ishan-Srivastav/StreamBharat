@@ -14,7 +14,7 @@ from delta.tables import DeltaTable
 from pyspark.sql import functions as F
 from pyspark.sql.types import DoubleType, IntegerType, StringType, StructField, StructType
 
-from .spark_session import create_spark
+from streambharat.spark_session import create_spark
 
 AD_SCHEMA = StructType([
     StructField("impression_id", StringType(), True),
@@ -28,10 +28,17 @@ AD_SCHEMA = StructType([
 
 def _persist_impressions(spark, ledger_path: str, incoming):
     parsed = (
-        incoming.withColumn("event_ts", F.to_timestamp("ad_break_ts"))
+        incoming.withColumn("_ad_break_time", F.to_timestamp("ad_break_ts"))
+        .withColumn(
+            "event_ts",
+            F.to_timestamp(F.from_unixtime(
+                F.unix_timestamp("_ad_break_time") + F.col("duration_sec")
+            )),
+        )
         .filter(F.col("event_ts").isNotNull() & F.col("impression_id").isNotNull())
         .dropDuplicates(["impression_id"])
         .withColumn("ad_date", F.to_date("event_ts"))
+        .drop("_ad_break_time")
     )
     if parsed.isEmpty():
         return
@@ -46,8 +53,12 @@ def _persist_impressions(spark, ledger_path: str, incoming):
         )
 
 
-def _process_ads_batch(df, batch_id, spark, campaigns, ledger_path, cap_state_path,
-                       spend_state_path, capped_path, alerts_path, match_start, match_hours):
+def _process_ads_batch(
+    df, batch_id, spark, campaigns, ledger_path, cap_state_path,
+    spend_state_path, capped_path, alerts_path, match_start, match_hours,
+    bootstrap_servers=None, alerts_topic="ott.alerts.ad_pacing",
+    pacing_path=None, published_alerts_path=None,
+):
     if df.isEmpty():
         return
     _persist_impressions(spark, ledger_path, df)
@@ -109,10 +120,107 @@ def _process_ads_batch(df, batch_id, spark, campaigns, ledger_path, cap_state_pa
                 F.lit("UNDERDELIVERING"),
             ),
         )
-        .filter(F.col("alert").isNotNull())
+        .withColumn("is_alert", F.col("alert").isNotNull())
+        .withColumn("alert_type", F.coalesce(F.col("alert"), F.lit("ON_PACE")))
+        .withColumn("alert_id", F.sha2(
+            F.concat_ws("|", F.col("campaign_id"), F.col("ad_date").cast("string"),
+                        F.col("alert_type")), 256
+        ))
+        .withColumn("user_id", F.lit(None).cast("string"))
+        .withColumn("event_ts", F.current_timestamp())
+        .withColumn(
+            "details",
+            F.to_json(F.struct(
+                "spend_inr", "daily_budget_inr", "ideal_spend_inr",
+                "elapsed_hours", "pacing_ratio",
+            )),
+        )
         .withColumn("batch_processed_at", F.current_timestamp())
     )
-    pacing.write.format("delta").mode("overwrite").save(alerts_path)
+    pacing_output_path = pacing_path or (alerts_path + "_pacing")
+    published_path = published_alerts_path or (alerts_path + "_published_ids")
+    pacing.write.format("delta").mode("overwrite").option(
+        "overwriteSchema", "true"
+    ).save(pacing_output_path)
+
+    cap_alerts = (
+        capped
+        .withColumn("alert_id", F.sha2(
+            F.concat_ws("|", F.col("user_id"), F.col("campaign_id"),
+                        F.col("ad_date").cast("string"), F.lit("FREQUENCY_CAP")),
+            256,
+        ))
+        .withColumn("alert_type", F.lit("FREQUENCY_CAP"))
+        .withColumn("event_ts", F.current_timestamp())
+        .withColumn("spend_inr", F.lit(None).cast("double"))
+        .withColumn("pacing_ratio", F.lit(None).cast("double"))
+        .withColumn(
+            "details",
+            F.to_json(F.struct("impression_count", "daily_frequency_cap")),
+        )
+        .select(
+            "alert_id", "alert_type", "campaign_id", "user_id", "event_ts",
+            "spend_inr", "pacing_ratio", "details",
+        )
+    )
+    pacing_alerts = pacing.filter(F.col("is_alert")).select(
+        "alert_id", "alert_type", "campaign_id", "user_id", "event_ts",
+        "spend_inr", "pacing_ratio", "details",
+    )
+    alert_events = cap_alerts.select(
+        "alert_id", "alert_type", "campaign_id", "user_id", "event_ts",
+        "spend_inr", "pacing_ratio", "details",
+    ).unionByName(pacing_alerts).dropDuplicates(["alert_id"])
+
+    if DeltaTable.isDeltaTable(spark, published_path):
+        sent_ids = spark.read.format("delta").load(published_path).select("alert_id").dropDuplicates()
+        new_alerts = alert_events.join(sent_ids, "alert_id", "left_anti")
+    else:
+        new_alerts = alert_events
+
+    if not new_alerts.isEmpty():
+        if bootstrap_servers:
+            kafka_rows = new_alerts.select(
+                F.col("alert_id").alias("key"),
+                F.to_json(F.struct(
+                    "alert_id", "alert_type", "campaign_id", "user_id", "event_ts",
+                    "spend_inr", "pacing_ratio", "details",
+                )).alias("value"),
+            )
+            (
+                kafka_rows.write.format("kafka")
+                .option("kafka.bootstrap.servers", bootstrap_servers)
+                .option("topic", alerts_topic)
+                .save()
+            )
+
+        if DeltaTable.isDeltaTable(spark, alerts_path):
+            (
+                DeltaTable.forPath(spark, alerts_path).alias("target")
+                .merge(new_alerts.alias("source"), "target.alert_id = source.alert_id")
+                .whenMatchedUpdateAll()
+                .whenNotMatchedInsertAll()
+                .execute()
+            )
+        else:
+            new_alerts.write.format("delta").mode("append").save(alerts_path)
+
+        # Persist IDs only after the Kafka write has succeeded. The sink is
+        # at-least-once across a crash between Kafka acknowledgement and this commit.
+        if DeltaTable.isDeltaTable(spark, published_path):
+            (
+                DeltaTable.forPath(spark, published_path).alias("target")
+                .merge(
+                    new_alerts.select("alert_id").dropDuplicates().alias("source"),
+                    "target.alert_id = source.alert_id",
+                )
+                .whenNotMatchedInsertAll()
+                .execute()
+            )
+        else:
+            new_alerts.select("alert_id").dropDuplicates().write.format(
+                "delta"
+            ).mode("append").save(published_path)
 
 
 def run_q18(input_path="data/stream/ads", campaigns_path="data/raw/ads/ad_campaigns.csv",

@@ -284,7 +284,7 @@ flowchart TB
     JVM --> ART
 ```
 
-The documented baseline is Python 3.10/3.11, Java 17, PySpark 3.5.3 and Delta Lake 3.2.0. The session factory defaults to local Spark execution for the course/lab setup. A distributed cluster, cloud object store, scheduler or dashboard layer would be an extension, not a current workbook dependency.
+The documented baseline is Python 3.10/3.11, Java 17, PySpark 3.5.3 and Delta Lake 3.2.1. The session factory defaults to local Spark execution for the course/lab setup. A distributed cluster, cloud object store, scheduler or dashboard layer would be an extension, not a current workbook dependency.
 
 ## 9. Repository modules and question ownership
 

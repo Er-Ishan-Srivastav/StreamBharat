@@ -1,0 +1,178 @@
+name: StreamBharat Kafka ETL validation
+
+on:
+  push:
+    branches: [main, feature/kafka-streaming-integration]
+    paths:
+      - 'src/streambharat/**'
+      - 'producers/**'
+      - 'tests/**'
+      - 'dags/**'
+      - 'docker-compose.kafka.yml'
+      - 'docker-compose.airflow.yml'
+      - 'Dockerfile.spark'
+      - 'Dockerfile.airflow'
+      - 'sql/**'
+      - 'config/**'
+      - 'scripts/**'
+      - 'pyproject.toml'
+      - '.github/workflows/streambharat-kafka-etl.yml'
+  pull_request:
+    paths:
+      - 'src/streambharat/**'
+      - 'producers/**'
+      - 'tests/**'
+      - 'dags/**'
+      - 'docker-compose.kafka.yml'
+      - 'docker-compose.airflow.yml'
+      - 'Dockerfile.spark'
+      - 'Dockerfile.airflow'
+      - 'sql/**'
+      - 'config/**'
+      - 'scripts/**'
+      - 'pyproject.toml'
+      - '.github/workflows/streambharat-kafka-etl.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  spark-contract-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: ottdw
+          POSTGRES_USER: ott
+          POSTGRES_PASSWORD: streambharat_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ott -d ottdw"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      PGHOST: localhost
+      PGPORT: "5432"
+      PGDATABASE: ottdw
+      PGUSER: ott
+      PGPASSWORD: streambharat_ci
+      PYTHONPATH: src
+      SPARK_LOCAL_IP: 127.0.0.1
+      PYSPARK_PYTHON: python
+      PYSPARK_DRIVER_PYTHON: python
+      SPARK_JARS_REPOSITORIES: https://repo.maven.apache.org/maven2
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+      - name: Install project and test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[kafka,postgres,test]"
+          python -m pip install pyyaml
+      - name: Compile project and Airflow DAGs
+        run: python -m compileall -q src/streambharat producers dags tests scripts
+      - name: Validate Compose and project configuration
+        run: |
+          python - <<'PY'
+          import tomllib
+          import json
+          from pathlib import Path
+          import yaml
+
+          for path in ("docker-compose.kafka.yml", "docker-compose.airflow.yml"):
+              config = yaml.safe_load(Path(path).read_text())
+              assert "services" in config, path
+          for path in Path(".github/workflows").glob("*.yml"):
+              config = yaml.safe_load(path.read_text())
+              assert isinstance(config, dict), path
+          tomllib.loads(Path("pyproject.toml").read_text())
+          assert Path(".env.example").is_file()
+          assert Path("sql/001_warehouse.sql").is_file()
+          assert Path("sql/003_dashboard_views.sql").is_file()
+          assert Path("dags/streambharat_nightly.py").is_file()
+          print("Compose, project metadata, warehouse DDL and DAG validation passed")
+          PY
+      - name: Validate shell entry points and Docker Compose models
+        run: |
+          bash -n scripts/*.sh config/*.sh
+          docker compose -f docker-compose.kafka.yml config --quiet
+          docker compose -f docker-compose.airflow.yml config --quiet
+      - name: Apply and re-apply warehouse DDL/views on PostgreSQL 16
+        run: |
+          python - <<'PY'
+          import os
+          from pathlib import Path
+          import time
+          import psycopg2
+
+          connection = None
+          for attempt in range(30):
+              try:
+                  connection = psycopg2.connect(
+                      host=os.environ["PGHOST"],
+                      port=os.environ["PGPORT"],
+                      dbname=os.environ["PGDATABASE"],
+                      user=os.environ["PGUSER"],
+                      password=os.environ["PGPASSWORD"],
+                      connect_timeout=3,
+                  )
+                  break
+              except psycopg2.OperationalError:
+                  if attempt == 29:
+                      raise
+                  time.sleep(2)
+
+          try:
+              with connection:
+                  with connection.cursor() as cursor:
+                      for _ in range(2):
+                          for sql_file in ("sql/001_warehouse.sql", "sql/003_dashboard_views.sql"):
+                              cursor.execute(Path(sql_file).read_text(encoding="utf-8"))
+                      cursor.execute("""
+                          SELECT
+                              to_regclass('ottdw.watch_time_daily') IS NOT NULL,
+                              to_regclass('ottdw.live_trending') IS NOT NULL,
+                              to_regclass('ottdw.v_executive_daily') IS NOT NULL,
+                              to_regclass('ottdw.v_live_trending_latest') IS NOT NULL
+                      """)
+                      assert all(cursor.fetchone()), "Required warehouse tables/views were not created"
+
+                      import sys
+                      sys.path.insert(0, "scripts")
+                      from bootstrap_metabase import parse_dashboard_spec
+
+                      dashboards = parse_dashboard_spec(
+                          Path("config/dashboard/streambharat-metabase-questions.md")
+                      )
+                      query_count = 0
+                      for dashboard in dashboards:
+                          for question in dashboard["questions"]:
+                              cursor.execute(question["sql"])
+                              if cursor.description:
+                                  cursor.fetchall()
+                              query_count += 1
+              print(
+                  "Warehouse DDL/views applied twice and "
+                  f"{query_count} dashboard SQL questions executed on PostgreSQL 16"
+              )
+          finally:
+              if connection is not None:
+                  connection.close()
+          PY
+      - name: Execute every committed Metabase SQL question on PostgreSQL 16
+        run: python scripts/verify_warehouse_sql.py
+      - name: Run Spark contract suite
+        run: pytest -q

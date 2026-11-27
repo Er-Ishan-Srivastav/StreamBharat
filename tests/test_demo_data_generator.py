@@ -15,7 +15,7 @@ generate = GENERATOR.generate
 
 
 def test_synthetic_demo_generator_writes_replayable_sources(tmp_path):
-    counts = generate(tmp_path, date(2026, 10, 1), users=2)
+    counts = generate(tmp_path, date(2026, 10, 15), users=2)
 
     assert counts["player_events"] == 7
     assert counts["subscription_events"] == 6

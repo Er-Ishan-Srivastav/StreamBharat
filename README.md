@@ -11,7 +11,7 @@
 
 **StreamBharat turns fragmented OTT activity data into reliable analytical datasets and business-facing insight.** It combines a PySpark/Delta Lake workbook implementation with a Kafka-based ingestion extension and a PostgreSQL/Metabase serving layer.
 
-> **Project boundary:** This repository contains two related tracks: the original Q1–Q20 OTT analytics coursework and a Kafka ETL / local BI extension. The local synthetic Kafka-to-BI vertical slice has been exercised and verified. The full supplied course dataset, all Q1–Q20 business outputs, continuous-stream acceptance and production deployment are separate, unfinished validation milestones.
+> **Project boundary:** This repository contains the original Q1–Q20 OTT analytics work and a Kafka ETL / local BI extension. The compact synthetic Kafka-to-BI vertical slice has prior local acceptance evidence. The original course dataset is unavailable and is not a required dependency for the new Hybrid Data Lab. The new public-source adapters and dataset factory are implemented on the `feature/hybrid-dataset-factory` branch; they still require a clean runtime and end-to-end acceptance. Full Q1–Q20 compatibility and production deployment are not claimed.
 
 
 ![StreamBharat platform architecture](docs/assets/streambharat-platform.svg)
@@ -126,6 +126,36 @@ Evidence recorded on **27 November 2026** for a **20-user synthetic run**, with 
 | GitHub Actions | [Kafka ETL main run #448 passed](https://github.com/Er-Ishan-Srivastav/StreamBharat/actions/runs/45998583861); [Python PR run #852 passed](https://github.com/Er-Ishan-Srivastav/StreamBharat/actions/runs/45998189980); [main run #853 hit a Delta JAR resolution error](https://github.com/Er-Ishan-Srivastav/StreamBharat/actions/runs/45998583881), with a bootstrap fix under review here |
 
 **How to interpret this result:** the local run was completed by resuming and verifying stages individually after fixing runtime issues. It was not a clean, one-shot acceptance of the corrected runner on a fresh isolated set of Kafka topics, checkpoints and volumes. Do not replay the same synthetic date into an already-populated stack as an ordinary retry. The [dated validation record](docs/project-status-and-validation.md) contains the source counts, output counts, issue history and limits of the evidence.
+
+## Hybrid Data Lab — reproduce the source data without the course archive
+
+The original course archive is unavailable. The new Hybrid Data Lab builds a fresh source set from a **CC0 Wikidata film catalogue** and clearly labelled synthetic OTT activity. It also downloads Wikimedia article pageviews as a separate public-interest signal; those pageviews are **not** OTT viewing metrics.
+
+Start with the [Hybrid Data Lab guide](docs/hybrid-data-lab.md). The factory, source fetchers and dedicated preflight are separate from the compact Kafka demo generator.
+
+~~~bash
+# Fetch the CC0 catalogue and optional public-interest sidecar.
+python3 scripts/fetch_wikidata_catalog.py --min-year 2018 --limit 300
+python3 scripts/fetch_wikimedia_pageviews.py --days 30 --articles 20
+
+# Generate reproducible OTT source files using a fixed seed.
+python3 scripts/generate_hybrid_dataset.py \
+  --output data/hybrid/raw \
+  --start-date 2026-11-01 \
+  --days 7 \
+  --users 500 \
+  --catalog-size 200 \
+  --seed 42
+
+# Validate file contracts, joins, row counts, provenance and SHA-256.
+python3 scripts/preflight_hybrid_dataset.py \
+  --data-root data/hybrid/raw \
+  --report logs/hybrid_preflight/latest.json
+~~~
+
+The factory output is **not** the original coursework dataset. Its public layer contains film metadata only; user activity, partner assignments, subscription events, advertising, regional licences and CDN logs are generated scenario data. The pageview sidecar remains separate from playback analytics. The existing \`scripts/generate_demo_data.py\` and \`scripts/run_synthetic_demo.sh\` still serve the compact previously exercised Kafka fixture.
+
+The new factory's tests and the generated source set must pass before claiming it is accepted. The old demo's recorded row counts and test results do not validate the new factory.
 
 ## Quick start — local synthetic demonstration
 
@@ -267,6 +297,7 @@ StreamBharat/
 
 | Start here | What it explains |
 |---|---|
+| [Hybrid Data Lab](docs/hybrid-data-lab.md) | Public-source ingestion, reproducible source generation, provenance and local preflight |
 | [Solution overview](docs/solution-overview.md) | Business outcomes, Q1–Q20 capability map, design principles and delivery boundaries |
 | [Project status & validation](docs/project-status-and-validation.md) | Dated evidence, accepted outputs, fixes and remaining work |
 | [Solution architecture](docs/architecture.md) | Workbook data flow, medallion design, batch dependencies and streaming concepts |

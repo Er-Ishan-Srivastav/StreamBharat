@@ -78,8 +78,10 @@ bash scripts/start_local_stack.sh
 
 The initializer builds the services, creates and validates the thirteen topic
 contracts, waits for a live Spark worker, and runs Kafka/Spark/Delta/Postgres
-connectivity smoke checks. Dataset preflight is run automatically when
-`data/raw/` exists; it is deferred when the dataset has not yet been copied.
+connectivity smoke checks. It also provisions the Metabase administrator,
+warehouse connection, saved questions and three dashboards. Dataset preflight
+is run automatically when `data/raw/` exists; it is deferred when the dataset
+has not yet been copied.
 
 Services:
 - Kafka UI: http://localhost:8080
@@ -330,9 +332,10 @@ Postgres loading uses a Spark JDBC staging table followed by a transaction:
 for date-scoped tables, the target date slice is deleted and replaced from the
 stage; history tables use primary-key upserts. DDL lives in
 `sql/001_warehouse.sql`; query-ready Metabase views are in
-`sql/003_dashboard_views.sql`. Metabase still needs its initial warehouse
-connection, saved questions and dashboards assembled from the committed SQL
-specification.
+`sql/003_dashboard_views.sql`. The local initializer calls
+`scripts/bootstrap_metabase.py` to create the warehouse connection, save the
+question SQL and assemble three dashboards. Their queries should be checked
+against populated data after the first full run.
 
 ## Validation boundary and remaining work
 
@@ -346,7 +349,7 @@ implementation session. The following evidence is still required:
 - actual DQ violation review and corrected/accepted business exceptions;
 - charge/settlement and published board metric variance reconciliation;
 - stream stop/restart, Kafka outage, late-event and duplicate/replay drills;
-- Metabase saved questions/dashboards using populated tables;
+- Metabase bootstrap and saved-question query execution against populated tables;
 - measured throughput, latency and job-duration baselines.
 
 AWS deployment is explicitly deferred until the local pipeline and dashboards

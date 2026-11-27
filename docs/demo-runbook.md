@@ -103,3 +103,14 @@ bash scripts/trigger_local_full_run.sh 2026-10-01 2026-10-31
 ```
 
 Review the Airflow task logs and data-quality outputs before presenting full-dataset results.
+
+
+## 6. Stop the local stack safely
+
+After stopping the live demo, stop Airflow and the core services without deleting Kafka/PostgreSQL volumes:
+
+```bash
+bash scripts/stop_local_stack.sh
+```
+
+The script stops Airflow before the core Compose project, preserves named data volumes and does not run `docker compose down -v`.

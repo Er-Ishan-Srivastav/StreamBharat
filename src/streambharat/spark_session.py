@@ -45,7 +45,7 @@ def create_spark(app_name: str, extra_packages: list[str] | None = None):
             builder
             .config("spark.driver.host", driver_host)
             .config("spark.driver.bindAddress", "0.0.0.0")
-            .config("spark.executorEnv.PYTHONPATH", os.getenv("PYTHONPATH", ""))
+            .config("spark.executorEnv.PYTHONPATH", os.getenv("SPARK_EXECUTOR_PYTHONPATH", os.getenv("PYTHONPATH", "")))
         )
 
     # The Docker Spark image already contains the exact Kafka, Delta and

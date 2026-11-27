@@ -90,9 +90,9 @@ def test_hybrid_factory_writes_source_contracts_and_provenance(tmp_path):
     assert {row["event_type"] for row in playback} >= {"start", "heartbeat"}
     assert all(row["content_id"].startswith("CNT") for row in playback)
     assert all(row["provenance"] == "synthetic_generated" for row in playback)
-    assert all(row["client_ts"].endswith("Z") for row in playback)
-    assert all(row["server_ts"].endswith("Z") for row in playback)
-    assert all(row["signup_ts"].endswith("Z") for row in users)
+    assert all(row["client_ts"].endswith("+00:00") for row in playback)
+    assert all(row["server_ts"].endswith("+00:00") for row in playback)
+    assert all(row["signup_ts"].endswith("+00:00") for row in users)
     assert any(row["event_type"] == "complete" for row in playback)
 
     subscriptions = read_jsonl(root / "billing" / "subscription_events.json")

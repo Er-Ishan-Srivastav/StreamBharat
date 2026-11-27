@@ -65,7 +65,8 @@ def write_csv(path: Path, rows: list[dict], fields: list[str]) -> int:
 
 
 def iso(value: datetime) -> str:
-    return value.isoformat(timespec="seconds")
+    # The simulated event clock is UTC. Keep the zone explicit in source files.
+    return value.isoformat(timespec="seconds") + "Z"
 
 
 def month_starts(start: date, end: date) -> list[date]:
@@ -365,7 +366,9 @@ def generate(args: argparse.Namespace) -> dict:
                     }
                 )
     
-            cycles = max(0, (args.days - 1) // 30) if plan != "free" else 0
+            # A trial start is not a paid subscription. Until a conversion
+            # event exists, do not fabricate renewals for trial-only accounts.
+            cycles = max(0, (args.days - 1) // 30) if initial_kind == "subscribe" else 0
             if cycles:
                 for cycle in range(1, cycles + 1):
                     renewal_at = subscription_at + timedelta(days=30 * cycle)

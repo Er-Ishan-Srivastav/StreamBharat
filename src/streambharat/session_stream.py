@@ -13,6 +13,18 @@ from streambharat.q1_catalog import read_catalog_snapshot
 from streambharat.spark_session import create_spark
 
 
+def _parse_timestamp(value):
+    formats = [
+        "yyyy-MM-dd'T'HH:mm:ss.SSSX",
+        "yyyy-MM-dd'T'HH:mm:ssX",
+        "yyyy-MM-dd'T'HH:mm:ss.SSS",
+        "yyyy-MM-dd'T'HH:mm:ss",
+        "yyyy-MM-dd HH:mm:ss.SSS",
+        "yyyy-MM-dd HH:mm:ss",
+    ]
+    return F.coalesce(*(F.to_timestamp(value, pattern) for pattern in formats))
+
+
 def build_session_stream(spark, bootstrap_servers, topic, catalog_path,
                          watermark="12 minutes", session_gap="30 minutes",
                          starting_offsets="latest"):
@@ -44,8 +56,9 @@ def build_session_stream(spark, bootstrap_servers, topic, catalog_path,
         .withColumn("device_id", F.col("_payload")["device_id"])
         .withColumn("content_id", F.col("_payload")["content_id"])
         .withColumn("event_type", F.lower(F.col("_payload")["event_type"]))
-        .withColumn("client_ts", F.to_timestamp(F.col("_payload")["client_ts"]))
-        .withColumn("server_ts", F.to_timestamp(F.col("_payload")["server_ts"]))
+        .withColumn("client_ts_raw", F.col("_payload")["client_ts"])
+        .withColumn("client_ts", _parse_timestamp(F.col("_payload")["client_ts"]))
+        .withColumn("server_ts", _parse_timestamp(F.col("_payload")["server_ts"]))
         .withColumn("download_id", F.col("_payload")["download_id"])
         .withColumn(
             "event_ts",
@@ -67,6 +80,11 @@ def build_session_stream(spark, bootstrap_servers, topic, catalog_path,
             & F.col("device_id").isNotNull()
             & F.col("content_id").isNotNull()
             & F.col("event_ts").isNotNull()
+            & (
+                F.col("client_ts_raw").isNull()
+                | (F.trim("client_ts_raw") == "")
+                | F.col("client_ts").isNotNull()
+            )
             & F.col("event_type").isin(
                 "start", "play", "resume", "heartbeat", "pause",
                 "seek", "buffer", "stop", "complete", "end",
@@ -129,7 +147,7 @@ def build_session_stream(spark, bootstrap_servers, topic, catalog_path,
     ).withColumn(
         "report_content_id",
         F.coalesce(F.col("parent_series_id"), F.col("content_id")),
-    ).drop("session_window").drop("completion_event")
+    ).drop("session_window").drop("completion_event").drop("client_ts_raw")
 
 
 def merge_sessions(batch_df, batch_id, output_path):

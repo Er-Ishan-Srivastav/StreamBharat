@@ -35,6 +35,16 @@ TABLES = {
         "keys": ["activity_date","language","rank_no"],
         "date_column": "activity_date",
     },
+    "live_trending": {
+        "path": "lake/gold/trending",
+        "columns": [
+            "window_start", "window_end", "language", "content_id",
+            "unique_viewers", "hour_of_day", "baseline_avg_window_viewers",
+            "growth_ratio", "rank_in_language", "processed_at",
+        ],
+        "keys": ["window_start", "language", "rank_in_language"],
+        "date_column": "window_start",
+    },
     "campaign_daily": {
         "path": "lake/gold/campaign_daily",
         "columns": ["activity_date","campaign_id","impressions","spend_inr","daily_budget_inr","pacing_ratio","unfilled_breaks","filled_missing_impression","orphan_impressions","frequency_cap_breaches","genre_mismatch_count","alert_status"],

@@ -268,7 +268,8 @@ def generate(args: argparse.Namespace) -> dict:
     signup_by_user: dict[str, datetime] = {}
     for number in range(1, args.users + 1):
         user_id = f"U{number:06d}"
-        city, state, _ = rng.choice(STATES)
+        location = rng.choice(STATES)
+        city, state, _ = location
         signup = datetime.combine(start - timedelta(days=rng.randint(1, 180)), time(9, 0))
         plan = rng.choices(["basic", "premium", "free"], weights=[25, 45, 30], k=1)[0]
         user_rows.append(

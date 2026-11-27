@@ -26,6 +26,7 @@ REPLAY_RUN_ENV = {
     "STREAMBHARAT_REPLAY_START": REPLAY_START,
     "STREAMBHARAT_REPLAY_END": REPLAY_END,
 }
+RUN_CONFIG_ENV = {**DATE_RUN_ENV, **REPLAY_RUN_ENV}
 
 default_args = {
     "owner": "streambharat-data-engineering",
@@ -76,6 +77,14 @@ with DAG(
             f"cd {PROJECT_ROOT} && {PYTHON} scripts/preflight_dataset.py "
             f"--data-root {DATA_ROOT}"
         ),
+    )
+
+    validate_run_configuration = BashOperator(
+        task_id="validate_run_configuration",
+        cwd=PROJECT_ROOT,
+        bash_command=f"cd {PROJECT_ROOT} && {PYTHON} scripts/validate_run_config.py",
+        env=RUN_CONFIG_ENV,
+        append_env=True,
     )
 
     create_topics = BashOperator(
@@ -279,7 +288,8 @@ with DAG(
         env=DATE_RUN_ENV,
         append_env=True,
     )
-    preflight >> [create_topics, master_data]
+    preflight >> validate_run_configuration
+    validate_run_configuration >> [create_topics, master_data]
     create_topics >> replay_sources >> bronze_ingestion
     bronze_ingestion >> [source_dlq, offset_reconciliation]
     source_dlq >> [silver_player, subscription_state, ad_delivery_gold, quality_gate]

@@ -288,8 +288,8 @@ with DAG(
         env=DATE_RUN_ENV,
         append_env=True,
     )
-    preflight >> validate_run_configuration
-    validate_run_configuration >> [create_topics, master_data]
+    validate_run_configuration >> preflight
+    preflight >> [create_topics, master_data]
     create_topics >> replay_sources >> bronze_ingestion
     bronze_ingestion >> [source_dlq, offset_reconciliation]
     source_dlq >> [silver_player, subscription_state, ad_delivery_gold, quality_gate]

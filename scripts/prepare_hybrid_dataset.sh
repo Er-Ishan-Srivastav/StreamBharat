@@ -112,6 +112,9 @@ GENERATOR_ARGS=(
 if [[ "$OVERWRITE" == "true" ]]; then
   GENERATOR_ARGS+=(--overwrite)
 fi
+if [[ "$SKIP_PAGEVIEWS" != "true" ]]; then
+  GENERATOR_ARGS+=(--pageviews "$PAGEVIEWS_FILE")
+fi
 python3 scripts/generate_hybrid_dataset.py "${GENERATOR_ARGS[@]}"
 
 if [[ "$SKIP_PAGEVIEWS" != "true" ]]; then

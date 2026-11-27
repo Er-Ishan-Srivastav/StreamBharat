@@ -151,6 +151,10 @@ python3 scripts/generate_hybrid_dataset.py \
 python3 scripts/preflight_hybrid_dataset.py \
   --data-root data/hybrid/raw \
   --report logs/hybrid_preflight/latest.json
+
+# Start the local services, then from the workspace container:
+bash scripts/start_local_stack.sh
+bash scripts/run_hybrid_pipeline.sh
 ~~~
 
 The factory output is **not** the original coursework dataset. Its public layer contains film metadata only; user activity, partner assignments, subscription events, advertising, regional licences and CDN logs are generated scenario data. The pageview sidecar remains separate from playback analytics. The existing \`scripts/generate_demo_data.py\` and \`scripts/run_synthetic_demo.sh\` still serve the compact previously exercised Kafka fixture.
@@ -297,7 +301,8 @@ StreamBharat/
 
 | Start here | What it explains |
 |---|---|
-| [Hybrid Data Lab](docs/hybrid-data-lab.md) | Public-source ingestion, reproducible source generation, provenance and local preflight |
+| [Hybrid Data Lab](docs/hybrid-data-lab.md) | Public-source ingestion, reproducible source generation, end-to-end hybrid runner and acceptance report |
+| [Data Engineering Field Guide](docs/data-engineering-field-guide.md) | Concepts, source contracts, Kafka, Bronze/Silver/Gold, event time, DLQ, lineage and hands-on exercises |
 | [Solution overview](docs/solution-overview.md) | Business outcomes, Q1–Q20 capability map, design principles and delivery boundaries |
 | [Project status & validation](docs/project-status-and-validation.md) | Dated evidence, accepted outputs, fixes and remaining work |
 | [Solution architecture](docs/architecture.md) | Workbook data flow, medallion design, batch dependencies and streaming concepts |

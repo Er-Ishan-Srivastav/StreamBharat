@@ -143,6 +143,12 @@ class Validation:
         catalog_paths = sorted((self.root / "content").glob("catalog_*.json"))
         self.check("catalogue snapshots", bool(catalog_paths), "no content/catalog_*.json files")
         catalog_by_id: dict[str, dict] = {}
+        public_facts_by_qid: dict[str, tuple] = {}
+        previous_snapshot_by_qid: dict[str, dict] = {}
+        allowed_change_reasons = {
+            "synthetic_partner_assignment_change",
+            "synthetic_tier_change",
+        }
         for path in catalog_paths:
             try:
                 rows = json.loads(path.read_text(encoding="utf-8"))
@@ -163,6 +169,45 @@ class Validation:
                     continue
                 ids.append(content_id)
                 catalog_by_id[str(content_id)] = row
+                qid = str(row.get("wikidata_qid", ""))
+                public_facts = (
+                    row.get("title"),
+                    row.get("release_date"),
+                    tuple(row.get("genres") or []),
+                    tuple(row.get("languages") or []),
+                    row.get("duration_sec"),
+                    row.get("wikipedia_title"),
+                    row.get("source_url"),
+                )
+                if qid in public_facts_by_qid and public_facts_by_qid[qid] != public_facts:
+                    self.fail(
+                        f"{path.relative_to(self.root)}: public metadata changed across snapshots for {qid}"
+                    )
+                public_facts_by_qid.setdefault(qid, public_facts)
+
+                reasons = row.get("synthetic_change_reasons", [])
+                if not isinstance(reasons, list) or not set(reasons).issubset(allowed_change_reasons):
+                    self.fail(
+                        f"{path.relative_to(self.root)}: unknown synthetic catalogue change reason for {content_id}"
+                    )
+                previous = previous_snapshot_by_qid.get(qid)
+                if previous:
+                    if (
+                        row.get("partner_id") != previous.get("partner_id")
+                        and "synthetic_partner_assignment_change" not in reasons
+                    ):
+                        self.fail(
+                            f"{path.relative_to(self.root)}: unlabelled partner change for {content_id}"
+                        )
+                    if (
+                        row.get("tier") != previous.get("tier")
+                        and "synthetic_tier_change" not in reasons
+                    ):
+                        self.fail(
+                            f"{path.relative_to(self.root)}: unlabelled tier change for {content_id}"
+                        )
+                previous_snapshot_by_qid[qid] = row
+
                 if row.get("provenance") != "public_external+synthetic_derived":
                     self.fail(f"{path.relative_to(self.root)}: unexpected catalogue provenance for {content_id}")
                 if not row.get("wikidata_qid"):

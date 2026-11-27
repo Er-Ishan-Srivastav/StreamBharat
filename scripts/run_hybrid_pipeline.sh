@@ -153,15 +153,19 @@ else
   echo "Fetch it with scripts/fetch_wikidata_catalog.py and scripts/fetch_wikimedia_pageviews.py."
 fi
 
+REPLAY_ARGS=(
+  --data "$DATA_ROOT"
+  --from "$REPLAY_FROM"
+  --to "$REPLAY_TO"
+  --speed "$REPLAY_SPEED"
+  --seed "$SEED"
+  --bootstrap "$KAFKA_BOOTSTRAP"
+)
+if [[ "$CHAOS" != "true" ]]; then
+  REPLAY_ARGS+=(--no-chaos)
+fi
 run_step "replay the seven hybrid event feeds to Kafka" \
-  python3 producers/replay.py \
-    --data "$DATA_ROOT" \
-    --from "$REPLAY_FROM" \
-    --to "$REPLAY_TO" \
-    --speed "$REPLAY_SPEED" \
-    --seed "$SEED" \
-    --bootstrap "$KAFKA_BOOTSTRAP" \
-    $([[ "$CHAOS" == "true" ]] && printf '%s' "" || printf '%s' "--no-chaos")
+  python3 producers/replay.py "${REPLAY_ARGS[@]}"
 
 run_step "ingest Kafka topics into append-only Bronze Delta" \
   bash scripts/run_bronze_ingest.sh --starting-offsets earliest --available-now
@@ -206,8 +210,14 @@ run_step "reconcile subscription charges and calculate partner royalties" \
     --partners "$DATA_ROOT/reference/content_partners.csv" \
     --catalog-dir "$DATA_ROOT/content"
 
-run_step "aggregate DLQ metrics by source and reason" \
-  python3 -m streambharat.dlq_metrics
+if [[ -d lake/bronze/dlq/_delta_log ]]; then
+  run_step "aggregate DLQ metrics by source and reason" \
+    python3 -m streambharat.dlq_metrics
+else
+  echo
+  echo "[DLQ metrics] No invalid events were routed to the DLQ in this run."
+  echo "Re-run with --chaos to exercise replay-time poison, duplicate and late-event handling."
+fi
 
 run_step "parse both CDN providers and calculate hourly egress" \
   python3 -m streambharat.q3_cdn \
@@ -219,6 +229,14 @@ run_step "parse both CDN providers and calculate hourly egress" \
 
 run_step "publish available Silver and Gold Delta outputs to PostgreSQL" \
   python3 -m streambharat.serve_postgres
+
+run_step "verify source-to-Bronze counts and Delta/PostgreSQL outputs" \
+  python3 scripts/verify_hybrid_outputs.py \
+    --data-root "$DATA_ROOT" \
+    --q1-root "$LOG_DIR/q1_catalog_delta" \
+    --q3-bronze "$LOG_DIR/q3_cdn_bronze" \
+    --q3-silver "$LOG_DIR/q3_cdn_hourly" \
+    --report "$LOG_DIR/end-to-end-acceptance.json"
 
 run_step "execute every committed Metabase SQL question against PostgreSQL" \
   python3 scripts/verify_warehouse_sql.py
@@ -243,7 +261,7 @@ manifest_bytes = (root / "manifest.json").read_bytes()
 manifest = json.loads(manifest_bytes)
 report = {
     "run_id": run_id,
-    "status": "commands_completed",
+    "status": "pipeline_commands_completed",
     "completed_at_utc": datetime.now(timezone.utc).isoformat(),
     "dataset_type": manifest.get("dataset_type"),
     "generator_version": manifest.get("generator_version"),
@@ -254,6 +272,7 @@ report = {
     "replay_chaos_enabled": chaos == "true",
     "source_row_counts": manifest.get("row_counts", {}),
     "provenance": manifest.get("provenance", {}),
+    "end_to_end_acceptance_report": str(Path(log_dir) / "end-to-end-acceptance.json"),
     "log_file": str(Path(log_dir) / "pipeline.log"),
     "acceptance_boundary": (
         "All invoked commands exited successfully. This is local pipeline evidence, "

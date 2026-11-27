@@ -51,8 +51,11 @@ cat <<'EOF'
 
 StreamBharat local stack is initialized.
 
-Kafka UI:   http://localhost:8080
-Jupyter:    http://localhost:8888
+Kafka UI:        http://localhost:8080
+Spark master:    http://localhost:8082
+Spark worker:    http://localhost:8083
+Spark app UI:    http://localhost:4040
+Jupyter:         http://localhost:8888
 Metabase:   http://localhost:3000
 Airflow:    http://localhost:8081
 Postgres:   localhost:5432 / ottdw

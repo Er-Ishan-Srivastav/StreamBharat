@@ -14,7 +14,10 @@
 
 ## Scheduled batch pipeline
 
-Trigger `streambharat_nightly` in Airflow. The DAG:
+Trigger `streambharat_nightly` in Airflow. Its first task validates the logical
+date, refresh flag and replay date range before checking the source dataset.
+Daily runs must replay exactly their logical date; multi-day replay ranges
+require `full_refresh=true`. The DAG:
 - validates all seven source feeds, monthly catalog snapshots, supporting references and CDN logs;
 - creates/validates the thirteen Kafka topics;
 - loads master/reference data;
@@ -73,6 +76,11 @@ batch duration, maximum event time, freshness and broker high-watermark lag to
 
 ## BI / Postgres
 
+The local startup helper verifies the Metabase warehouse connection, all three
+dashboards and their saved questions after provisioning. The synthetic demo
+also executes every committed dashboard SQL query against PostgreSQL before
+checking the Metabase inventory.
+
 On a new Postgres volume, `001_warehouse.sql` and
 `003_dashboard_views.sql` run at initialization. The startup helper also
 waits for PostgreSQL and reapplies both scripts with `ON_ERROR_STOP` on every
@@ -110,6 +118,14 @@ unless you intentionally want to erase local Kafka/Postgres data volumes.
 | Stream rate/lag/freshness | `lake/gold/stream_metrics` and Postgres Operations view |
 | Daily DLQ counts by source/reason | `lake/gold/dlq_metrics_daily` and `ottdw.v_dlq_metrics_daily` |
 | DQ FAIL row | Delta quarantine and Airflow fail gate |
+
+## Automated acceptance and diagnostics
+
+Run **Actions → StreamBharat local stack acceptance** to build the Compose
+stack and execute the isolated synthetic vertical slice. The workflow uploads
+Compose status/logs and the timestamped synthetic-demo logs. On a developer
+machine, inspect `logs/synthetic_demo/latest_failure.txt` or
+`latest_success.txt` and the referenced run log when diagnosing a demo.
 
 ## Recovery and exact-once boundary
 

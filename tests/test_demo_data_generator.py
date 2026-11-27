@@ -33,7 +33,7 @@ def test_synthetic_demo_generator_writes_replayable_sources(tmp_path):
     subscription_rows = [
         json.loads(line) for line in subscription_path.read_text().splitlines()
     ]
-    assert all(row["event_ts"].startswith("2026-10-01") for row in subscription_rows)
+    assert all(row["event_ts"].startswith("2026-10-15") for row in subscription_rows)
 
     catalogue = json.loads(
         (tmp_path / "content" / "catalog_2026-10-01.json").read_text()

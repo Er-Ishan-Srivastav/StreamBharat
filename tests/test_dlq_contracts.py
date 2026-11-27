@@ -93,3 +93,17 @@ def test_unknown_subscription_transition_is_routed_to_dlq(spark):
     assert _validated(
         spark, "billing_subscr", [(valid,), (invalid,)]
     ) == [None, "UNKNOWN_SUBSCRIPTION_EVENT"]
+
+
+
+def test_invalid_player_client_timestamp_is_quarantined(spark):
+    valid = {
+        "event_id": "E2", "user_id": "U1", "profile_id": "U1-P1",
+        "device_id": "D1", "content_id": "C1", "event_type": "heartbeat",
+        "server_ts": "2026-10-15T10:00:00", "client_ts": "2026-10-15T09:59:58",
+        "position_sec": "30",
+    }
+    invalid = {**valid, "client_ts": "2026/10/15 09:59:58"}
+    assert _validated(spark, "player_events", [(valid,), (invalid,)]) == [
+        None, "INVALID_CLIENT_TIMESTAMP"
+    ]

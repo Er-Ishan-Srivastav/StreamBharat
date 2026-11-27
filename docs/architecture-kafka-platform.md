@@ -25,6 +25,10 @@ flowchart LR
     T7[(ott.ads.impressions)]
     T8[(ott.live.plays)]
     T9[(ott.live.ads)]
+    T10[(ott.dlq)]
+    T11[(ott.metrics.trending)]
+    T12[(ott.alerts.ad_pacing)]
+    T13[(ott.ref.subscription_state)]
   end
   subgraph Spark["PySpark / Structured Streaming"]
     BR[Append-only Bronze]
@@ -33,6 +37,8 @@ flowchart LR
     GO[Gold analytics]
     RT[Trending and ad pacing]
     MT[Stream metrics]
+    SS[Q9 session windows]
+    AJ[Q10 ad break / impression join]
   end
   subgraph Serve["Serve and orchestrate"]
     PG[(Postgres ottdw)]
@@ -49,6 +55,9 @@ flowchart LR
   L --> T8
   L --> T9
   T1 --> BR
+  T1 --> SS
+  T6 --> AJ
+  T7 --> AJ
   T2 --> BR
   T3 --> BR
   T4 --> BR
@@ -57,11 +66,13 @@ flowchart LR
   T7 --> BR
   T8 --> RT
   T9 --> RT
-  BR --> DQ
+  BR --> DQ --> T10
   BR --> SI --> GO
-  RT --> GO
-  RT --> T8
-  RT --> T9
+  SI --> T13
+  SS --> GO
+  AJ --> GO
+  RT --> T11
+  RT --> T12
   RT --> MT
   GO --> PG --> MB
   AF --> Spark
@@ -85,7 +96,7 @@ Live feeds: \`ott.live.plays\` and \`ott.live.ads\`. Output/reference topics: \`
 
 Bronze preserves the original value as a string plus topic, partition, offset, Kafka timestamp, key, headers, ingestion timestamp and ingestion date. It is append-only, partitioned by ingestion date, and has one checkpoint per source topic.
 
-Silver parses explicit/version-aware schemas, classifies malformed and semantically invalid rows, corrects player clocks, normalises seconds/milliseconds, deduplicates business keys, versions subscriptions (SCD2), builds viewing sessions and reconciles ad breaks/impressions.
+Silver parses explicit/version-aware schemas, classifies malformed and semantically invalid rows, corrects player clocks, normalises seconds/milliseconds, deduplicates business keys, versions subscriptions (SCD2), builds viewing sessions and reconciles ad breaks/impressions. The independent Q9 stream uses a 30-minute session window and 12-minute watermark; Q10 uses watermarked stream-stream joins for delivered/unfilled breaks and orphan impressions.
 
 Gold publishes daily watch time, DAU/MAU, top titles, campaign performance, financial reconciliation, partner royalties, DQ metrics, trending and pacing alerts.
 

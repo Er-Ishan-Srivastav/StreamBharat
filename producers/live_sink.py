@@ -1,13 +1,12 @@
 """Kafka output helpers for the live StreamBharat source simulator."""
 import json
 import os
-from datetime import datetime, timedelta, timezone
-
-IST = timezone(timedelta(hours=5, minutes=30))
+from datetime import datetime, timezone
 
 
-def now_ist():
-    return datetime.now(IST).replace(tzinfo=None)
+def now_utc():
+    """Return a timezone-naive UTC timestamp for the configured Spark UTC session."""
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
 def add_args(parser):

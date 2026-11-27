@@ -11,6 +11,7 @@ htmlcov/
 
 # Local dataset - distribute separately; never commit customer-like/raw data
 /data/raw/
+/data/demo/
 /data/stream/
 /data/delta/
 /data/checkpoints/

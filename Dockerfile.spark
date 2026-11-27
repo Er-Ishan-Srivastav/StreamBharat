@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1.7
 # Spark 3.5.3 runtime shared by the workspace and standalone Spark workers.
 FROM apache/spark:3.5.3-scala2.12-java17-python3-ubuntu
 

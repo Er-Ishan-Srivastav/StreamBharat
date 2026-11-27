@@ -5,7 +5,7 @@ Connect Metabase to PostgreSQL:
 - Port: `5432`
 - Database: `ottdw`
 - Username: `ott`
-- Password: `ott_local_dev` (local development only)
+- Password: the `POSTGRES_PASSWORD` value in the local `.env` file
 - Schema: `ottdw`
 
 Create the collection **StreamBharat Operations & Business Intelligence**.
@@ -115,7 +115,7 @@ ORDER BY activity_date;
 
 **Regional CDN cost**
 ```sql
-SELECT month_start, cdn, region, requests, egress_gb, cost_inr,
+SELECT month_start, cdn, region, request_count, egress_gb, cost_inr,
        missing_rate_requests
 FROM ottdw.v_cdn_cost_by_region_month
 ORDER BY month_start, cdn, region;
@@ -170,8 +170,9 @@ ORDER BY event_ts DESC;
 
 ## Metabase setup boundary
 
-The SQL views and card queries are committed. Metabase must still be connected
-to the populated warehouse, the saved questions created from the SQL above,
-and the three dashboards assembled in the UI. The DLQ topic/Delta table does
-not yet have a Postgres aggregate table; add that serving aggregate before
-creating a DLQ chart.
+The SQL views and card queries are committed. The local initializer runs
+`scripts/bootstrap_metabase.py` to create the administrator on first boot,
+connect the warehouse, save the questions and assemble the three dashboards.
+Cards start as tables for reliable inspection; chart styles can be refined
+after the first full data load. The DLQ aggregate is served through
+`ottdw.v_dlq_metrics_daily`.

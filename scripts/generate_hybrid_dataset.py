@@ -140,6 +140,7 @@ def build_catalog(records: list[dict], rng: random.Random) -> list[dict]:
                 "seasons": [],
                 "wikidata_qid": record["wikidata_qid"],
                 "wikipedia_title": record.get("wikipedia_title"),
+                "source_url": record.get("source_url"),
                 "external_source": "Wikidata",
                 "external_license": "CC0-1.0",
                 "synthetic_fields": ["partner_id", "tier", "age_rating"],
@@ -631,6 +632,7 @@ def generate(args: argparse.Namespace) -> dict:
             relative = path.relative_to(staging).as_posix()
             file_hashes[relative] = hashlib.sha256(path.read_bytes()).hexdigest()
 
+    catalogue_bytes = Path(args.catalog).read_bytes()
     manifest = {
         "dataset_name": "StreamBharat Hybrid OTT Lab",
         "dataset_type": "hybrid",
@@ -641,6 +643,17 @@ def generate(args: argparse.Namespace) -> dict:
         "playback_arrival_period": {
             "start_date": min(player_by_arrival).isoformat() if player_by_arrival else None,
             "end_date": max(player_by_arrival).isoformat() if player_by_arrival else None,
+        },
+        "input_snapshots": {
+            "wikidata_catalogue": {
+                "file_name": Path(args.catalog).name,
+                "sha256": hashlib.sha256(catalogue_bytes).hexdigest(),
+                "source": public_payload.get("source", "Wikidata Query Service"),
+                "source_endpoint": public_payload.get("source_endpoint"),
+                "license": public_payload.get("license"),
+                "retrieved_at_utc": public_payload.get("retrieved_at_utc"),
+                "record_count": len(public_records),
+            }
         },
         "configuration": {
             "seed": args.seed,

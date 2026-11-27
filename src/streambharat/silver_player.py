@@ -121,7 +121,7 @@ def merge_silver(spark, source_df, target_path: str):
 def run_silver_player(bronze_path="lake/bronze/player_events",
                       silver_path="lake/silver/player_events",
                       offsets_path="lake/silver/device_clock_offsets",
-                      quarantine_path="lake/bronze/dlq/player_events"):
+                      quarantine_path="lake/silver/quarantine/player_events"):
     spark = create_spark("StreamBharat-Silver-Player")
     try:
         bronze = spark.read.format("delta").load(bronze_path)

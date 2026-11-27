@@ -40,14 +40,15 @@ The runner performs these steps:
 2. Replay all seven source feeds into Kafka.
 3. Ingest the seven source topics into append-only Bronze Delta tables.
 4. Validate source records and route deliberately invalid player/rating records to the DLQ.
-5. Build Silver player events with device-clock correction and subscription SCD2.
-6. Build Gold engagement, active-user, top-title, viewing-session and drop-off outputs.
-7. Match ad breaks and impressions and calculate campaign pacing/fill-rate metrics.
-8. Reconcile subscription charges to settlements and calculate partner royalties.
-9. Aggregate DLQ records by source and reason.
-10. Publish available Silver/Gold Delta tables to PostgreSQL.
-11. Verify required Delta and PostgreSQL outputs are non-empty.
-12. Refresh Metabase questions and dashboards.
+5. Reconcile Kafka retained offsets against Bronze counts for each source partition.
+6. Build Silver player events with device-clock correction and subscription SCD2.
+7. Build Gold engagement, active-user, top-title, viewing-session and drop-off outputs.
+8. Match ad breaks and impressions and calculate campaign pacing/fill-rate metrics.
+9. Reconcile subscription charges to settlements and calculate partner royalties.
+10. Aggregate DLQ records by source and reason.
+11. Publish available Silver/Gold Delta tables to PostgreSQL.
+12. Verify required Bronze, Silver, Gold and PostgreSQL outputs are non-empty.
+13. Refresh Metabase questions and dashboards.
 
 ## 3. Services and verification
 
@@ -60,7 +61,7 @@ The runner performs these steps:
 | Airflow | http://localhost:8081 |
 | JupyterLab | http://localhost:8888 |
 
-Verify Delta outputs in `lake/bronze/`, `lake/silver/` and `lake/gold/`. In PostgreSQL, inspect schema `ottdw`, especially `watch_time_daily`, `active_users_daily`, `top_titles_daily`, `subscriptions_scd2`, `viewing_sessions`, `ad_delivery`, `campaign_daily`, `revenue_reconciliation`, `royalties_quarterly` and `dlq_metrics_daily`.
+Verify Delta outputs in `lake/bronze/`, `lake/silver/` and `lake/gold/`. In PostgreSQL, inspect schema `ottdw`, especially `watch_time_daily`, `active_users_daily`, `top_titles_daily`, `subscriptions_scd2`, `viewing_sessions`, `ad_delivery`, `campaign_daily`, `revenue_reconciliation`, `royalties_quarterly` and `dlq_metrics_daily`. The Kafka-to-Bronze retained-offset report is written to `lake/gold/bronze_offset_reconciliation`.
 
 A successful synthetic run proves the local vertical slice only. It does not validate every Q1–Q20 workbook task, full historical reconciliation, production throughput, AWS deployment or the original course dataset.
 

@@ -9,7 +9,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 # to resolve Maven artifacts every time a Spark application starts.
 RUN python3 - <<'PY'
 import urllib.request
-base = "https://repo1.maven.org/maven2"
+base = "https://repo.maven.apache.org/maven2"
 jars = [
     "org/apache/spark/spark-sql-kafka-0-10_2.12/3.5.3/spark-sql-kafka-0-10_2.12-3.5.3.jar",
     "org/apache/spark/spark-token-provider-kafka-0-10_2.12/3.5.3/spark-token-provider-kafka-0-10_2.12-3.5.3.jar",

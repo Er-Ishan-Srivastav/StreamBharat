@@ -6,6 +6,11 @@ if [[ ! -f .env ]]; then
   echo "Created .env from .env.example. Review local passwords and tokens before exposing services."
 fi
 
+echo "[1/7] Ensuring the shared Docker network exists..."
+if ! docker network inspect streambharat-network >/dev/null 2>&1; then
+  docker network create streambharat-network >/dev/null
+fi
+
 echo "[1/7] Building and starting Kafka, Spark master/worker, workspace, Postgres and Metabase..."
 docker compose -f docker-compose.kafka.yml up -d --build
 

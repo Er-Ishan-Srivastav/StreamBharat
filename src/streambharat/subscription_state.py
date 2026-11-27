@@ -300,7 +300,7 @@ def main() -> None:
     parser.add_argument("--bronze", default="lake/bronze/billing_subscr")
     parser.add_argument("--silver", default="lake/silver/subscriptions")
     parser.add_argument("--churn", default="lake/gold/subscription_churn")
-    parser.add_argument("--invalid", default="lake/bronze/dlq/subscriptions")
+    parser.add_argument("--invalid", default="lake/silver/quarantine/subscriptions")
     parser.add_argument(
         "--bootstrap-servers",
         default=os.getenv("KAFKA_BOOTSTRAP_SERVERS"),

@@ -26,7 +26,7 @@ def fetch_pageviews(
     article = quote(title.replace(" ", "_"), safe="")
     url = (
         f"{BASE_URL}/en.wikipedia.org/all-access/user/{article}/daily/"
-        f"{start:%Y%m%d}/{end:%Y%m%d}"
+        f"{start:%Y%m%d}00/{end:%Y%m%d}00"
     )
     request = Request(url, headers={"Accept": "application/json", "User-Agent": user_agent})
     with urlopen(request, timeout=timeout) as response:

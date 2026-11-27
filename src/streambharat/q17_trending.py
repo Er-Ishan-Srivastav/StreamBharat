@@ -138,6 +138,12 @@ def _merge_trends(
     ranked = (
         enriched.withColumn("rank_in_language", F.row_number().over(ordering))
         .filter(F.col("rank_in_language") <= top_n)
+        .withColumn("window_start", F.col("window.start"))
+        .withColumn("window_end", F.col("window.end"))
+        .withColumn(
+            "baseline_avg_window_viewers",
+            F.col(baseline_column),
+        )
         .withColumn("processed_at", F.current_timestamp())
     )
 

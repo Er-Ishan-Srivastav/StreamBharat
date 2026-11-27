@@ -76,5 +76,10 @@ jobs:
           assert Path("dags/streambharat_nightly.py").is_file()
           print("Compose, project metadata, warehouse DDL and DAG validation passed")
           PY
+      - name: Validate shell entry points and Docker Compose models
+        run: |
+          bash -n scripts/*.sh config/*.sh
+          docker compose -f docker-compose.kafka.yml config --quiet
+          docker compose -f docker-compose.airflow.yml config --quiet
       - name: Run Spark contract suite
         run: pytest -q

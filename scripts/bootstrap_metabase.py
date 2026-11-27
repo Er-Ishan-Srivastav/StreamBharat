@@ -254,6 +254,7 @@ def main():
                     "size_y": 5,
                     "parameter_mappings": [],
                     "visualization_settings": {},
+                    "series": [],
                 })
 
         if new_dashcards:

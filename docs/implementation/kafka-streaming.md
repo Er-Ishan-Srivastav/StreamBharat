@@ -64,7 +64,7 @@ flowchart LR
 ## Local runtime
 
 The local stack includes Kafka 3.8 KRaft, Spark 3.5.3 standalone master/worker,
-the PySpark/Jupyter workspace, PostgreSQL 16, Metabase and Airflow 2.10.4.
+the PySpark/Jupyter workspace, PostgreSQL 16 and Metabase; Airflow 2.10.4 is an optional orchestration service.
 Kafka, Delta 3.2.1 and PostgreSQL connector JARs are preinstalled in the Spark
 image. The single broker, PLAINTEXT listeners and replication factor 1 are
 development settings, not production security or high availability.

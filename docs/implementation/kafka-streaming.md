@@ -8,14 +8,14 @@ PySpark workbook. Original Q1–Q20 modules and their orchestrator remain intact
 | Stream | Topic | Partitions | Key |
 |---|---|---:|---|
 | Player events | `ott.player.events` | 6 | `user_id` |
-| Subscription events | `ott.billing.subscriptions` | 3 | `user_id` |
-| Gateway settlements | `ott.billing.settlements` | 3 | `user_id` |
+| Subscription events | `ott.billing.subscr` | 3 | `user_id` |
+| Gateway settlements | `ott.billing.settle` | 3 | `user_id` |
 | Search logs | `ott.app.search` | 3 | `profile_id` |
 | Ratings | `ott.app.ratings` | 1 | `profile_id` |
 | Ad breaks | `ott.ads.breaks` | 3 | `user_id` |
 | Ad impressions | `ott.ads.impressions` | 3 | `user_id` |
 | Live plays | `ott.live.plays` | 6 | `user_id` |
-| Live ad impressions | `ott.live.ads` | 3 | `user_id` |
+| Live ad impressions | `ott.live.ads` | 6 | `user_id` |
 | Dead-letter queue | `ott.dlq` | 1 | source topic/partition/offset |
 | Trending output | `ott.metrics.trending` | 1 | window/language/rank |
 | Pacing alerts | `ott.alerts.ad_pacing` | 1 | stable alert identifier |

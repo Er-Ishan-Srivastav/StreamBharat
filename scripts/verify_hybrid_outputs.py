@@ -134,6 +134,9 @@ def verify(
             "q1_dim_content": q1_root / "dim_content",
             "q1_content_language": q1_root / "content_language",
             "q1_content_genre": q1_root / "content_genre",
+            "q2_playback_clean": q2_root / "q2_playback_clean",
+            "q2_device_clock_offsets": q2_root / "q2_device_clock_offsets",
+            "q2_daily_clock_impact": q2_root / "q2_daily_clock_impact",
             "q3_cdn_requests": q3_bronze,
             "q3_cdn_hourly": q3_silver,
         }.items():

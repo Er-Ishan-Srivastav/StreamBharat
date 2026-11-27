@@ -158,7 +158,7 @@ def _merge_trends(
             """,
         ).whenMatchedDelete().execute()
         if not ranked.isEmpty():
-            ranked.write.format("delta").mode("append").save(target_path)
+            ranked.write.format("delta").option("mergeSchema", "true").mode("append").save(target_path)
     elif not ranked.isEmpty():
         ranked.write.format("delta").mode("overwrite").save(target_path)
 

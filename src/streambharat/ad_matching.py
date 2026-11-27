@@ -9,6 +9,7 @@ from pyspark.sql import DataFrame, Window
 from pyspark.sql import functions as F
 from pyspark.sql.types import MapType, StringType
 
+from streambharat.dlq_utils import exclude_dlq_offsets
 from streambharat.q1_catalog import read_catalog_snapshot
 from streambharat.spark_session import create_spark
 
@@ -272,8 +273,12 @@ def run_ad_matching(
 ) -> None:
     spark = create_spark("StreamBharat-Ad-Delivery-Reconciliation")
     try:
-        breaks = parse_breaks(spark.read.format("delta").load(breaks_path))
-        impressions = parse_impressions(spark.read.format("delta").load(impressions_path))
+        raw_breaks = spark.read.format("delta").load(breaks_path)
+        raw_impressions = spark.read.format("delta").load(impressions_path)
+        raw_breaks = exclude_dlq_offsets(raw_breaks, "ott.ads.breaks")
+        raw_impressions = exclude_dlq_offsets(raw_impressions, "ott.ads.impressions")
+        breaks = parse_breaks(raw_breaks)
+        impressions = parse_impressions(raw_impressions)
         if date_arg:
             target_date = F.to_date(F.lit(date_arg))
             breaks = breaks.filter(F.to_date("break_ts") == target_date)

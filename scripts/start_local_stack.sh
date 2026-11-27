@@ -14,14 +14,17 @@ fi
 echo "[1/4] Starting Kafka, Spark workspace, Postgres and Metabase..."
 docker compose -f docker-compose.kafka.yml up -d --build
 
-echo "[2/4] Checking the complete source/reference dataset..."
+echo "[2/5] Creating and verifying the 13 workbook Kafka topics..."
+bash config/kafka-topics.sh
+
+echo "[3/5] Checking the complete source/reference dataset...
 docker compose -f docker-compose.kafka.yml exec -T workspace \
   python scripts/preflight_dataset.py --data-root data/raw
 
-echo "[3/4] Waiting for local warehouse and workspace health..."
+echo "[4/5] Waiting for local warehouse and workspace health..."
 docker compose -f docker-compose.kafka.yml ps
 
-echo "[4/4] Starting Airflow on the shared Docker network..."
+echo "[5/5] Starting Airflow on the shared Docker network..."
 docker compose -f docker-compose.airflow.yml up -d --build
 docker compose -f docker-compose.airflow.yml ps
 

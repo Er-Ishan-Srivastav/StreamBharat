@@ -4,5 +4,5 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 exec spark-submit \
   --master "${SPARK_MASTER:-local[*]}" \
-  --conf "spark.driver.host=${SPARK_DRIVER_HOST:-localhost}" \
+  --conf "spark.driver.host=${SPARK_DRIVER_HOST:-workspace}" \
   src/streambharat/session_stream.py "$@"

@@ -5,18 +5,18 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "streambharat-ott-analytics"
 version = "1.0.0"
-description = "Team project workspace for the StreamBharat OTT streaming analytics platform"
+description = "Kafka, PySpark and Delta Lake analytics platform for the StreamBharat OTT dataset"
 requires-python = ">=3.10,<3.12"
 dependencies = [
   "pyspark==3.5.3",
-  "delta-spark==3.2.0",
+  "delta-spark==3.2.1",
 ]
 
 [project.optional-dependencies]
 kafka = ["confluent-kafka==2.6.1"]
 postgres = ["psycopg2-binary==2.9.10"]
 notebook = ["jupyterlab==4.3.0"]
-test = ["pytest>=8.0"]
+test = ["pytest>=8.0", "pyyaml==6.0.2"]
 
 [tool.setuptools.packages.find]
 where = ["src"]

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import hashlib
 import json
 import sys
 from collections import defaultdict
@@ -125,10 +126,29 @@ def main() -> int:
         writer.writeheader()
         writer.writerows(rows)
 
+    manifest = {
+        "dataset": "streambharat_public_content_interest_features",
+        "schema_version": "1.0",
+        "license": "CC0-1.0",
+        "source_semantics": "Wikipedia article pageviews; not OTT plays or watch time",
+        "inputs": {
+            "public_catalog_sha256": hashlib.sha256(Path(args.public_catalog).read_bytes()).hexdigest(),
+            "pageviews_sha256": hashlib.sha256(Path(args.pageviews).read_bytes()).hexdigest(),
+            "hybrid_catalog_sha256": hashlib.sha256(Path(args.hybrid_catalog).read_bytes()).hexdigest(),
+        },
+        "output": output.name,
+        "output_sha256": hashlib.sha256(output.read_bytes()).hexdigest(),
+        "row_count": len(rows),
+        "content_count": len({row["content_id"] for row in rows}),
+    }
+    manifest_path = output.with_suffix(".manifest.json")
+    manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+
     print("PUBLIC-INTEREST FEATURES BUILT")
     print(f"  linked rows: {len(rows)}")
     print(f"  distinct content IDs: {len({row['content_id'] for row in rows})}")
     print(f"  output: {output.resolve()}")
+    print(f"  manifest: {manifest_path.resolve()}")
     print("  semantics: external article interest, not OTT consumption.")
     return 0
 

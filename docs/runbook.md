@@ -1,5 +1,7 @@
 # StreamBharat operator runbook — local-first
 
+This runbook describes operations that are implemented in the repository. The 27 November 2026 synthetic acceptance verified the core Kafka-to-Delta-to-PostgreSQL-to-Metabase vertical slice. It did not run the full course dataset, optional continuous streams or Airflow DAG; see [project status](project-status-and-validation.md) before treating those paths as accepted.
+
 ## Start of day
 
 1. Keep the raw dataset in `data/raw/`; do not modify it.
@@ -9,7 +11,7 @@
    it separately with `docker compose -f docker-compose.airflow.yml up -d --build`.
 3. Verify core services with `docker compose -f docker-compose.kafka.yml ps`.
    If Airflow was started, also check `docker compose -f docker-compose.airflow.yml ps`.
-4. Run `docker compose -f docker-compose.kafka.yml exec workspace pytest -q`
+4. Run `docker compose -f docker-compose.kafka.yml exec workspace python3 -m pytest -q`
    before triggering a full data run.
 
 ## Scheduled batch pipeline
@@ -42,7 +44,7 @@ duplicate and poisoned source messages, with corrected re-sends. A task retry
 or a new DAG run can create new Kafka offsets; producer idempotence only covers
 the producer's internal retry protocol. Silver MERGE and business-key
 deduplication are therefore mandatory. For a separate clean replay, use
-`python -m streambharat.replay_kafka`; its SQLite acknowledgement ledger is
+`python3 -m streambharat.replay_kafka`; its SQLite acknowledgement ledger is
 `lake/state/kafka_replay.sqlite3`. Keep it across clean replays. The historical
 playback backfill is file-day restartable using
 `lake/silver/player_backfill_files`. The resulting
@@ -67,9 +69,9 @@ bash scripts/run_kafka_stream.sh plays
 bash scripts/run_kafka_stream.sh ads
 ```
 In another terminal run the workbook Kafka producer:
-`python producers/live.py --stream both --seconds 900`. It writes directly to
+`python3 producers/live.py --stream both --seconds 900`. It writes directly to
 `ott.live.plays` and `ott.live.ads`. The original file-based simulator remains
-available with `python ott_stream_simulator.py --stream both` and its Kafka
+available with `python3 ott_stream_simulator.py --stream both` and its Kafka
 bridge. Streaming progress writes throughput,
 batch duration, maximum event time, freshness and broker high-watermark lag to
 `lake/gold/stream_metrics`.

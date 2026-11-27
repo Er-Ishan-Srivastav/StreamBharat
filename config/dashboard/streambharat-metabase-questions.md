@@ -67,6 +67,15 @@ GROUP BY viewing_date, language, report_content_id, title
 ORDER BY viewing_date DESC, watched_hours DESC;
 ```
 
+**Live trending titles (Q17)**
+```sql
+SELECT window_start, window_end, language, rank_in_language,
+       content_id, unique_viewers, baseline_avg_window_viewers,
+       growth_ratio, processed_at
+FROM ottdw.v_live_trending_latest
+ORDER BY language, rank_in_language;
+```
+
 **Live ad delivery status (Q10)**
 ```sql
 SELECT activity_date, delivery_status, campaign_id,

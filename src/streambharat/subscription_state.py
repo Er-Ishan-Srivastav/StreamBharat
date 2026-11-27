@@ -243,7 +243,7 @@ def run_subscription_state(
     )
     try:
         bronze = spark.read.format("delta").load(bronze_path)
-        bronze = exclude_dlq_offsets(bronze, "ott.billing.subscriptions")
+        bronze = exclude_dlq_offsets(bronze, "ott.billing.subscr")
         events, invalid = parse_subscription_events(bronze)
         if not invalid.isEmpty():
             if DeltaTable.isDeltaTable(spark, invalid_path):

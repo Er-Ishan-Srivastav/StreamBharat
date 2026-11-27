@@ -10,16 +10,19 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-PORTS = {
+REQUIRED_PORTS = {
     3000: "Metabase",
     4040: "Spark application UI",
     5432: "PostgreSQL",
     8080: "Kafka UI",
-    8081: "Airflow (optional)",
-    8082: "Spark master host mapping",
-    8083: "Spark worker host mapping",
+    8082: "Spark master UI",
+    8083: "Spark worker UI",
     8888: "JupyterLab",
     9092: "Kafka external listener",
+    9093: "Kafka controller listener",
+}
+OPTIONAL_PORTS = {
+    8081: "Airflow webserver (optional; not started with the core stack)",
 }
 
 
@@ -91,13 +94,25 @@ def main() -> int:
     if free_gib < 15:
         print("      Docker image builds may require additional free disk space.")
 
-    occupied = [(port, label) for port, label in PORTS.items() if port_is_listening(port)]
-    if occupied:
-        print("WARN  These local ports already have listeners:")
-        for port, label in occupied:
-            print(f"      {port}: {label} (check for an existing service or port conflict)")
+    occupied_required = [
+        (port, label) for port, label in REQUIRED_PORTS.items()
+        if port_is_listening(port)
+    ]
+    occupied_optional = [
+        (port, label) for port, label in OPTIONAL_PORTS.items()
+        if port_is_listening(port)
+    ]
+    if occupied_required:
+        print("FAIL  Required service ports are already in use:")
+        for port, label in occupied_required:
+            print(f"      {port}: {label} (stop the conflicting service or deliberately remap it)")
+        failures += len(occupied_required)
     else:
-        print("PASS  Expected service ports appear available")
+        print("PASS  All required StreamBharat host ports are available")
+    if occupied_optional:
+        print("WARN  Optional-service ports already have listeners:")
+        for port, label in occupied_optional:
+            print(f"      {port}: {label} (Airflow will be skipped unless you free this port)")
 
     env_file = ROOT / ".env"
     if env_file.is_file():

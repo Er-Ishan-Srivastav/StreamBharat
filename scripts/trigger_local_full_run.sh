@@ -13,7 +13,7 @@ if [[ "$END_DATE" < "$START_DATE" ]]; then
 fi
 
 export FULL_REFRESH START_DATE END_DATE
-CONF="$(python -c 'import json,os; print(json.dumps({
+CONF="$(python3 -c 'import json,os; print(json.dumps({
     "full_refresh": os.environ["FULL_REFRESH"].lower() == "true",
     "start_date": os.environ["START_DATE"],
     "end_date": os.environ["END_DATE"],

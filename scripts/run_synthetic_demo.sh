@@ -56,11 +56,11 @@ echo "  log: $LOG_FILE"
 
 CURRENT_STEP="generate isolated synthetic source data"
 echo "[1/14] Generate isolated synthetic OTT source feeds..."
-python scripts/generate_demo_data.py --data-root "$DEMO_DATA_ROOT" --date "$DEMO_DATE" --users "$USERS"
+python3 scripts/generate_demo_data.py --data-root "$DEMO_DATA_ROOT" --date "$DEMO_DATE" --users "$USERS"
 
 CURRENT_STEP="replay seven synthetic source feeds to Kafka"
 echo "[2/14] Replay the seven source feeds to Kafka..."
-python producers/replay.py --data "$DEMO_DATA_ROOT" --from "$DEMO_DATE" --to "$DEMO_DATE" \
+python3 producers/replay.py --data "$DEMO_DATA_ROOT" --from "$DEMO_DATE" --to "$DEMO_DATE" \
   --speed 0 --seed 42 --no-chaos --bootstrap "$KAFKA_BOOTSTRAP"
 
 CURRENT_STEP="ingest seven Kafka topics into Bronze Delta"
@@ -73,35 +73,35 @@ bash scripts/run_dlq_ingest.sh --starting-offsets earliest --available-now
 
 CURRENT_STEP="reconcile retained Kafka offsets against Bronze"
 echo "[5/14] Reconcile retained Kafka offsets against Bronze..."
-python -m streambharat.bronze_reconcile
+python3 -m streambharat.bronze_reconcile
 
 CURRENT_STEP="build Silver player events and subscription SCD2"
 echo "[6/14] Build Silver player events and subscription SCD2..."
-python -m streambharat.silver_player \
+python3 -m streambharat.silver_player \
   --bronze lake/bronze/player_events \
   --silver lake/silver/player_events \
   --offsets lake/silver/device_clock_offsets
-python -m streambharat.subscription_state --bootstrap-servers "$KAFKA_BOOTSTRAP"
+python3 -m streambharat.subscription_state --bootstrap-servers "$KAFKA_BOOTSTRAP"
 
 CURRENT_STEP="build Gold engagement and viewing-session analytics"
 echo "[7/14] Build Gold engagement and viewing-session analytics..."
-python -m streambharat.gold_analytics \
+python3 -m streambharat.gold_analytics \
   --player lake/silver/player_events \
   --catalog "$CATALOG_PATH" \
   --gold-root lake/gold
-python -m streambharat.session_analytics \
+python3 -m streambharat.session_analytics \
   --player lake/silver/player_events \
   --catalog "$CATALOG_PATH"
 
 CURRENT_STEP="build ad delivery, campaign pacing and fill-rate analytics"
 echo "[8/14] Build ad delivery, campaign pacing and fill-rate analytics..."
-python -m streambharat.ad_matching \
+python3 -m streambharat.ad_matching \
   --campaigns "$DEMO_DATA_ROOT/ads/ad_campaigns.csv" \
   --catalog "$CATALOG_PATH"
 
 CURRENT_STEP="reconcile subscription charges and calculate partner royalties"
 echo "[9/14] Reconcile subscription charges and calculate partner royalties..."
-python -m streambharat.finance_royalties \
+python3 -m streambharat.finance_royalties \
   --subscription lake/bronze/billing_subscr \
   --settlement lake/bronze/billing_settle \
   --partners "$DEMO_DATA_ROOT/reference/content_partners.csv" \
@@ -109,24 +109,24 @@ python -m streambharat.finance_royalties \
 
 CURRENT_STEP="aggregate DLQ records by source and reason"
 echo "[10/14] Aggregate DLQ records by source and reason..."
-python -m streambharat.dlq_metrics
+python3 -m streambharat.dlq_metrics
 
 CURRENT_STEP="publish Silver and Gold Delta tables to PostgreSQL"
 echo "[11/14] Publish Silver/Gold Delta tables to PostgreSQL..."
-python -m streambharat.serve_postgres
+python3 -m streambharat.serve_postgres
 
 CURRENT_STEP="verify Delta and PostgreSQL output contracts"
 echo "[12/14] Verify all seven source feeds and serving outputs..."
-python scripts/verify_demo_outputs.py --users "$USERS" --demo-date "$DEMO_DATE" --report-path "$LOG_DIR/output_counts_$RUN_ID.json"
-python scripts/verify_warehouse_sql.py
+python3 scripts/verify_demo_outputs.py --users "$USERS" --demo-date "$DEMO_DATE" --report-path "$LOG_DIR/output_counts_$RUN_ID.json"
+python3 scripts/verify_warehouse_sql.py
 
 CURRENT_STEP="provision Metabase warehouse questions and dashboards"
 echo "[13/14] Provision Metabase questions and dashboards..."
-python scripts/bootstrap_metabase.py
+python3 scripts/bootstrap_metabase.py
 
 CURRENT_STEP="verify Metabase database, dashboards and saved questions"
 echo "[14/14] Verify Metabase database, dashboards and saved questions..."
-python scripts/verify_metabase.py
+python3 scripts/verify_metabase.py
 
 trap - ERR
 rm -f "$LOG_DIR/latest_failure.txt"

@@ -78,7 +78,7 @@ class StreamingMetricsListener(StreamingQueryListener):
         output_path: str = "lake/gold/stream_metrics",
     ):
         super().__init__()
-        self.spark = spark
+        self._spark_session = spark
         self.bootstrap_servers = bootstrap_servers
         self.output_path = output_path
 
@@ -152,7 +152,7 @@ class StreamingMetricsListener(StreamingQueryListener):
                 consumer.close()
 
             if rows:
-                self.spark.createDataFrame(rows, METRIC_SCHEMA).write.format(
+                self._spark_session.createDataFrame(rows, METRIC_SCHEMA).write.format(
                     "delta"
                 ).mode("append").save(self.output_path)
         except Exception:

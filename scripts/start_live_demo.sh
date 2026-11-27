@@ -70,7 +70,7 @@ echo "Allowing Spark streaming consumers to initialize..."
 sleep 10
 
 echo "Starting live producer for $DURATION_SECONDS seconds..."
-nohup python producers/live.py \
+nohup python3 producers/live.py \
   --stream "$STREAMS" --seconds "$DURATION_SECONDS" --seed 9 \
   --catalog "$CATALOG_PATH" --campaigns "$CAMPAIGNS_PATH" \
   >"$LOG_ROOT/producer.log" 2>&1 &

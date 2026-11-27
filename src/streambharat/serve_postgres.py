@@ -161,7 +161,7 @@ def upsert_dataframe(
     date_arg: str | None = None,
 ) -> None:
     """Stage a Spark frame, then atomically replace one date or upsert all rows."""
-    if not re.fullmatch(r"[a-z_]+", table_name):
+    if not re.fullmatch(r"[a-z][a-z0-9_]*", table_name):
         raise ValueError("Unsafe table name")
     stage = f"stg_{table_name}_{uuid.uuid4().hex[:10]}"
     selected = df.select(*config["columns"])

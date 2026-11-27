@@ -79,6 +79,11 @@ def add_reason_code(parsed: DataFrame, alias: str) -> DataFrame:
     reason = reason.when(timestamp_invalid, F.lit("INVALID_TIMESTAMP"))
 
     if alias == "player_events":
+        client_ts = _field("client_ts")
+        reason = reason.when(
+            ~_missing("client_ts") & F.to_timestamp(client_ts).isNull(),
+            F.lit("INVALID_CLIENT_TIMESTAMP"),
+        )
         position_sec = _field("position_sec")
         position_ms = _field("position_ms")
         has_sec = position_sec.isNotNull() & (F.length(F.trim(position_sec)) > 0)

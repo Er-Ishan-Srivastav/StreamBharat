@@ -107,7 +107,7 @@ The generator writes to the requested output directory (default data/hybrid/raw/
 
 | Path | Format | Meaning |
 |---|---|---|
-| content/catalog_YYYY-MM-01.json | Nested JSON array | Monthly snapshot of public film metadata plus explicitly synthetic platform attributes |
+| content/catalog_YYYY-MM-01.json | Nested JSON array | Monthly scenario snapshot. Public film metadata stays fixed to the retrieved Wikidata snapshot; partner and tier changes between months are generated and labelled for SCD Type 2 exercises |
 | content/licences.csv | CSV | Synthetic regional availability periods; not legal licensing evidence |
 | player/playback_YYYY-MM-DD.json | JSONL | Playback events partitioned by server-arrival date |
 | app/users.json, app/profiles.json | JSONL | Fictional account and profile dimensions |
@@ -234,6 +234,7 @@ Q1 and Q3 intermediate outputs are isolated under the run's evidence directory. 
 
 - The original course dataset is unavailable and has not been recreated.
 - The factory currently uses a public film catalogue; it does not invent TV series, seasons, episode relationships or cast lists.
+- Monthly catalogue snapshots reuse one current public metadata snapshot. Any month-to-month partner or tier changes are synthetic scenario attributes, not historical Wikidata facts.
 - The generated source directory follows the documented source file families, but it does not claim exact original row counts or complete Q1–Q20 acceptance.
 - reference/published_metrics.csv is deliberately empty. There are no authentic board-published values to reconcile against.
 - The generated licence, partner, plan and campaign data are scenario data, not real commercial agreements.

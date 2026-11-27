@@ -153,7 +153,7 @@ def generate(data_root: Path, demo_date: date, users: int) -> dict[str, int]:
     write_jsonl(data_root / "app" / "ratings.json", ratings)
     write_csv(
         data_root / "ads" / "ad_breaks.csv", breaks,
-        ["break_id", "user_id", "profile_id", "content_id", "break_ts", "filled"],
+        ["break_id", "impression_id", "user_id", "profile_id", "content_id", "break_ts", "filled"],
     )
     write_csv(
         data_root / "ads" / "ad_impressions.csv", impressions,

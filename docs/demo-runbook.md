@@ -8,16 +8,11 @@ The generated data is synthetic. It is not the supplied course dataset and must 
 
 ## 1. Initialize infrastructure
 
-From the repository root in PowerShell/WSL, check Docker readiness, available memory, disk headroom, Compose configuration and host-port conflicts first:
+From the repository root in a WSL2 terminal, check Docker readiness, available memory, disk headroom, Compose configuration and host-port conflicts, then initialize the stack:
 
 ```bash
-python scripts/check_local_environment.py
-```
-
-Then initialize the stack:
-
-```powershell
-Copy-Item .env.example .env
+python3 scripts/check_local_environment.py
+[ -f .env ] || cp .env.example .env
 # Review local credentials in .env, then:
 bash scripts/start_local_stack.sh
 ```

@@ -47,8 +47,8 @@ for name in producer q17 q18; do
 done
 
 echo "Refreshing PostgreSQL serving tables from the completed Delta outputs..."
-python -m streambharat.serve_postgres
-python scripts/bootstrap_metabase.py
+python3 -m streambharat.serve_postgres
+python3 scripts/bootstrap_metabase.py
 
 echo
 echo "Live demo stopped and available outputs served to PostgreSQL."

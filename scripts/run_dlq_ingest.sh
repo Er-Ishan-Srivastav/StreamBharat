@@ -9,4 +9,4 @@ export PYTHONPATH="${PYTHONPATH:-src}"
 
 # The shared Spark session factory uses preinstalled connector JARs in the
 # workspace image, and resolves SPARK_EXTRA_PACKAGES in the Airflow image.
-python -m streambharat.dlq_ingest "$@"
+python3 -m streambharat.dlq_ingest "$@"

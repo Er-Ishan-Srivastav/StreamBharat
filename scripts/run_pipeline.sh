@@ -1,3 +1,3 @@
 #!/usr/bin/env bash
 set -euo pipefail
-python -m streambharat.pipeline "$@"
+python3 -m streambharat.pipeline "$@"

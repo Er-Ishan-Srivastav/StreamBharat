@@ -38,7 +38,7 @@ docker compose -f docker-compose.kafka.yml exec -T postgres \
 if [[ -d data/raw ]]; then
   echo "[4/9] Checking whether the full supplied StreamBharat dataset is present..."
   if docker compose -f docker-compose.kafka.yml exec -T workspace \
-      python scripts/preflight_dataset.py --data-root data/raw; then
+      python3 scripts/preflight_dataset.py --data-root data/raw; then
     echo "Full course dataset preflight passed."
   else
     echo "Dataset preflight did not pass; continuing with infrastructure startup."
@@ -52,7 +52,7 @@ fi
 
 echo "[5/9] Waiting for Spark master and worker registration..."
 for attempt in $(seq 1 30); do
-  if docker compose -f docker-compose.kafka.yml exec -T workspace python -c '
+  if docker compose -f docker-compose.kafka.yml exec -T workspace python3 -c '
 import json, urllib.request
 status = json.load(urllib.request.urlopen("http://spark-master:8080/json/", timeout=2))
 workers = [worker for worker in status.get("workers", []) if worker.get("state") == "ALIVE"]
@@ -67,7 +67,7 @@ assert workers, "No ALIVE Spark workers registered yet"
   sleep 2
 done
 
-docker compose -f docker-compose.kafka.yml exec -T workspace python -m streambharat.smoke
+docker compose -f docker-compose.kafka.yml exec -T workspace python3 -m streambharat.smoke
 
 echo "[6/9] Checking core service status..."
 docker compose -f docker-compose.kafka.yml ps
@@ -83,11 +83,11 @@ fi
 
 echo "[8/9] Creating the Metabase warehouse connection, saved questions and dashboards..."
 docker compose -f docker-compose.kafka.yml exec -T workspace \
-  python scripts/bootstrap_metabase.py
+  python3 scripts/bootstrap_metabase.py
 
 echo "[9/9] Verifying Metabase warehouse, saved questions and dashboards..."
 docker compose -f docker-compose.kafka.yml exec -T workspace \
-  python scripts/verify_metabase.py
+  python3 scripts/verify_metabase.py
 
 cat <<'EOF'
 

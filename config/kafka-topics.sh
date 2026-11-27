@@ -2,6 +2,19 @@
 set -euo pipefail
 
 CONTAINER="${KAFKA_CONTAINER:-streambharat-kafka}"
+echo "Waiting for Kafka broker in container $CONTAINER..."
+for attempt in $(seq 1 30); do
+  if docker exec "$CONTAINER" /opt/kafka/bin/kafka-broker-api-versions.sh \
+      --bootstrap-server localhost:29092 >/dev/null 2>&1; then
+    break
+  fi
+  if [[ "$attempt" -eq 30 ]]; then
+    echo "Kafka broker did not become ready; inspect docker compose logs kafka." >&2
+    exit 1
+  fi
+  sleep 2
+done
+
 topics=(
   "ott.player.events:6"
   "ott.billing.subscriptions:3"

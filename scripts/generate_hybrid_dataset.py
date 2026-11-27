@@ -66,8 +66,9 @@ def write_csv(path: Path, rows: list[dict], fields: list[str]) -> int:
 
 
 def iso(value: datetime) -> str:
-    # The simulated event clock is UTC. Keep the zone explicit in source files.
-    return value.isoformat(timespec="seconds") + "Z"
+    # The simulated event clock is UTC. Use a portable ISO offset form that
+    # datetime.fromisoformat accepts across supported Python 3.10+ runtimes.
+    return value.isoformat(timespec="seconds") + "+00:00"
 
 
 def month_starts(start: date, end: date) -> list[date]:

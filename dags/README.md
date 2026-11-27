@@ -16,7 +16,10 @@ bash scripts/start_local_stack.sh
 ```
 
 The helper creates `.env` from `.env.example` only when one does not exist,
-starts Kafka/Spark/Postgres/Metabase, runs dataset preflight, then starts Airflow.
+starts Kafka, Spark master/worker, Postgres, Metabase and Jupyter, creates and
+verifies the 13 topic contracts, runs infrastructure smoke checks, starts
+Airflow, and provisions the Metabase warehouse connection and dashboards.
+Dataset preflight is skipped when `data/raw/` is absent.
 
 Open Airflow at http://localhost:8081. Local development login: `admin` /
 `admin_local_dev`. Override local passwords with environment variables and do
@@ -77,11 +80,14 @@ Or trigger manually in the Airflow UI with:
 }
 ```
 
-This replays the selected source arrival range, runs the July–September player
-backfill, rebuilds engagement/session/ad-delivery Gold across all available
-dates and loads all available Delta rows into Postgres. The replay acknowledgement
-ledger is stored at `lake/state/kafka_replay.sqlite3`; keep it with the lake
-between normal reruns. Later daily runs omit
+This replays the selected source arrival range with controlled late, duplicate
+and poisoned messages, runs the July–September player backfill, rebuilds
+engagement/session/ad-delivery Gold across all available dates and loads
+available Delta rows into Postgres. The Airflow producer replay is at-least-once
+across task retries; downstream event/business-key MERGE and deduplication
+provide sink-level correctness. The optional clean replay module uses
+`lake/state/kafka_replay.sqlite3` as its durable acknowledgement ledger.
+Later daily runs omit
 `full_refresh` and only replace the logical-date slice for date-partitioned
 outputs. The backfill manifest skips completed historical file days.
 
@@ -102,16 +108,11 @@ The output tables include `lake/gold/recon_player_daily` and
 `lake/gold/recon_september_arrivals`; the latter measures September viewing
 events that reached the server in October.
 
-For live simulator streams, start the Kafka consumers separately:
-
-```bash
-docker compose -f docker-compose.kafka.yml exec workspace bash scripts/run_kafka_stream.sh plays
-docker compose -f docker-compose.kafka.yml exec workspace bash scripts/run_kafka_stream.sh ads
-```
-
-In another workspace terminal, run `python ott_stream_simulator.py --stream both`
-to generate live play and ad messages. These continuous streams are not part
-of the nightly finite batch DAG.
+For real-time Q9/Q10, start `run_session_stream.sh` and
+`run_ad_matching_stream.sh` before the source replay. For Q14/Q15, start the
+`run_kafka_stream.sh plays|ads` consumers and `python producers/live.py
+--stream both --seconds 900` in separate workspace terminals. These continuous
+streams are independent of the finite nightly batch DAG.
 
 ## Warehouse / Metabase views
 
@@ -133,6 +134,7 @@ Then connect Metabase to database `ottdw`, schema `ottdw`. See
 A DAG visible in the UI is not a successful data run. Inspect every task log,
 compare Kafka retained offset ranges to Bronze, verify Delta schemas/counts,
 inspect the DQ gate and validate Postgres totals against the source workbook.
-The local Compose topology uses one Kafka broker and Spark local mode; it is
-a development integration environment, not a production cluster. AWS deployment
+The local Compose topology uses one Kafka broker and a single-worker Spark
+standalone cluster; it is a development integration environment, not a
+production HA cluster. AWS deployment
 is intentionally deferred.

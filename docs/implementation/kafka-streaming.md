@@ -216,6 +216,14 @@ at five minutes and excludes seek jumps.
 completion rate and content drop-off. Both jobs accept a date argument and
 replace only that date's Delta slice on rerun.
 
+For near-real-time Q9, `streambharat.session_stream` consumes player Kafka
+events with 30-minute session windows and a 12-minute event-time watermark.
+It deduplicates event IDs, applies server time to online playback and client
+time to offline downloads, credits heartbeat intervals up to five minutes,
+caps credit by position/duration/session elapsed time, and writes finalized
+session facts to `lake/silver/viewing_sessions_stream`. The batch Silver
+pipeline remains the authoritative per-device median clock-correction path.
+
 ## Ad delivery and campaign analytics
 
 `streambharat.ad_matching` parses Bronze ad breaks and impressions, links them
@@ -229,6 +237,13 @@ outputs are date-rebuildable.
 Unfilled breaks do not carry a campaign_id in the supplied source contract, so
 they are reported at break/hour level rather than attributed to a campaign.
 
+For near-real-time Q10, `streambharat.ad_matching_stream` runs two
+watermarked Kafka stream-stream joins: break-to-impression delivery and
+impression-to-break orphan detection. It applies the impression-id/user/content
+keys and a forward event-time bound (ad duration plus lateness allowance),
+then writes matched/unfilled and orphan facts to separate Delta paths. These
+facts are included in the Postgres serving map and dashboard views.
+
 ## Finance and partner royalties
 
 `streambharat.finance_royalties` reconciles subscription charge events with
@@ -240,9 +255,9 @@ ORPHAN_SETTLEMENT.
 Partner royalty allocation joins watch time to the catalogue partner valid at
 the viewing date, allocates settled subscription revenue using the quarter's
 partner watch-time share and revenue-share percentage, then applies the
-quarterly minimum guarantee. The supplied published-metrics board file is
-preflight-checked but a metric-name mapping and actual variance report still
-need to be validated against the raw values.
+quarterly minimum guarantee. A published-metric alias map and 0.5% variance
+reconciliation job are implemented; actual variances are generated only after
+the supplied board file and Gold tables are run locally.
 
 ## Data quality and quarantine
 
@@ -264,18 +279,23 @@ cost analysis.
 
 ## Live Kafka streams: trending and ad pacing
 
-The simulator emits JSONL files under `data/stream/plays` and
-`data/stream/ads`. The Kafka bridge uses user_id keys and an SQLite delivery
-ledger at `lake/state/kafka_producer.sqlite3`.
+The workbook live source is `producers/live.py`; it writes play and ad
+events directly to `ott.live.plays` and `ott.live.ads`. The original file
+simulator and SQLite-backed bridge remain available for the PySpark workbook.
 
 ```bash
-# Workspace terminal 1
-python ott_stream_simulator.py --stream both
-# Workspace terminal 2
-python -m streambharat.kafka_producer --stream both
-# Workspace terminals 3 and 4
+# Workspace terminal 1: direct Kafka source
+python producers/live.py --stream both --seconds 900
+# Workspace terminals 2 and 3: Structured Streaming consumers
 bash scripts/run_kafka_stream.sh plays
 bash scripts/run_kafka_stream.sh ads
+```
+
+For the file-based path instead:
+
+```bash
+python ott_stream_simulator.py --stream both
+python -m streambharat.kafka_producer --stream both
 ```
 
 Q17 uses five-minute event-time windows sliding every 30 seconds, a 12-minute
@@ -316,8 +336,9 @@ specification.
 
 ## Validation boundary and remaining work
 
-The local compose stack is a single broker + Spark local-mode development
-environment. The repository contains Spark contract tests and CI compilation,
+The local compose stack is a single Kafka broker with a Spark 3.5.3
+standalone master/worker cluster, PostgreSQL, Metabase, Jupyter and Airflow.
+The repository contains Spark contract tests and CI compilation,
 but the full 590 MB course dataset has not yet been run end-to-end by this
 implementation session. The following evidence is still required:
 - successful clean local stack and all thirteen topic partition counts;

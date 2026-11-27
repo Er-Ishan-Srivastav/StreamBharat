@@ -51,6 +51,37 @@ ORDER BY activity_date, campaign_id;
 
 ## Dashboard 2 — Streaming & Delivery Operations
 
+**Live session windows (Q9)**
+```sql
+SELECT viewing_date, language, report_content_id, title,
+       COUNT(*) AS sessions,
+       COUNT(DISTINCT profile_id) AS profiles,
+       SUM(watched_seconds) / 3600.0 AS watched_hours,
+       AVG(CASE WHEN completed THEN 1.0 ELSE 0.0 END) AS completion_rate
+FROM ottdw.v_viewing_sessions_stream
+WHERE viewing_date >= CURRENT_DATE - INTERVAL '7 days'
+GROUP BY viewing_date, language, report_content_id, title
+ORDER BY viewing_date DESC, watched_hours DESC;
+```
+
+**Live ad delivery status (Q10)**
+```sql
+SELECT activity_date, delivery_status, campaign_id,
+       SUM(delivery_rows) AS break_rows,
+       SUM(matched_impressions) AS impressions,
+       SUM(estimated_spend) AS estimated_spend
+FROM ottdw.v_ad_delivery_stream
+WHERE activity_date >= CURRENT_DATE - INTERVAL '7 days'
+GROUP BY activity_date, delivery_status, campaign_id
+ORDER BY activity_date DESC, estimated_spend DESC;
+```
+
+**Orphan impressions**
+```sql
+SELECT * FROM ottdw.v_orphan_impressions_stream
+ORDER BY activity_date DESC, orphan_impressions DESC;
+```
+
 **DLQ records by source and reason**
 ```sql
 SELECT activity_date, source_topic, reason_code, invalid_records,

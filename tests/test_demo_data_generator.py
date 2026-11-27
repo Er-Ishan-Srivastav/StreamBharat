@@ -3,7 +3,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import sys
-from datetime import date
+from datetime import date, datetime, timezone
 from pathlib import Path
 
 
@@ -18,6 +18,7 @@ PRODUCERS_PATH = Path(__file__).resolve().parents[1] / "producers"
 sys.path.insert(0, str(PRODUCERS_PATH))
 import sources as replay_sources
 from replay_engine import Context
+from live_sink import now_utc
 
 
 def test_synthetic_demo_generator_writes_replayable_sources(tmp_path):
@@ -93,3 +94,10 @@ def test_synthetic_feed_files_are_readable_by_all_seven_producer_sources(tmp_pat
         rows = list(source.reader(context))
         assert len(rows) == expected_counts[source.name], source.name
         assert all(len(row) == 3 for row in rows), source.name
+
+
+def test_live_source_clock_is_timezone_naive_utc():
+    stamp = now_utc()
+    reference = datetime.now(timezone.utc).replace(tzinfo=None)
+    assert stamp.tzinfo is None
+    assert abs((reference - stamp).total_seconds()) < 2

@@ -66,7 +66,31 @@ Verify Delta outputs in `lake/bronze/`, `lake/silver/` and `lake/gold/`. In Post
 
 A successful synthetic run proves the local vertical slice only. It does not validate every Q1–Q20 workbook task, full historical reconciliation, production throughput, AWS deployment or the original course dataset.
 
-## 4. Original course dataset
+## 4. Optional live Q17/Q18 demonstration
+
+After the synthetic batch demo has completed, start both Kafka-backed live consumers and a bounded live producer:
+
+```bash
+docker compose -f docker-compose.kafka.yml exec -T workspace \
+  bash scripts/start_live_demo.sh 2026-10-15 120 both
+```
+
+The command starts Q17 trending from `ott.live.plays`, Q18 ad pacing from `ott.live.ads`, and emits synthetic live events for two minutes. Logs and PID files are stored under `logs/live_demo/`. The live producer reads the synthetic catalogue and campaign file under `data/demo/raw/`.
+
+Inspect the output topics in Kafka UI:
+- `ott.metrics.trending`
+- `ott.alerts.ad_pacing`
+
+Stop the consumers and producer, then refresh PostgreSQL and Metabase:
+
+```bash
+docker compose -f docker-compose.kafka.yml exec -T workspace \
+  bash scripts/stop_live_demo.sh
+```
+
+For a lower-resource run, choose one stream: use `plays` or `ads` instead of `both`. Keep Airflow stopped during this live demonstration on a 16 GB laptop.
+
+## 5. Original course dataset
 
 When the original dataset becomes available, place its `data/raw/` tree in the repository and run:
 

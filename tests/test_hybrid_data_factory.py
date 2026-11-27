@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import importlib.util
 import json
 from pathlib import Path
@@ -119,6 +120,9 @@ def test_hybrid_factory_writes_source_contracts_and_provenance(tmp_path):
         "synthetic_generated",
     }
     assert manifest["files_sha256"]
+    assert manifest["input_snapshots"]["wikidata_catalogue"]["sha256"] == hashlib.sha256(
+        Path(args.catalog).read_bytes()
+    ).hexdigest()
     assert (root / "manifest.json").is_file()
 
 

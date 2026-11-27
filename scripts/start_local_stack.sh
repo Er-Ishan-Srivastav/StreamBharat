@@ -6,7 +6,7 @@ if [[ ! -f .env ]]; then
   echo "Created .env from .env.example. Review local passwords and tokens before exposing services."
 fi
 
-echo "[1/6] Building and starting Kafka, Spark workspace, Postgres and Metabase..."
+echo "[1/6] Building and starting Kafka, Spark master/worker, workspace, Postgres and Metabase..."
 docker compose -f docker-compose.kafka.yml up -d --build
 
 echo "[2/6] Creating and verifying the 13 workbook Kafka topics..."
@@ -17,7 +17,7 @@ if [[ -d data/raw ]]; then
   docker compose -f docker-compose.kafka.yml exec -T workspace \
     python scripts/preflight_dataset.py --data-root data/raw
 else
-  echo "[3/5] Dataset not found; skipping data preflight."
+  echo "[3/6] Dataset not found; skipping data preflight."
   echo "      Copy the supplied dataset's data/raw directory into ./data/raw before replaying or triggering Airflow."
 fi
 

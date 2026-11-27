@@ -212,7 +212,7 @@ def build_playback_sampling_weights(
     matched_qids = {
         str(item.get("wikidata_qid"))
         for item in catalog
-        if totals.get(str(item.get("wikidata_qid")), 0) > 0
+        if str(item.get("wikidata_qid")) in totals
     }
     metadata = {
         "file_name": pageviews_path.name,

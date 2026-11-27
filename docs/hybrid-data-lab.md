@@ -200,10 +200,20 @@ The original 20-user scripts/generate_demo_data.py and scripts/run_synthetic_dem
 
 ## 8. Run the complete local hybrid pipeline
 
-After the local stack is started with `bash scripts/start_local_stack.sh`, run the end-to-end orchestration from the workspace container:
+Start the services from the repository root on the host:
 
 ~~~bash
-bash scripts/run_hybrid_pipeline.sh
+bash scripts/start_local_stack.sh
+~~~
+
+Then use the same Docker workspace for source preparation and pipeline execution. This ensures the generator, PySpark, Delta and Kafka clients use the versions installed with the project:
+
+~~~bash
+docker compose -f docker-compose.kafka.yml exec workspace \
+  bash scripts/prepare_hybrid_dataset.sh
+
+docker compose -f docker-compose.kafka.yml exec workspace \
+  bash scripts/run_hybrid_pipeline.sh
 ~~~
 
 The runner reads the playback **arrival period** from `manifest.json`, runs the separate hybrid preflight, executes Q1 catalogue flattening, replays all seven event feeds, ingests Bronze, routes validation failures, builds Silver and Gold outputs, performs ad and revenue reconciliation, processes both CDN log formats, publishes available Delta products to PostgreSQL, and verifies the serving SQL and Metabase setup.

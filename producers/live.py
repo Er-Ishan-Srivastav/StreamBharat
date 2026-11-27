@@ -12,7 +12,7 @@ import random
 import time
 from datetime import timedelta
 
-from live_sink import add_args, make_write, now_ist
+from live_sink import add_args, make_write, now_utc
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--stream", choices=["plays", "ads", "both"], default="both")
@@ -58,7 +58,7 @@ started = time.time()
 print(f"Sending live events to {args.bootstrap if not args.dry_run else '_dryrun/'}; Ctrl+C to stop")
 try:
     while not args.seconds or time.time() - started < args.seconds:
-        now = now_ist()
+        now = now_utc()
         elapsed = time.time() - started
         surge = surge_pool[int(elapsed // 180) % len(surge_pool)]
         surge_strength = min(1.0, (elapsed % 180) / 60)

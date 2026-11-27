@@ -17,7 +17,7 @@ if [[ -d data/raw ]]; then
   docker compose -f docker-compose.kafka.yml exec -T workspace \
     python scripts/preflight_dataset.py --data-root data/raw
 else
-  echo "[3/6] Dataset not found; skipping data preflight."
+  echo "[3/7] Dataset not found; skipping data preflight."
   echo "      Copy the supplied dataset's data/raw directory into ./data/raw before replaying or triggering Airflow."
 fi
 
@@ -40,12 +40,16 @@ done
 
 docker compose -f docker-compose.kafka.yml exec -T workspace python -m streambharat.smoke
 
-echo "[5/6] Checking core service status..."
+echo "[5/7] Checking core service status..."
 docker compose -f docker-compose.kafka.yml ps
 
-echo "[6/6] Starting Airflow on the shared Docker network..."
+echo "[6/7] Starting Airflow on the shared Docker network..."
 docker compose -f docker-compose.airflow.yml up -d --build
 docker compose -f docker-compose.airflow.yml ps
+
+echo "[7/7] Creating the Metabase warehouse connection, saved questions and dashboards..."
+docker compose -f docker-compose.kafka.yml exec -T workspace \
+  python scripts/bootstrap_metabase.py
 
 cat <<'EOF'
 

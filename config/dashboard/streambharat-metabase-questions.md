@@ -117,7 +117,7 @@ ORDER BY activity_date;
 ```sql
 SELECT month_start, cdn, region, requests, egress_gb, cost_inr,
        missing_rate_requests
-FROM ottdw.v_cdn_monthly_cost
+FROM ottdw.v_cdn_cost_by_region_month
 ORDER BY month_start, cdn, region;
 ```
 

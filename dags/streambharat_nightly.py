@@ -172,7 +172,7 @@ with DAG(
             f"cd {PROJECT_ROOT} && "
             'if [ "$STREAMBHARAT_FULL_REFRESH" = "true" ]; then '
             f"{PYTHON} -m streambharat.gold_analytics --player lake/silver/player_events --catalog data/raw/content/catalog_2026-10-01.json --gold-root lake/gold ; "
-            f"else {PYTHON} -m streambharat.gold_analytics --player lake/silver/player_events --catalog data/raw/content/catalog_2026-10-01.json --gold-root lake/gold --date "$STREAMBHARAT_LOGICAL_DATE"; fi"
+            f'else {PYTHON} -m streambharat.gold_analytics --player lake/silver/player_events --catalog data/raw/content/catalog_2026-10-01.json --gold-root lake/gold --date "$STREAMBHARAT_LOGICAL_DATE"; fi'
         ),
         env=DATE_RUN_ENV,
         append_env=True,
@@ -182,9 +182,9 @@ with DAG(
         cwd=PROJECT_ROOT,
         bash_command=(
             f"cd {PROJECT_ROOT} && "
-            f"if [ '{FULL_REFRESH}' = 'true' ]; then "
+            'if [ "$STREAMBHARAT_FULL_REFRESH" = "true" ]; then '
             f"{PYTHON} -m streambharat.session_analytics --player lake/silver/player_events ; "
-            f"else {PYTHON} -m streambharat.session_analytics --player lake/silver/player_events --date "$STREAMBHARAT_LOGICAL_DATE"; fi"
+            f'else {PYTHON} -m streambharat.session_analytics --player lake/silver/player_events --date "$STREAMBHARAT_LOGICAL_DATE"; fi'
         ),
         env=DATE_RUN_ENV,
         append_env=True,
@@ -205,9 +205,9 @@ with DAG(
         cwd=PROJECT_ROOT,
         bash_command=(
             f"cd {PROJECT_ROOT} && "
-            f"if [ '{FULL_REFRESH}' = 'true' ]; then "
-            f"{PYTHON} -m streambharat.ad_matching  ; "
-            f"else {PYTHON} -m streambharat.ad_matching  --date "$STREAMBHARAT_LOGICAL_DATE"; fi"
+            'if [ "$STREAMBHARAT_FULL_REFRESH" = "true" ]; then '
+            f"{PYTHON} -m streambharat.ad_matching ; "
+            f'else {PYTHON} -m streambharat.ad_matching --date "$STREAMBHARAT_LOGICAL_DATE"; fi'
         ),
         env=DATE_RUN_ENV,
         append_env=True,
@@ -272,9 +272,9 @@ with DAG(
         cwd=PROJECT_ROOT,
         bash_command=(
             f"cd {PROJECT_ROOT} && "
-            f"if [ '{FULL_REFRESH}' = 'true' ]; then "
-            f"{PYTHON} -m streambharat.serve_postgres  ; "
-            f"else {PYTHON} -m streambharat.serve_postgres  --date "$STREAMBHARAT_LOGICAL_DATE"; fi"
+            'if [ "$STREAMBHARAT_FULL_REFRESH" = "true" ]; then '
+            f"{PYTHON} -m streambharat.serve_postgres ; "
+            f'else {PYTHON} -m streambharat.serve_postgres --date "$STREAMBHARAT_LOGICAL_DATE"; fi'
         ),
         env=DATE_RUN_ENV,
         append_env=True,

@@ -10,7 +10,7 @@
 
 StreamBharat brings together playback, subscriptions, catalogue, search, advertising and CDN data to build a lakehouse-style analytics platform. This repository contains 20 question-specific implementations, a finite batch orchestrator, two separate file-based streaming jobs, deterministic business-rule tests and project documentation.
 
-> **Scope:** The original PySpark workbook remains the batch-processing baseline. The Kafka ETL workbook adds a second implementation track: seven source topics, two live topics, Bronze Delta ingestion, a Postgres warehouse and Metabase. The local Kafka extension is under active implementation; see the implementation status notes before treating it as fully validated.
+> **Scope:** The original PySpark workbook remains the batch-processing baseline. The Kafka ETL workbook adds a second implementation track: seven source topics, two live topics, Bronze Delta ingestion, a Postgres warehouse and Metabase. The local Kafka extension has a verified synthetic vertical slice; the full course-data workload, continuous-stream acceptance and production-readiness work remain separate milestones. See the implementation status and validation record.
 
 ## Contents
 
@@ -25,7 +25,7 @@ StreamBharat brings together playback, subscriptions, catalogue, search, adverti
 - [Testing and validation](#testing-and-validation)
 - [Current implementation status](#current-implementation-status)
 - [Project history and validation record](docs/project-status-and-validation.md)
-- [Known limitations and next milestones](#known-limitations-and-next-milestones)
+- [Remaining validation and delivery work](#remaining-validation-and-delivery-work)
 - [Documentation](#documentation)
 
 ## Business problem
@@ -292,7 +292,7 @@ Pure-Python tests validate deterministic business rules. They do not replace a f
 
 ## Testing and validation
 
-The CI workflow currently checks the deterministic test suite and Python compilation. The batch orchestrator's dry-run can also be used to inspect the planned stage sequence.
+GitHub Actions runs a Python test/compile workflow and a Kafka ETL contract workflow covering Spark tests, PostgreSQL DDL/views, dashboard SQL, shell syntax and Compose validation. The 27 November 2026 merged changes passed both workflows (Python tests run #849 and Kafka ETL run #444). The local acceptance also passed 77 pytest tests, Python compilation, shell syntax and both Compose configuration checks. The batch orchestrator's dry-run can be used to inspect the planned stage sequence, but it does not execute Spark transformations.
 
 | Validation level | What it establishes | What it does not establish |
 |---|---|---|
@@ -497,7 +497,7 @@ Place the supplied dataset at `data/raw/` without changing raw files.
 
 ```bash
 bash scripts/start_local_stack.sh
-docker compose -f docker-compose.kafka.yml exec workspace pytest -q
+docker compose -f docker-compose.kafka.yml exec workspace python3 -m pytest -q
 bash config/kafka-topics.sh
 ```
 

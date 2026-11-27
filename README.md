@@ -145,7 +145,7 @@ docker compose -f docker-compose.kafka.yml exec workspace \
 docker compose -f docker-compose.kafka.yml exec workspace \
   bash scripts/run_hybrid_pipeline.sh
 ~~~
-The factory output is **not** the original coursework dataset. Its public layer contains film metadata only; user activity, partner assignments, subscription events, advertising, regional licences and CDN logs are generated scenario data. The pageview sidecar remains separate from playback analytics. The existing \`scripts/generate_demo_data.py\` and \`scripts/run_synthetic_demo.sh\` still serve the compact previously exercised Kafka fixture.
+The factory output is **not** the original coursework dataset. Its public layer contains film metadata and a prior-period Wikipedia attention signal; user activity, playback, partner assignments, subscription events, advertising, regional licences and CDN logs are generated scenario data. Pageviews only act as an optional sampling prior for synthetic playback titles and are never counted as OTT plays or watch time. The existing `scripts/generate_demo_data.py` and `scripts/run_synthetic_demo.sh` still serve the compact previously exercised Kafka fixture.
 
 The new factory's tests and the generated source set must pass before claiming it is accepted. The old demo's recorded row counts and test results do not validate the new factory.
 

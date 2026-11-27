@@ -7,8 +7,8 @@ The job creates one independent Structured Streaming query for each workbook sou
 | Alias | Topic | Delta table | Checkpoint |
 |---|---|---|---|
 | player_events | ott.player.events | lake/bronze/player_events | lake/_checkpoints/bronze_player_events |
-| billing_subscr | ott.billing.subscr | lake/bronze/billing_subscr | lake/_checkpoints/bronze_billing_subscr |
-| billing_settle | ott.billing.settle | lake/bronze/billing_settle | lake/_checkpoints/bronze_billing_settle |
+| billing_subscr | ott.billing.subscriptions | lake/bronze/billing_subscr | lake/_checkpoints/bronze_billing_subscr |
+| billing_settle | ott.billing.settlements | lake/bronze/billing_settle | lake/_checkpoints/bronze_billing_settle |
 | app_search | ott.app.search | lake/bronze/app_search | lake/_checkpoints/bronze_app_search |
 | app_ratings | ott.app.ratings | lake/bronze/app_ratings | lake/_checkpoints/bronze_app_ratings |
 | ads_breaks | ott.ads.breaks | lake/bronze/ads_breaks | lake/_checkpoints/bronze_ads_breaks |

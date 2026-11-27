@@ -138,7 +138,7 @@ CREATE OR REPLACE VIEW ottdw.v_ad_delivery_stream AS
 SELECT activity_date, delivery_status, campaign_id, content_id,
        COUNT(*) AS delivery_rows,
        COUNT(impression_id) AS matched_impressions,
-       SUM(COALESCE(cpm_inr, 0) * COALESCE(duration_sec, 0) / 1000.0) AS estimated_spend
+       SUM(COALESCE(cpm_inr, 0) / 1000.0) AS estimated_spend
 FROM ottdw.ad_delivery_stream
 GROUP BY activity_date, delivery_status, campaign_id, content_id;
 

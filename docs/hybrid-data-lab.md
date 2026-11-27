@@ -6,7 +6,7 @@ This is a hybrid dataset, not a claim to have recovered the original coursework 
 
 - **Public source metadata:** real film descriptions from Wikidata, whose structured data is released under CC0.
 - **Public external-interest signal:** daily English Wikipedia article pageviews from Wikimedia Analytics, also CC0.
-- **Generated platform activity:** fictional users, profiles, playback events, subscriptions, gateway settlements, searches, ratings, advertising delivery, CDN requests, licences and business reference data.
+- **Generated platform activity:** fictional users, profiles, playback events, subscriptions, gateway settlements, searches, ratings, advertising delivery, CDN requests, licences and business reference data. When the pageview sidecar is supplied to the factory, its title-level totals act only as a sampling prior for choosing which catalogue titles appear in synthetic playback.
 
 The source facts and generated scenario facts remain distinguishable. Public interest is not OTT engagement. Synthetic playback is not observed customer behaviour.
 
@@ -65,7 +65,9 @@ python3 scripts/fetch_wikidata_catalog.py --min-year 2018 --limit 300
 python3 scripts/fetch_wikimedia_pageviews.py --days 30 --articles 20
 
 # 3) Generate a seven-day, 500-user OTT activity dataset.
+# The pageview snapshot weights only the synthetic content-selection process.
 python3 scripts/generate_hybrid_dataset.py \
+  --pageviews data/external/wikimedia/pageviews.jsonl \
   --output data/hybrid/raw \
   --start-date 2026-11-01 \
   --days 7 \
@@ -129,6 +131,7 @@ The public catalogue snapshot is stored separately under data/external/wikidata/
 | Data / field | Provenance | What it can support |
 |---|---|---|
 | Film title, release date, genre, original language, runtime where available | public_external | Catalogue dimensions and content metadata |
+| Daily Wikipedia article pageviews | public_external | External-interest signal and optional title-sampling prior for generated playback only |
 | Wikidata QID, Wikipedia article title and source URL | public_external | Source traceability and joining the external pageview sidecar |
 | StreamBharat content ID, partner, tier, age rating | synthetic_derived | Fictional OTT business scenario |
 | Account/profile IDs and attributes | synthetic_generated | Join, cohort and profile analytics |
@@ -136,7 +139,7 @@ The public catalogue snapshot is stored separately under data/external/wikidata/
 | Subscription and settlement events | synthetic_generated | Lifecycle, reconciliation and MRR exercises |
 | Search and ratings | synthetic_generated | Funnel and recommendation experiments |
 | Ad and CDN requests | synthetic_generated | Fill, pacing, egress and quality exercises |
-| Wikipedia pageviews | public_external | External-interest trend comparison only |
+| Wikipedia pageviews | public_external | External-interest trend comparison and optional synthetic playback sampling prior only |
 
 Public content metadata is not proof of licensing rights to stream that content. partner_id, tier, age rating and licence rows are scenario fields generated for engineering exercises. Cast data is left empty when it is not returned by the public source query; the factory does not invent performers or series episodes.
 
@@ -245,7 +248,7 @@ docker compose -f docker-compose.kafka.yml exec workspace \
 - The generated source directory follows the documented source file families, but it does not claim exact original row counts or complete Q1–Q20 acceptance.
 - reference/published_metrics.csv is deliberately empty. There are no authentic board-published values to reconcile against.
 - The generated licence, partner, plan and campaign data are scenario data, not real commercial agreements.
-- The pageview sidecar is not yet included in the Kafka topics, Bronze/Silver/Gold tables or Metabase dashboards.
+- The pageview sidecar is joined into a local external-interest feature file and can weight the generator's title selection. It is not itself a Kafka event feed, OTT play count, or watch-time measure, and is not currently a Gold/Metabase metric.
 - The existing Kafka demo acceptance evidence remains specific to its recorded small synthetic fixture. It does not automatically validate this new factory output.
 
 The remaining engineering gates are to run this pipeline from a clean environment, inspect its acceptance report, close any source-to-Bronze or transformation gaps, and then perform explicit Q1–Q20 gap analysis. The public-interest feature file is currently an external analytical sidecar; it is not inserted into OTT playback metrics or Kafka topics. Keep each gate separately evidenced.

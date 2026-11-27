@@ -119,6 +119,24 @@ TABLES = {
         "keys": ["activity_date","source_topic","reason_code"],
         "date_column": "activity_date",
     },
+    "viewing_sessions_stream": {
+        "path": "lake/silver/viewing_sessions_stream",
+        "columns": ["session_id","user_id","profile_id","device_id","content_id","title","duration_sec","parent_series_id","language","session_start_ts","session_end_ts","event_count","heartbeat_count","max_position_sec","last_kafka_offset","session_duration_seconds","watched_seconds","completed","viewing_date","report_content_id"],
+        "keys": ["session_id"],
+        "date_column": "viewing_date",
+    },
+    "ad_delivery_stream": {
+        "path": "lake/silver/ad_delivery_stream",
+        "columns": ["delivery_id","break_id","impression_id","campaign_id","user_id","profile_id","content_id","break_filled","break_ts","ad_break_ts","impression_end_ts","duration_sec","completed","cpm_inr","delivery_status","activity_date","break_partition","break_offset","impression_partition","impression_offset"],
+        "keys": ["delivery_id"],
+        "date_column": "activity_date",
+    },
+    "orphan_impressions_stream": {
+        "path": "lake/silver/orphan_impressions_stream",
+        "columns": ["delivery_id","break_id","impression_id","campaign_id","user_id","profile_id","content_id","break_filled","break_ts","ad_break_ts","impression_end_ts","duration_sec","completed","cpm_inr","delivery_status","activity_date","break_partition","break_offset","impression_partition","impression_offset"],
+        "keys": ["delivery_id"],
+        "date_column": "activity_date",
+    },
 }
 
 

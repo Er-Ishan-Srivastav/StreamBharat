@@ -18,11 +18,13 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--stream", choices=["plays", "ads", "both"], default="both")
 parser.add_argument("--seconds", type=int, default=0, help="0 runs until Ctrl+C")
 parser.add_argument("--seed", type=int, default=9)
+parser.add_argument("--catalog", default="data/raw/content/catalog_2026-10-01.json")
+parser.add_argument("--campaigns", default="data/raw/ads/ad_campaigns.csv")
 add_args(parser)
 args = parser.parse_args()
 rng = random.Random(args.seed)
 
-with open("data/raw/content/catalog_2026-10-01.json", encoding="utf-8") as handle:
+with open(args.catalog, encoding="utf-8") as handle:
     catalog = json.load(handle)
 titles = [
     (item["content_id"], item["languages"][0], rng.paretovariate(1.3))
@@ -33,10 +35,10 @@ if not titles:
     raise RuntimeError("No movie/series titles with languages in the October catalogue")
 weights = [weight for _, _, weight in titles]
 
-with open("data/raw/ads/ad_campaigns.csv", encoding="utf-8", newline="") as handle:
+with open(args.campaigns, encoding="utf-8", newline="") as handle:
     campaigns = list(csv.DictReader(handle))
 if not campaigns:
-    raise RuntimeError("data/raw/ads/ad_campaigns.csv contains no campaigns")
+    raise RuntimeError(f"{args.campaigns} contains no campaigns")
 
 users = [f"U{i:06d}" for i in range(1, 2501)]
 surge_pool = rng.sample(titles, min(6, len(titles)))

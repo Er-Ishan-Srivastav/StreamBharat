@@ -81,12 +81,15 @@ Inspect the output topics in Kafka UI:
 - `ott.metrics.trending`
 - `ott.alerts.ad_pacing`
 
-Stop the consumers and producer, then refresh PostgreSQL and Metabase:
+Stop the producer and Spark consumers, wait for their final micro-batches/checkpoints, then refresh PostgreSQL and Metabase:
 
 ```bash
 docker compose -f docker-compose.kafka.yml exec -T workspace \
   bash scripts/stop_live_demo.sh
 ```
+
+The stop helper publishes Q17 Delta rows to PostgreSQL table `ottdw.live_trending`.
+The Metabase card **Live trending titles (Q17)** reads the latest event-time window.
 
 For a lower-resource run, choose one stream: use `plays` or `ads` instead of `both`. Keep Airflow stopped during this live demonstration on a 16 GB laptop.
 

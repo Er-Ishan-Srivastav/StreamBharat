@@ -8,7 +8,13 @@ The generated data is synthetic. It is not the supplied course dataset and must 
 
 ## 1. Initialize infrastructure
 
-From the repository root in PowerShell:
+From the repository root in PowerShell/WSL, check Docker readiness, available memory, disk headroom, Compose configuration and host-port conflicts first:
+
+```bash
+python scripts/check_local_environment.py
+```
+
+Then initialize the stack:
 
 ```powershell
 Copy-Item .env.example .env

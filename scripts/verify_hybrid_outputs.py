@@ -38,6 +38,7 @@ REQUIRED_DELTA_OUTPUTS = {
     "gold_ad_fill_rate_hourly": "lake/gold/ad_fill_rate_hourly",
     "gold_revenue_reconciliation": "lake/gold/revenue_reconciliation",
     "gold_royalties_quarterly": "lake/gold/royalties_quarterly",
+    "gold_cdn_egress_daily": "lake/gold/cdn_egress_daily",
     "bronze_offset_reconciliation": "lake/gold/bronze_offset_reconciliation",
 }
 
@@ -54,6 +55,7 @@ REQUIRED_NONEMPTY_DELTA = {
     "gold_ad_fill_rate_hourly",
     "gold_revenue_reconciliation",
     "gold_royalties_quarterly",
+    "gold_cdn_egress_daily",
     "bronze_offset_reconciliation",
 }
 
@@ -69,6 +71,7 @@ POSTGRES_TABLES = (
     "ad_fill_rate_hourly",
     "revenue_reconciliation",
     "royalties_quarterly",
+    "cdn_egress_daily",
 )
 
 

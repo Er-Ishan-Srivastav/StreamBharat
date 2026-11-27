@@ -71,7 +71,7 @@ services:
       - metabase-data:/var/lib/postgresql/data
 
   metabase:
-    image: metabase/metabase:v0.53.5
+    image: metabase/metabase:v0.64.1
     container_name: streambharat-metabase
     depends_on:
       metabase-db:
@@ -165,6 +165,9 @@ services:
       PYSPARK_PYTHON: python3
       SPARK_LOCAL_IP: 0.0.0.0
       JUPYTER_TOKEN: ${JUPYTER_TOKEN:-streambharat-local}
+      METABASE_ADMIN_EMAIL: ${METABASE_ADMIN_EMAIL:-admin@streambharat.local}
+      METABASE_ADMIN_PASSWORD: ${METABASE_ADMIN_PASSWORD:-StreamBharat2026!}
+      METABASE_URL: http://metabase:3000
     volumes:
       - ./:/workspace
     ports:

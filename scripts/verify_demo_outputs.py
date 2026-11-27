@@ -1,0 +1,83 @@
+#!/usr/bin/env python3
+"""Fail-fast verification of the compact local demo's Delta and PostgreSQL outputs."""
+from __future__ import annotations
+
+import os
+import sys
+
+import psycopg2
+from delta.tables import DeltaTable
+
+from streambharat.spark_session import create_spark
+
+
+DELTA_OUTPUTS = {
+    "bronze_player_events": "lake/bronze/player_events",
+    "bronze_subscriptions": "lake/bronze/billing_subscr",
+    "bronze_settlements": "lake/bronze/billing_settle",
+    "bronze_dlq": "lake/bronze/dlq",
+    "silver_player_events": "lake/silver/player_events",
+    "silver_subscriptions": "lake/silver/subscriptions",
+    "gold_watch_time_daily": "lake/gold/watch_time_daily",
+    "gold_active_users_daily": "lake/gold/active_users_daily",
+    "gold_top_titles_daily": "lake/gold/top_titles_daily",
+    "gold_viewing_sessions": "lake/gold/viewing_sessions",
+    "gold_content_dropoff_daily": "lake/gold/content_dropoff_daily",
+}
+
+POSTGRES_OUTPUTS = (
+    "watch_time_daily",
+    "active_users_daily",
+    "top_titles_daily",
+    "subscriptions_scd2",
+    "viewing_sessions",
+    "content_dropoff_daily",
+)
+
+
+def main() -> None:
+    spark = create_spark("StreamBharat-Demo-Verification")
+    failures = []
+    try:
+        print("Delta output counts:")
+        for name, path in DELTA_OUTPUTS.items():
+            if not DeltaTable.isDeltaTable(spark, path):
+                failures.append(f"Missing Delta table: {path}")
+                print(f"  FAIL  {name}: missing ({path})")
+                continue
+            count = spark.read.format("delta").load(path).count()
+            print(f"  {'PASS' if count > 0 else 'FAIL'}  {name}: {count}")
+            if count == 0:
+                failures.append(f"Delta table is empty: {path}")
+    finally:
+        spark.stop()
+
+    connection = psycopg2.connect(
+        host=os.getenv("POSTGRES_HOST", "postgres"),
+        port=int(os.getenv("POSTGRES_PORT", "5432")),
+        dbname=os.getenv("POSTGRES_DB", "ottdw"),
+        user=os.getenv("POSTGRES_USER", "ott"),
+        password=os.getenv("POSTGRES_PASSWORD", "ott_local_dev"),
+    )
+    try:
+        print("\nPostgreSQL output counts:")
+        with connection.cursor() as cursor:
+            for table in POSTGRES_OUTPUTS:
+                cursor.execute(f"SELECT COUNT(*) FROM ottdw.{table}")
+                count = int(cursor.fetchone()[0])
+                print(f"  {'PASS' if count > 0 else 'FAIL'}  ottdw.{table}: {count}")
+                if count == 0:
+                    failures.append(f"PostgreSQL table is empty: ottdw.{table}")
+    finally:
+        connection.close()
+
+    if failures:
+        print("\nDEMO VERIFICATION FAILED:")
+        for failure in failures:
+            print(f" - {failure}")
+        sys.exit(1)
+    print("\nDEMO VERIFICATION PASSED: all required Delta and PostgreSQL outputs are non-empty.")
+
+
+if __name__ == "__main__":
+    main()

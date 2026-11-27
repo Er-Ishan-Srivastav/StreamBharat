@@ -262,7 +262,7 @@ def test_playback_sampling_is_uniform_without_pageview_input():
 def test_pageview_sampling_rejects_non_cc0_input(tmp_path):
     pageviews = tmp_path / "pageviews.jsonl"
     pageviews.write_text(
-        json.dumps({"wikidata_qid": "Q1", "pageviews": 10, "license": "other"}) + "\n",
+        json.dumps({"wikidata_qid": "Q1", "date": "2026-10-01", "pageviews": 10, "license": "other"}) + "\n",
         encoding="utf-8",
     )
     try:

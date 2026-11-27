@@ -207,3 +207,64 @@ def test_monthly_catalogue_history_labels_synthetic_commercial_changes(tmp_path)
     preflight_spec.loader.exec_module(preflight)
     report = preflight.validate_dataset(args.output)
     assert report["status"] == "passed", report["errors"]
+
+
+
+def test_external_pageviews_weight_synthetic_playback_sampling_and_are_manifested(tmp_path):
+    args = args_for(tmp_path, "pageview_weighted")
+    pageviews = tmp_path / "external" / "pageviews.jsonl"
+    pageviews.write_text(
+        "\n".join(
+            [
+                json.dumps({
+                    "wikidata_qid": "Q100000",
+                    "date": "2026-10-01",
+                    "pageviews": 10000,
+                    "license": "CC0-1.0",
+                }),
+                json.dumps({
+                    "wikidata_qid": "Q100001",
+                    "date": "2026-10-01",
+                    "pageviews": 10,
+                    "license": "CC0-1.0",
+                }),
+            ]
+        ) + "\n",
+        encoding="utf-8",
+    )
+    args.pageviews = str(pageviews)
+    manifest = GENERATOR.generate(args)
+
+    assert manifest["configuration"]["playback_title_sampling"] == "pageview_weighted"
+    snapshot = manifest["input_snapshots"]["wikimedia_pageviews"]
+    assert snapshot["sha256"] == hashlib.sha256(pageviews.read_bytes()).hexdigest()
+    assert snapshot["license"] == "CC0-1.0"
+    assert snapshot["matched_catalogue_titles"] == 2
+    assert "synthetic playback" in snapshot["semantics"].lower()
+    assert manifest["quality_features"]["playback_title_sampling"] == snapshot["semantics"]
+
+
+def test_playback_sampling_is_uniform_without_pageview_input():
+    catalog = [
+        {"wikidata_qid": "Q1"},
+        {"wikidata_qid": "Q2"},
+    ]
+    weights, metadata = GENERATOR.build_playback_sampling_weights(catalog)
+    assert weights == [1.0, 1.0]
+    assert metadata is None
+
+
+def test_pageview_sampling_rejects_non_cc0_input(tmp_path):
+    pageviews = tmp_path / "pageviews.jsonl"
+    pageviews.write_text(
+        json.dumps({"wikidata_qid": "Q1", "pageviews": 10, "license": "other"}) + "\n",
+        encoding="utf-8",
+    )
+    try:
+        GENERATOR.build_playback_sampling_weights(
+            [{"wikidata_qid": "Q1"}], pageviews
+        )
+    except ValueError as exc:
+        assert "CC0-1.0" in str(exc)
+    else:
+        raise AssertionError("Expected non-CC0 pageview input to be rejected")

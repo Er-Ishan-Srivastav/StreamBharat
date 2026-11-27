@@ -25,11 +25,15 @@ args = parser.parse_args()
 rng = random.Random(args.seed)
 
 with open(args.catalog, encoding="utf-8") as handle:
-    catalog = json.load(handle)
+    catalog_data = json.load(handle)
+# Course snapshots are arrays; the compact synthetic demo may be a single object.
+catalog = catalog_data if isinstance(catalog_data, list) else [catalog_data]
 titles = [
     (item["content_id"], item["languages"][0], rng.paretovariate(1.3))
     for item in catalog
-    if item["type"] in ("movie", "series") and item.get("languages")
+    if isinstance(item, dict)
+    and item.get("type") in ("movie", "series")
+    and item.get("languages")
 ]
 if not titles:
     raise RuntimeError("No movie/series titles with languages in the October catalogue")

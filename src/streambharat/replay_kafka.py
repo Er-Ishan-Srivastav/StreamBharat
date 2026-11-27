@@ -16,6 +16,7 @@ import logging
 import os
 import sqlite3
 import time
+import zlib
 from dataclasses import dataclass
 from datetime import date, datetime, time as datetime_time, timedelta, timezone
 from pathlib import Path
@@ -258,6 +259,48 @@ def mark_replay_record_published(
         (topic, source_file, source_line, digest, partition, offset),
     )
 
+
+
+SOURCE_SYSTEMS = {
+    "player_events": "player-sdk",
+    "billing_subscr": "billing",
+    "billing_settle": "payment-gateway",
+    "app_search": "search-api",
+    "app_ratings": "app-api",
+    "ads_breaks": "ad-decision-server",
+    "ads_impressions": "ad-tracking",
+}
+
+
+def prepare_kafka_payload(
+    alias: str, raw_value: str, event_time: datetime
+) -> tuple[str, str]:
+    """Apply the workbook's Android 7.3 schema-v2 rollout at 15 October 2026."""
+    try:
+        payload = json.loads(raw_value)
+    except (TypeError, ValueError):
+        return raw_value, "1"
+    if not isinstance(payload, dict):
+        return raw_value, "1"
+    if (
+        alias == "player_events"
+        and event_time >= datetime(2026, 10, 15)
+        and payload.get("device_type") == "android"
+        and str(payload.get("app_version", "")).startswith("7.3")
+    ):
+        updated = dict(payload)
+        position = updated.pop("position_sec", 0)
+        try:
+            updated["position_ms"] = int(float(position or 0) * 1000)
+        except (TypeError, ValueError, OverflowError):
+            updated["position_ms"] = position
+        device_id = str(updated.get("device_id") or "")
+        updated["network"] = (
+            "wifi" if zlib.crc32(device_id.encode("utf-8")) % 3 else "cellular"
+        )
+        return json.dumps(updated, ensure_ascii=False, separators=(",", ":")), "2"
+    return raw_value, "1"
+
 def replay(
     data_root: str,
     selected_topics: list[str],
@@ -354,17 +397,24 @@ def replay(
             if wait_seconds > 0:
                 time.sleep(wait_seconds)
 
+        alias = topic_to_alias[topic]
+        payload_to_send, schema_version = prepare_kafka_payload(
+            alias, raw_value, event_time
+        )
         headers = [
             ("source_file", source_file.encode("utf-8")),
             ("source_line", str(source_line).encode("utf-8")),
-            ("source_alias", topic_to_alias[topic].encode("utf-8")),
+            ("source_alias", alias.encode("utf-8")),
+            ("source_system", SOURCE_SYSTEMS[alias].encode("utf-8")),
+            ("schema_version", schema_version.encode("utf-8")),
+            ("sent_at", event_time.isoformat().encode("utf-8")),
         ]
         while True:
             try:
                 producer.produce(
                     topic=topic,
                     key=key.encode("utf-8") if key is not None else None,
-                    value=raw_value.encode("utf-8"),
+                    value=payload_to_send.encode("utf-8"),
                     headers=headers,
                     on_delivery=delivery_callback(identity, raw_value),
                 )

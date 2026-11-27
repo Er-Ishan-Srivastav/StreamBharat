@@ -4,7 +4,7 @@ This runbook is for a short local demonstration when the supplied course dataset
 
 ## Important data boundary
 
-The generated data is synthetic. It is not the supplied course dataset and must not be described as real platform activity or used to claim the original workbook's historical results. The generator writes under `data/raw/`; do not run it over a directory containing the original dataset unless you have backed that data up.
+The generated data is synthetic. It is not the supplied course dataset and must not be described as real platform activity or used to claim the original workbook's historical results. The demo runner writes under `data/demo/raw/`, keeping the supplied course dataset under `data/raw/` untouched. Delta outputs under `lake/` are demo outputs and can replace earlier local lake tables.
 
 ## 1. Initialize infrastructure
 
@@ -36,15 +36,18 @@ docker compose -f docker-compose.kafka.yml exec -T workspace bash scripts/run_sy
 
 The runner performs these steps:
 
-1. Generate compact player, billing, search, ratings and advertising source files plus one catalogue snapshot.
+1. Generate isolated player, billing, search, ratings, advertising, campaign and partner files plus a catalogue snapshot.
 2. Replay all seven source feeds into Kafka.
 3. Ingest the seven source topics into append-only Bronze Delta tables.
-4. Validate source records and route deliberately invalid records to the DLQ.
+4. Validate source records and route deliberately invalid player/rating records to the DLQ.
 5. Build Silver player events with device-clock correction and subscription SCD2.
 6. Build Gold engagement, active-user, top-title, viewing-session and drop-off outputs.
-7. Publish available Gold/Silver Delta tables to PostgreSQL.
-8. Verify that required Bronze, Silver and Gold Delta tables and serving tables in PostgreSQL are non-empty.
-9. Refresh the Metabase warehouse connection, questions and dashboards.
+7. Match ad breaks and impressions and calculate campaign pacing/fill-rate metrics.
+8. Reconcile subscription charges to settlements and calculate partner royalties.
+9. Aggregate DLQ records by source and reason.
+10. Publish available Silver/Gold Delta tables to PostgreSQL.
+11. Verify required Delta and PostgreSQL outputs are non-empty.
+12. Refresh Metabase questions and dashboards.
 
 ## 3. Services and verification
 
@@ -57,7 +60,7 @@ The runner performs these steps:
 | Airflow | http://localhost:8081 |
 | JupyterLab | http://localhost:8888 |
 
-Verify Delta outputs in `lake/bronze/`, `lake/silver/` and `lake/gold/`. In PostgreSQL, inspect schema `ottdw`, especially `watch_time_daily`, `active_users_daily`, `top_titles_daily`, `subscriptions_scd2`, `viewing_sessions` and `content_dropoff_daily`.
+Verify Delta outputs in `lake/bronze/`, `lake/silver/` and `lake/gold/`. In PostgreSQL, inspect schema `ottdw`, especially `watch_time_daily`, `active_users_daily`, `top_titles_daily`, `subscriptions_scd2`, `viewing_sessions`, `ad_delivery`, `campaign_daily`, `revenue_reconciliation`, `royalties_quarterly` and `dlq_metrics_daily`.
 
 A successful synthetic run proves the local vertical slice only. It does not validate every Q1–Q20 workbook task, full historical reconciliation, production throughput, AWS deployment or the original course dataset.
 

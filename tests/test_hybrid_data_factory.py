@@ -268,3 +268,27 @@ def test_pageview_sampling_rejects_non_cc0_input(tmp_path):
         assert "CC0-1.0" in str(exc)
     else:
         raise AssertionError("Expected non-CC0 pageview input to be rejected")
+
+
+
+def test_pageview_prior_rejects_observations_at_or_after_simulation_start(tmp_path):
+    pageviews = tmp_path / "future_pageviews.jsonl"
+    pageviews.write_text(
+        json.dumps({
+            "wikidata_qid": "Q1",
+            "date": "2026-11-01",
+            "pageviews": 100,
+            "license": "CC0-1.0",
+        }) + "\n",
+        encoding="utf-8",
+    )
+    try:
+        GENERATOR.build_playback_sampling_weights(
+            [{"wikidata_qid": "Q1"}],
+            pageviews,
+            GENERATOR.date.fromisoformat("2026-11-01"),
+        )
+    except ValueError as exc:
+        assert "must be earlier than simulation start" in str(exc)
+    else:
+        raise AssertionError("Expected pageviews on the simulation start date to be rejected")

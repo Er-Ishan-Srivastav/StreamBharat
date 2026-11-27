@@ -148,3 +148,14 @@ SELECT activity_date, campaign_id, content_id, COUNT(*) AS orphan_impressions,
        MAX(impression_end_ts) AS last_seen_at
 FROM ottdw.orphan_impressions_stream
 GROUP BY activity_date, campaign_id, content_id;
+
+
+CREATE OR REPLACE VIEW ottdw.v_live_trending_latest AS
+SELECT window_start, window_end, language, rank_in_language,
+       content_id, unique_viewers, hour_of_day,
+       baseline_avg_window_viewers, growth_ratio, processed_at
+FROM ottdw.live_trending
+WHERE window_start = (
+    SELECT MAX(window_start)
+    FROM ottdw.live_trending
+);

@@ -104,6 +104,15 @@ class Validation:
             },
             str(sorted(manifest.get("provenance", {}))),
         )
+        input_snapshots = manifest.get("input_snapshots", {})
+        catalogue_input = input_snapshots.get("wikidata_catalogue", {})
+        self.check(
+            "Wikidata input snapshot metadata",
+            bool(catalogue_input.get("sha256"))
+            and catalogue_input.get("license") == "CC0-1.0"
+            and bool(catalogue_input.get("source_endpoint")),
+            "input snapshot checksum, CC0 licence or source endpoint is missing",
+        )
         hashes = manifest.get("files_sha256", {})
         self.check("manifest file hashes", isinstance(hashes, dict) and bool(hashes), "no source-file checksums")
         actual_files = {

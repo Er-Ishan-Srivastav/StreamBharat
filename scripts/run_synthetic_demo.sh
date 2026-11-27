@@ -40,7 +40,7 @@ python -m streambharat.gold_analytics \
   --gold-root lake/gold
 python -m streambharat.session_analytics \
   --player lake/silver/player_events \
-  --catalog "data/raw/content/catalog_2026-10-01.json"
+  --catalog "data/raw/content/catalog_${DEMO_DATE}.json"
 
 echo "[7/8] Publish available Gold/Silver Delta tables to PostgreSQL..."
 python -m streambharat.serve_postgres

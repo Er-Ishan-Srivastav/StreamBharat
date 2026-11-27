@@ -16,6 +16,7 @@ DELTA_OUTPUTS = {
     "bronze_subscriptions": "lake/bronze/billing_subscr",
     "bronze_settlements": "lake/bronze/billing_settle",
     "bronze_dlq": "lake/bronze/dlq",
+    "bronze_offset_reconciliation": "lake/gold/bronze_offset_reconciliation",
     "silver_player_events": "lake/silver/player_events",
     "silver_subscriptions": "lake/silver/subscriptions",
     "gold_watch_time_daily": "lake/gold/watch_time_daily",

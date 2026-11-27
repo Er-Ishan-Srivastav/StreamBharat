@@ -17,8 +17,8 @@ flowchart LR
   end
   subgraph Kafka["Kafka"]
     T1[(ott.player.events)]
-    T2[(ott.billing.subscr)]
-    T3[(ott.billing.settle)]
+    T2[(ott.billing.subscriptions)]
+    T3[(ott.billing.settlements)]
     T4[(ott.app.search)]
     T5[(ott.app.ratings)]
     T6[(ott.ads.breaks)]
@@ -72,8 +72,8 @@ flowchart LR
 
 Seven replay/backfill topics:
 - \`ott.player.events\` — 6 partitions, \`user_id\` key.
-- \`ott.billing.subscr\` — 3, \`user_id\`.
-- \`ott.billing.settle\` — 3, \`user_id\`.
+- \`ott.billing.subscriptions\` — 3, \`user_id\`.
+- \`ott.billing.settlements\` — 3, \`user_id\`.
 - \`ott.app.search\` — 3, \`profile_id\`.
 - \`ott.app.ratings\` — 1, \`profile_id\`.
 - \`ott.ads.breaks\` — 3, \`user_id\`.

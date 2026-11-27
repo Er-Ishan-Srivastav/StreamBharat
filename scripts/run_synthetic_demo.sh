@@ -117,7 +117,7 @@ python -m streambharat.serve_postgres
 
 CURRENT_STEP="verify Delta and PostgreSQL output contracts"
 echo "[12/14] Verify all seven source feeds and serving outputs..."
-python scripts/verify_demo_outputs.py --users "$USERS"
+python scripts/verify_demo_outputs.py --users "$USERS" --demo-date "$DEMO_DATE" --report-path "$LOG_DIR/output_counts_$RUN_ID.json"
 python scripts/verify_warehouse_sql.py
 
 CURRENT_STEP="provision Metabase warehouse questions and dashboards"

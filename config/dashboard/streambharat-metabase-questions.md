@@ -59,7 +59,10 @@ SELECT viewing_date, language, report_content_id, title,
        SUM(watched_seconds) / 3600.0 AS watched_hours,
        AVG(CASE WHEN completed THEN 1.0 ELSE 0.0 END) AS completion_rate
 FROM ottdw.v_viewing_sessions_stream
-WHERE viewing_date >= CURRENT_DATE - INTERVAL '7 days'
+WHERE viewing_date >= (
+    SELECT MAX(viewing_date) - INTERVAL '6 days'
+    FROM ottdw.v_viewing_sessions_stream
+)
 GROUP BY viewing_date, language, report_content_id, title
 ORDER BY viewing_date DESC, watched_hours DESC;
 ```
@@ -71,7 +74,10 @@ SELECT activity_date, delivery_status, campaign_id,
        SUM(matched_impressions) AS impressions,
        SUM(estimated_spend) AS estimated_spend
 FROM ottdw.v_ad_delivery_stream
-WHERE activity_date >= CURRENT_DATE - INTERVAL '7 days'
+WHERE activity_date >= (
+    SELECT MAX(activity_date) - INTERVAL '6 days'
+    FROM ottdw.v_ad_delivery_stream
+)
 GROUP BY activity_date, delivery_status, campaign_id
 ORDER BY activity_date DESC, estimated_spend DESC;
 ```

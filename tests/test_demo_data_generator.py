@@ -28,6 +28,9 @@ def test_synthetic_demo_generator_writes_replayable_sources(tmp_path):
     assert invalid["position_sec"] is None
     assert invalid["position_ms"] is None
     assert invalid["device_type"] == "ios"
+    valid = next(row for row in player_rows if row["event_type"] == "start")
+    assert valid["device_type"] == "android"
+    assert valid["app_version"].startswith("7.3")
 
     subscription_path = tmp_path / "billing" / "subscription_events.json"
     subscription_rows = [

@@ -86,6 +86,8 @@ services:
       MB_DB_PORT: 5432
       MB_DB_USER: metabase
       MB_DB_PASS: ${METABASE_DB_PASSWORD:-metabase_local_dev}
+      MB_LOAD_SAMPLE_CONTENT: "false"
+      MB_SITE_URL: http://localhost:3000
       MB_DB_HOST: metabase-db
 
   spark-master:

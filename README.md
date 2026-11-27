@@ -338,11 +338,28 @@ cp .env.example .env
 bash scripts/start_local_stack.sh
 ```
 
-The script builds and starts Kafka, the PySpark workspace, PostgreSQL,
-Metabase and Airflow, then creates and verifies all 13 Kafka topics. Dataset
-preflight runs automatically if `data/raw/` exists; otherwise initialization
-still completes and data preflight is deferred until you copy the supplied
-dataset into that directory.
+The script builds and starts Kafka, a Spark 3.5.3 standalone
+master/worker cluster, the PySpark/Jupyter workspace, PostgreSQL, Metabase and
+Airflow, then creates and verifies all 13 Kafka topics. It runs a connectivity
+smoke test across Kafka, Spark, Delta and Postgres. Dataset preflight runs
+automatically if `data/raw/` exists; otherwise initialization still completes
+and data preflight is deferred until you copy the supplied dataset into that
+directory.
+
+| Local service | Address |
+|---|---|
+| Kafka UI | http://localhost:8080 |
+| Spark master UI | http://localhost:8082 |
+| Spark worker UI | http://localhost:8083 |
+| Spark application UI | http://localhost:4040 |
+| JupyterLab | http://localhost:8888 |
+| Metabase | http://localhost:3000 |
+| Airflow | http://localhost:8081 |
+| PostgreSQL | localhost:5432, database `ottdw` |
+
+The workspace uses the standalone Spark master by default. Spark applications
+launched by Airflow run in local mode inside the Airflow task container; the
+interactive workspace uses the Spark worker cluster.
 
 After the dataset is present, the first historical Airflow run is triggered by:
 
@@ -354,6 +371,32 @@ The project uses the supplied workbook's topic names and partition counts.
 Android 7.3 player events are emitted with schema version 2 from 15 October
 2026, with `position_ms` and the added `network` field. The seven-source
 replay keeps a durable acknowledgement ledger under `lake/state/`.
+
+### Optional manual Kafka replay and live streams
+
+A short replay is useful for checking the seven source feeds before the full
+Airflow run. It writes to the same durable source-record ledger used by the DAG:
+
+```bash
+docker compose -f docker-compose.kafka.yml exec workspace \
+  python producers/replay.py --start-date 2026-10-01 --end-date 2026-10-31 \
+  --speed 0 --max-events 1000
+```
+
+For live Q14/Q15, start the producer and Spark consumer in separate terminals:
+
+```bash
+# Terminal A: live event source
+docker compose -f docker-compose.kafka.yml exec workspace \
+  python producers/live.py --stream both --seconds 900
+
+# Terminal B: Spark Structured Streaming consumer (plays or ads)
+docker compose -f docker-compose.kafka.yml exec workspace \
+  bash scripts/run_kafka_stream.sh plays
+```
+
+Use `ads` instead of `plays` to run the ad-pacing stream. Do not launch the
+same stream twice with the same checkpoint.
 
 ## Documentation
 

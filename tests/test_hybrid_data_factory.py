@@ -93,10 +93,21 @@ def test_hybrid_factory_writes_source_contracts_and_provenance(tmp_path):
     assert all(row["client_ts"].endswith("Z") for row in playback)
     assert all(row["server_ts"].endswith("Z") for row in playback)
     assert all(row["signup_ts"].endswith("Z") for row in users)
+    assert any(row["event_type"] == "complete" for row in playback)
 
     subscriptions = read_jsonl(root / "billing" / "subscription_events.json")
     assert subscriptions
     assert all(row["user_id"] in {user["user_id"] for user in users} for row in subscriptions)
+    assert len({row["event_id"] for row in subscriptions}) == len(subscriptions)
+
+    searches = read_jsonl(root / "search" / "search_logs.json")
+    assert all(
+        not row["clicked_content_id"] or int(row["results_count"]) > 0
+        for row in searches
+    )
+    ratings = read_jsonl(root / "app" / "ratings.json")
+    rating_keys = [(row["profile_id"], row["content_id"]) for row in ratings]
+    assert len(rating_keys) == len(set(rating_keys))
 
     impressions = []
     with (root / "ads" / "ad_impressions.csv").open(encoding="utf-8") as handle:
@@ -110,7 +121,10 @@ def test_hybrid_factory_writes_source_contracts_and_provenance(tmp_path):
     assert all(row["impression_id"] for row in impressions)
 
     assert (root / "reference" / "cdn_edges.csv").is_file()
-    assert (root / "reference" / "plans.csv").is_file()
+    with (root / "reference" / "plans.csv").open(encoding="utf-8") as handle:
+        import csv
+        plan_rows = list(csv.DictReader(handle))
+    assert {row["plan"] for row in plan_rows} == {"free", "basic", "premium"}
     assert (root / "cdn").is_dir()
     assert manifest["dataset_type"] == "hybrid"
     assert manifest["configuration"]["seed"] == 42

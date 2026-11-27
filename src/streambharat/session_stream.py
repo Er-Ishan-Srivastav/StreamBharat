@@ -13,12 +13,13 @@ from streambharat.spark_session import create_spark
 
 
 def build_session_stream(spark, bootstrap_servers, topic, catalog_path,
-                         watermark="12 minutes", session_gap="30 minutes"):
+                         watermark="12 minutes", session_gap="30 minutes",
+                         starting_offsets="latest"):
     raw = (
         spark.readStream.format("kafka")
         .option("kafka.bootstrap.servers", bootstrap_servers)
         .option("subscribe", topic)
-        .option("startingOffsets", "latest")
+         .option("startingOffsets", starting_offsets)
         .option("includeHeaders", "true")
         .option("failOnDataLoss", "true")
         .load()
@@ -160,7 +161,8 @@ def run_session_stream(
     )
     try:
         sessions = build_session_stream(
-            spark, bootstrap_servers, topic, catalog_path, watermark, session_gap
+            spark, bootstrap_servers, topic, catalog_path, watermark, session_gap,
+            starting_offsets,
         )
         query = (
             sessions.writeStream.outputMode("append")

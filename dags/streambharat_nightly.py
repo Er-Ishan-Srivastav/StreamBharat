@@ -260,9 +260,8 @@ with DAG(
     )
     preflight >> [create_topics, master_data]
     create_topics >> replay_sources >> bronze_ingestion
-    bronze_ingestion >> [
-        source_dlq, offset_reconciliation, silver_player, subscription_state
-    ]
+    bronze_ingestion >> [source_dlq, offset_reconciliation]
+    source_dlq >> [silver_player, subscription_state, ad_delivery_gold, quality_gate]
     source_dlq >> dlq_metrics
     [silver_player, master_data] >> player_backfill
     player_backfill >> [

@@ -76,7 +76,7 @@ cp .env.example .env
 bash scripts/start_local_stack.sh
 ```
 
-The initializer ensures the shared Docker network exists, builds the core
+Docker Compose creates the named shared network as part of the core stack startup, which then lets the optional Airflow compose file attach as an external network. The initializer builds the core
 services, creates and validates the thirteen topic contracts, waits for a live
 Spark worker, and runs Kafka/Spark/Delta/Postgres connectivity smoke checks.
 It also provisions the Metabase administrator, warehouse connection, saved

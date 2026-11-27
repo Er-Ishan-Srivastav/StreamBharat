@@ -194,7 +194,7 @@ class Validation:
             if row.get("user_id") not in user_set:
                 self.fail(f"Profile references unknown user_id: {row.get('profile_id')} -> {row.get('user_id')}")
         valid_subscription_types = {
-            "trial_start", "subscribe", "renew", "upgrade", "downgrade",
+            "activate", "trial_start", "subscribe", "renew", "upgrade", "downgrade",
             "pause", "resume", "cancel", "payment_failed",
         }
         subscription_event_ids = [row.get("event_id") for row in subscriptions]

@@ -216,7 +216,7 @@ docker compose -f docker-compose.kafka.yml exec workspace \
   bash scripts/run_hybrid_pipeline.sh
 ~~~
 
-The runner reads the playback **arrival period** from `manifest.json`, runs the separate hybrid preflight, executes Q1 catalogue flattening, replays all seven event feeds, ingests Bronze, routes validation failures, builds Silver and Gold outputs, performs ad and revenue reconciliation, processes both CDN log formats, publishes available Delta products to PostgreSQL, and verifies the serving SQL and Metabase setup.
+The runner reads the playback **arrival period** from `manifest.json`, runs the separate hybrid preflight, executes Q1 catalogue flattening and Q2 playback clock cleaning, replays all seven event feeds, ingests Bronze, routes validation failures, builds Silver and Gold outputs, performs ad and revenue reconciliation, processes both CDN log formats for Q3, publishes available Delta products to PostgreSQL, and verifies the serving SQL and Metabase setup.
 
 It writes a run-specific log and machine-readable evidence under `logs/hybrid_runs/<run-id>/`. The end-to-end acceptance report checks source-to-Bronze counts and required Delta/PostgreSQL outputs. A successful run is evidence for that local run and commit; it is not a production deployment or proof of equivalence to the missing coursework archive.
 
@@ -228,7 +228,7 @@ bash scripts/run_hybrid_pipeline.sh --chaos
 
 Without `--chaos`, the generator's own device-clock offsets and offline uploads are still present. Replay-time chaos is deliberately separate so contributors can compare a clean transport run with an imperfect transport run. Use a clean, isolated Kafka/Delta/checkpoint environment for a first acceptance run. Reusing persistent Kafka topics and checkpoints is stateful; do not mistake a second replay for a fresh run.
 
-Q1 and Q3 intermediate outputs are isolated under the run's evidence directory. Q3 reads all generated monthly AkashCDN and NimbusEdge log files using provider-specific parsing and the generated edge reference.
+Q1, Q2 and Q3 intermediate outputs are isolated under the run's evidence directory. Q2 records per-device offset reliability and the daily impact of clock correction; offline events retain their client event time. Q3 reads all generated monthly AkashCDN and NimbusEdge log files using provider-specific parsing and the generated edge reference.
 
 ## 9. Current limits — do not overstate compatibility
 

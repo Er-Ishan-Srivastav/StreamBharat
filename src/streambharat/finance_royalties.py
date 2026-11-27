@@ -386,8 +386,8 @@ def run_reconciliation(
     try:
         subscription = spark.read.format("delta").load(subscription_path)
         settlement = spark.read.format("delta").load(settlement_path)
-        subscription = exclude_dlq_offsets(subscription, "ott.billing.subscriptions")
-        settlement = exclude_dlq_offsets(settlement, "ott.billing.settlements")
+        subscription = exclude_dlq_offsets(subscription, "ott.billing.subscr")
+        settlement = exclude_dlq_offsets(settlement, "ott.billing.settle")
         result = build_revenue_reconciliation(
             subscription, settlement, match_window_hours
         )

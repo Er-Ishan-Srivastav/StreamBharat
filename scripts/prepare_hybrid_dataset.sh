@@ -69,6 +69,16 @@ if [[ ! "$START_DATE" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]]; then
   echo "--start-date must use YYYY-MM-DD format." >&2
   exit 2
 fi
+PAGEVIEW_END_DATE="$(python3 - "$START_DATE" <<'PY'
+from datetime import date, timedelta
+import sys
+
+try:
+    print(date.fromisoformat(sys.argv[1]) - timedelta(days=1))
+except ValueError as exc:
+    raise SystemExit(f"Invalid --start-date: {exc}")
+PY
+)"
 
 mkdir -p data/external/wikidata data/external/wikimedia
 CATALOG_FILE="data/external/wikidata/catalog.json"
@@ -93,6 +103,7 @@ if [[ "$SKIP_PAGEVIEWS" != "true" ]]; then
   python3 scripts/fetch_wikimedia_pageviews.py \
     --catalog "$CATALOG_FILE" \
     --days "$PAGEVIEW_DAYS" \
+    --end-date "$PAGEVIEW_END_DATE" \
     --articles "$PAGEVIEW_ARTICLES" \
     --output "$PAGEVIEWS_FILE"
 else

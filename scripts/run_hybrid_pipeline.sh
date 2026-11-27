@@ -134,6 +134,14 @@ run_step "validate hybrid source contracts, joins, row counts and checksums" \
     --data-root "$DATA_ROOT" \
     --report "$LOG_DIR/source_preflight.json"
 
+run_step "clean playback source and estimate reliable device clock offsets (Q2)" \
+  python3 -m streambharat.q2_playback_clean \
+    --input "$DATA_ROOT/player" \
+    --output "$LOG_DIR/q2_playback_clean" \
+    --offset-output "$LOG_DIR/q2_device_clock_offsets" \
+    --impact-output "$LOG_DIR/q2_daily_clock_impact" \
+    --min-online-events 5
+
 run_step "build catalogue dimensions and bridges (Q1)" \
   python3 -m streambharat.q1_catalog \
     --catalog "$CATALOG_PATH" \
@@ -234,6 +242,7 @@ run_step "verify source-to-Bronze counts and Delta/PostgreSQL outputs" \
   python3 scripts/verify_hybrid_outputs.py \
     --data-root "$DATA_ROOT" \
     --q1-root "$LOG_DIR/q1_catalog_delta" \
+    --q2-root "$LOG_DIR" \
     --q3-bronze "$LOG_DIR/q3_cdn_bronze" \
     --q3-silver "$LOG_DIR/q3_cdn_hourly" \
     --report "$LOG_DIR/end-to-end-acceptance.json"
@@ -290,4 +299,4 @@ echo
 echo "HYBRID PIPELINE COMMANDS COMPLETED."
 echo "Run summary: $LOG_DIR/run-summary.json"
 echo "Full log:    $LOG_FILE"
-echo "Q1 and Q3 intermediate Delta outputs are isolated under $LOG_DIR."
+echo "Q1, Q2 and Q3 intermediate Delta outputs are isolated under $LOG_DIR."

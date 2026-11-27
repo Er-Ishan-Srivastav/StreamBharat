@@ -2,6 +2,7 @@
 """Fail-fast verification of the compact local demo's Delta and PostgreSQL outputs."""
 from __future__ import annotations
 
+import argparse
 import os
 import sys
 
@@ -15,7 +16,12 @@ DELTA_OUTPUTS = {
     "bronze_player_events": "lake/bronze/player_events",
     "bronze_subscriptions": "lake/bronze/billing_subscr",
     "bronze_settlements": "lake/bronze/billing_settle",
+    "bronze_search": "lake/bronze/app_search",
+    "bronze_ratings": "lake/bronze/app_ratings",
+    "bronze_ad_breaks": "lake/bronze/ads_breaks",
+    "bronze_ad_impressions": "lake/bronze/ads_impressions",
     "bronze_dlq": "lake/bronze/dlq",
+    "silver_subscriptions": "lake/silver/subscriptions",
     "bronze_offset_reconciliation": "lake/gold/bronze_offset_reconciliation",
     "silver_player_events": "lake/silver/player_events",
     "silver_subscriptions": "lake/silver/subscriptions",
@@ -48,7 +54,27 @@ POSTGRES_OUTPUTS = (
 )
 
 
+def expected_source_rows(users: int) -> dict[str, int]:
+    if users < 1 or users > 100:
+        raise ValueError("users must be between 1 and 100")
+    return {
+        "bronze_player_events": users * 3 + 1,
+        "bronze_subscriptions": users * 3,
+        "bronze_settlements": users * 2,
+        "bronze_search": users,
+        "bronze_ratings": users,
+        "bronze_ad_breaks": users,
+        "bronze_ad_impressions": users,
+        "bronze_dlq": 1,
+    }
+
+
 def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--users", type=int, default=5)
+    args = parser.parse_args()
+    expected_rows = expected_source_rows(args.users)
+
     spark = create_spark("StreamBharat-Demo-Verification")
     failures = []
     try:
@@ -59,9 +85,16 @@ def main() -> None:
                 print(f"  FAIL  {name}: missing ({path})")
                 continue
             count = spark.read.format("delta").load(path).count()
-            print(f"  {'PASS' if count > 0 else 'FAIL'}  {name}: {count}")
-            if count == 0:
-                failures.append(f"Delta table is empty: {path}")
+            minimum = expected_rows.get(name, 1)
+            passed = count >= minimum
+            print(
+                f"  {'PASS' if passed else 'FAIL'}  {name}: {count} "
+                f"(minimum {minimum})"
+            )
+            if not passed:
+                failures.append(
+                    f"Delta table {path} has {count} rows; expected at least {minimum}"
+                )
     finally:
         spark.stop()
 

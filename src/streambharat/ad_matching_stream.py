@@ -45,6 +45,7 @@ def read_break_stream(spark, bootstrap_servers, topic, starting_offsets, waterma
             & F.col("user_id").isNotNull()
             & F.col("content_id").isNotNull()
             & F.col("break_ts").isNotNull()
+            & F.col("filled").isin(0, 1)
         )
         .withWatermark("break_ts", watermark)
     )
@@ -84,6 +85,8 @@ def read_impression_stream(spark, bootstrap_servers, topic, starting_offsets, wa
         & F.col("ad_break_ts").isNotNull()
         & F.col("duration_sec").isNotNull()
         & (F.col("duration_sec") > 0)
+        & F.col("cpm_inr").isNotNull()
+        & F.col("completed").isin(0, 1)
     )
     return (
         parsed

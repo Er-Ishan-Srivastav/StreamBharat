@@ -438,6 +438,8 @@ same stream twice with the same checkpoint.
 
 ## Documentation
 
+- [Local synthetic demonstration runbook](docs/demo-runbook.md) — reproducible Kafka → Spark/Delta → PostgreSQL → Metabase walkthrough when the original course dataset is unavailable.
+
 - [Project brief](docs/project-brief.md)
 - [Architecture and Mermaid diagrams](docs/architecture.md)
 - [Question register and team ownership](docs/questions-and-ownership.md)

@@ -205,6 +205,7 @@ def main():
                     "name": dashboard_name,
                     "description": f"StreamBharat {dashboard_name} dashboard.",
                     "collection_id": collection_id,
+                    "parameters": [],
                 },
             )
             print(f"Created dashboard: {dashboard_name}")
@@ -251,6 +252,8 @@ def main():
                     "col": col,
                     "size_x": 12,
                     "size_y": 5,
+                    "parameter_mappings": [],
+                    "visualization_settings": {},
                 })
 
         if new_dashcards:

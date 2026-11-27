@@ -197,6 +197,13 @@ class Validation:
             "trial_start", "subscribe", "renew", "upgrade", "downgrade",
             "pause", "resume", "cancel", "payment_failed",
         }
+        subscription_event_ids = [row.get("event_id") for row in subscriptions]
+        self.check(
+            "subscription event primary keys",
+            all(subscription_event_ids)
+            and len(subscription_event_ids) == len(set(subscription_event_ids)),
+            "missing or duplicate subscription event_id",
+        )
         for row in subscriptions:
             if row.get("user_id") not in user_set:
                 self.fail(f"Subscription references unknown user_id: {row.get('user_id')}")
@@ -204,12 +211,35 @@ class Validation:
                 self.fail(f"Invalid subscription event_type: {row.get('event_type')}")
             if not row.get("event_ts"):
                 self.fail(f"Subscription event missing event_ts: {row.get('user_id')}")
+        search_ids = [row.get("search_id") for row in searches]
+        self.check(
+            "search primary keys",
+            all(search_ids) and len(search_ids) == len(set(search_ids)),
+            "missing or duplicate search_id",
+        )
         for row in searches:
             if row.get("profile_id") not in profile_set:
                 self.fail(f"Search references unknown profile_id: {row.get('profile_id')}")
+            try:
+                result_count = int(row.get("results_count", -1))
+            except (TypeError, ValueError):
+                result_count = -1
+            if result_count < 0:
+                self.fail(f"Search has invalid results_count: {row.get('search_id')}")
             clicked = row.get("clicked_content_id")
             if clicked and clicked not in content_set:
                 self.fail(f"Search click references unknown content_id: {clicked}")
+            if clicked and result_count == 0:
+                self.fail(f"Search click exists despite zero results: {row.get('search_id')}")
+        rating_keys = [
+            (row.get("profile_id"), row.get("content_id"))
+            for row in ratings
+        ]
+        self.check(
+            "rating natural keys",
+            len(rating_keys) == len(set(rating_keys)),
+            "duplicate profile_id/content_id rating pairs",
+        )
         for row in ratings:
             if row.get("profile_id") not in profile_set:
                 self.fail(f"Rating references unknown profile_id: {row.get('profile_id')}")
@@ -222,9 +252,21 @@ class Validation:
             "billing/gateway_settlements.csv",
             {"gateway", "user_id", "charge_id", "settlement_id", "amount_inr", "settled_ts", "event_type", "status"},
         )
+        settlement_ids = [row.get("settlement_id") for row in settlement_rows]
+        self.check(
+            "settlement primary keys",
+            all(settlement_ids) and len(settlement_ids) == len(set(settlement_ids)),
+            "missing or duplicate settlement_id",
+        )
         for row in settlement_rows:
             if row.get("user_id") not in user_set:
                 self.fail(f"Settlement references unknown user_id: {row.get('user_id')}")
+            try:
+                amount = float(row.get("amount_inr", ""))
+            except (TypeError, ValueError):
+                amount = -1
+            if amount < 0:
+                self.fail(f"Settlement has invalid amount_inr: {row.get('settlement_id')}")
 
         playback_files = sorted((self.root / "player").glob("playback_*.json"))
         self.check("playback arrival files", bool(playback_files), "no player/playback_*.json files")

@@ -3,8 +3,11 @@
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import sys
+from datetime import datetime, timezone
+from pathlib import Path
 
 import psycopg2
 from delta.tables import DeltaTable
@@ -68,22 +71,48 @@ def expected_source_rows(users: int) -> dict[str, int]:
     }
 
 
+def write_report(path: str, payload: dict) -> None:
+    report_path = Path(path)
+    report_path.parent.mkdir(parents=True, exist_ok=True)
+    report_path.write_text(
+        json.dumps(payload, indent=2, sort_keys=True) + "\\n",
+        encoding="utf-8",
+    )
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--users", type=int, default=5)
+    parser.add_argument("--demo-date", default="2026-10-15")
+    parser.add_argument(
+        "--report-path",
+        default="logs/synthetic_demo/latest_output_counts.json",
+    )
     args = parser.parse_args()
     expected_rows = expected_source_rows(args.users)
 
-    spark = create_spark("StreamBharat-Demo-Verification")
+    report = {
+        "dataset_type": "synthetic_demo",
+        "demo_date": args.demo_date,
+        "users": args.users,
+        "measured_at_utc": datetime.now(timezone.utc).isoformat(),
+        "delta_counts": {},
+        "postgres_counts": {},
+        "status": "running",
+        "failures": [],
+    }
     failures = []
+    spark = create_spark("StreamBharat-Demo-Verification")
     try:
         print("Delta output counts:")
         for name, path in DELTA_OUTPUTS.items():
             if not DeltaTable.isDeltaTable(spark, path):
                 failures.append(f"Missing Delta table: {path}")
+                report["delta_counts"][name] = None
                 print(f"  FAIL  {name}: missing ({path})")
                 continue
             count = spark.read.format("delta").load(path).count()
+            report["delta_counts"][name] = count
             minimum = expected_rows.get(name, 1)
             passed = count >= minimum
             print(
@@ -105,23 +134,29 @@ def main() -> None:
         password=os.getenv("POSTGRES_PASSWORD", "ott_local_dev"),
     )
     try:
-        print("\nPostgreSQL output counts:")
+        print("\\nPostgreSQL output counts:")
         with connection.cursor() as cursor:
             for table in POSTGRES_OUTPUTS:
                 cursor.execute(f"SELECT COUNT(*) FROM ottdw.{table}")
                 count = int(cursor.fetchone()[0])
+                report["postgres_counts"][table] = count
                 print(f"  {'PASS' if count > 0 else 'FAIL'}  ottdw.{table}: {count}")
                 if count == 0:
                     failures.append(f"PostgreSQL table is empty: ottdw.{table}")
     finally:
         connection.close()
 
+    report["failures"] = failures
+    report["status"] = "failed" if failures else "passed"
+    write_report(args.report_path, report)
+    print(f"Machine-readable output counts: {args.report_path}")
+
     if failures:
-        print("\nDEMO VERIFICATION FAILED:")
+        print("\\nDEMO VERIFICATION FAILED:")
         for failure in failures:
             print(f" - {failure}")
         sys.exit(1)
-    print("\nDEMO VERIFICATION PASSED: all required Delta and PostgreSQL outputs are non-empty.")
+    print("\\nDEMO VERIFICATION PASSED: all required Delta and PostgreSQL outputs meet their minimum row counts.")
 
 
 if __name__ == "__main__":

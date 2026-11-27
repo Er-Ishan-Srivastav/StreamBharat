@@ -122,6 +122,16 @@ Checks kids-profile plays of 16+/18+ titles against SCD2 validity, per-profile/d
 
 Creates monthly subscription-cycle examples with a 30-day cycle plus seven-day grace; a successful renewal inside the 37-day outcome window is retained even if an intermediate payment attempt/cancellation appears. Features use data strictly before the anchor: heartbeat-derived watch minutes, activity days, decline, payment failures, tenure, prior renewals and plan. It trains a chronological Spark MLlib Logistic Regression model, reports ROC-AUC/PR-AUC when computable, refits on all matured labels, and ranks active paid subscriber accounts by churn probability × plan value. Prefer Q2's corrected Silver playback input.
 
-## Validation boundary
+## Validation boundary and evidence
 
-All modules have Python syntax validation. The deterministic suite tests pure rules such as watch-time caps, seven-day payment recovery, metric drift, exact-currency allocation and minimum guarantees. The environment used to prepare this code did not have PySpark installed, so **Spark/Delta execution, full-data output reconciliation and ML evaluation are not claimed as complete**. Run the batch pipeline and the two live simulators in the agreed Java 17 / PySpark 3.5.3 / Delta 3.2.0 environment and record the resulting evidence before submission.
+The repository contains implementation modules for Q1–Q20, but code presence must not be confused with complete question acceptance.
+
+As of 27 November 2026:
+
+- The local test suite passed **77 tests**; Python compilation, shell syntax and both Docker Compose configuration checks passed.
+- The Kafka ETL GitHub Actions workflow passed run #448 on the merged main baseline.
+- A 20-user synthetic Kafka run verified the seven source feeds, Bronze/DLQ handling, 22-partition retained-offset reconciliation, player/subscription Silver outputs, selected engagement/session/ad/finance Gold outputs, PostgreSQL serving, 20 warehouse SQL questions and Metabase resource inventory.
+- This synthetic run is not the full supplied course dataset and does not validate every Q1–Q20 business result.
+- Full course-data batch execution, the separate Q17/Q18 workbook streams, Kafka-backed Q9/Q10 continuous streams, Airflow task execution, complete ML evaluation, broader finance/DQ/CDN reconciliation and performance measurements remain open.
+
+The acceptance evidence and exact row counts are recorded in [project-status-and-validation.md](project-status-and-validation.md). Use the Java 17 / PySpark 3.5.3 / Delta Lake 3.2.1 runtime described in the repository when executing Spark jobs. Record schemas, key counts, reconciliation results and known exceptions before marking a workstream accepted.

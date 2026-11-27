@@ -1,0 +1,132 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="680" viewBox="0 0 1440 680" role="img" aria-labelledby="title desc">
+  <title id="title">StreamBharat OTT data platform logical architecture</title>
+  <desc id="desc">Source domains flow through Kafka ingestion and validation, into a Bronze, Silver and Gold Delta Lake, then into PostgreSQL and Metabase dashboards. Spark MLlib and data quality span the analytical layers. Airflow is optional.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0A1222"/>
+      <stop offset="1" stop-color="#12253B"/>
+    </linearGradient>
+    <linearGradient id="cyan" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#35C8D6"/>
+      <stop offset="1" stop-color="#4A9FEA"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#F5B84B"/>
+      <stop offset="1" stop-color="#EE8C51"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#020817" flood-opacity=".35"/>
+    </filter>
+    <marker id="arrow" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
+      <path d="M0 0 L9 4.5 L0 9 Z" fill="#70BDD3"/>
+    </marker>
+    <style>
+      .eyebrow{font:700 13px 'Inter',Arial,sans-serif;letter-spacing:2.4px;fill:#7FD5DE}
+      .heading{font:700 32px 'Inter',Arial,sans-serif;fill:#F4F8FC}
+      .sub{font:400 15px 'Inter',Arial,sans-serif;fill:#AFC1D5}
+      .cardTitle{font:700 15px 'Inter',Arial,sans-serif;letter-spacing:1.4px;fill:#EAF3FA}
+      .label{font:600 16px 'Inter',Arial,sans-serif;fill:#F2F7FC}
+      .small{font:400 13px 'Inter',Arial,sans-serif;fill:#AFC1D5}
+      .micro{font:500 11px 'Inter',Arial,sans-serif;fill:#9CB4C9}
+      .pill{font:700 12px 'Inter',Arial,sans-serif;fill:#0A1727}
+      .layer{font:700 15px 'Inter',Arial,sans-serif;fill:#0B1726}
+    </style>
+  </defs>
+
+  <rect width="1440" height="680" rx="28" fill="url(#bg)"/>
+  <g opacity=".18" stroke="#5B7895" stroke-width="1">
+    <path d="M0 110 H1440 M0 570 H1440"/>
+    <path d="M80 0 V680 M1360 0 V680"/>
+  </g>
+  <circle cx="1290" cy="95" r="150" fill="#2BA6C5" opacity=".06"/>
+  <circle cx="1380" cy="540" r="210" fill="#EEA449" opacity=".045"/>
+
+  <text x="64" y="56" class="eyebrow">STREAMBHARAT  /  OTT DATA ENGINEERING</text>
+  <text x="64" y="105" class="heading">From raw OTT events to trusted analytics</text>
+  <text x="64" y="135" class="sub">A lakehouse workflow with event-driven ingestion, auditable transformations and business-facing data products.</text>
+
+  <!-- Source domains -->
+  <g filter="url(#shadow)">
+    <rect x="62" y="190" width="230" height="320" rx="18" fill="#14283D" stroke="#33506B"/>
+  </g>
+  <text x="86" y="226" class="cardTitle">01  /  SOURCE DOMAINS</text>
+  <g>
+    <rect x="84" y="246" width="186" height="42" rx="9" fill="#1B3850"/>
+    <circle cx="103" cy="267" r="5" fill="#42C5D4"/><text x="119" y="273" class="label">Playback events</text>
+    <rect x="84" y="297" width="186" height="42" rx="9" fill="#1B3850"/>
+    <circle cx="103" cy="318" r="5" fill="#42C5D4"/><text x="119" y="324" class="label">Billing &amp; settlement</text>
+    <rect x="84" y="348" width="186" height="42" rx="9" fill="#1B3850"/>
+    <circle cx="103" cy="369" r="5" fill="#42C5D4"/><text x="119" y="375" class="label">Content catalogue</text>
+    <rect x="84" y="399" width="186" height="42" rx="9" fill="#1B3850"/>
+    <circle cx="103" cy="420" r="5" fill="#42C5D4"/><text x="119" y="426" class="label">Advertising</text>
+    <rect x="84" y="450" width="186" height="42" rx="9" fill="#1B3850"/>
+    <circle cx="103" cy="471" r="5" fill="#42C5D4"/><text x="119" y="477" class="label">Search &amp; CDN logs</text>
+  </g>
+  <text x="86" y="535" class="micro">JSON · JSONL · CSV · provider logs</text>
+
+  <!-- Event and ingestion -->
+  <g filter="url(#shadow)">
+    <rect x="335" y="190" width="240" height="320" rx="18" fill="#14283D" stroke="#33506B"/>
+  </g>
+  <text x="359" y="226" class="cardTitle">02  /  INGEST &amp; VALIDATE</text>
+  <rect x="359" y="250" width="192" height="74" rx="12" fill="#173B50" stroke="#2C8198"/>
+  <text x="380" y="280" class="label">Apache Kafka</text>
+  <text x="380" y="302" class="small">KRaft · 13 topic contracts</text>
+  <path d="M455 325 V350" stroke="#70BDD3" stroke-width="2" marker-end="url(#arrow)"/>
+  <rect x="359" y="359" width="192" height="62" rx="12" fill="#1B3850"/>
+  <text x="380" y="384" class="label">Spark consumers</text>
+  <text x="380" y="404" class="small">Replay · Bronze · checkpoints</text>
+  <rect x="359" y="436" width="192" height="49" rx="10" fill="#50352C" stroke="#976140"/>
+  <text x="380" y="466" class="label">Validation + DLQ</text>
+  <text x="359" y="535" class="micro">Reason codes · offsets · lineage</text>
+
+  <!-- Lakehouse -->
+  <g filter="url(#shadow)">
+    <rect x="620" y="190" width="360" height="320" rx="18" fill="#14283D" stroke="#33506B"/>
+  </g>
+  <text x="644" y="226" class="cardTitle">03  /  DELTA LAKEHOUSE</text>
+  <rect x="644" y="250" width="312" height="58" rx="11" fill="url(#cyan)"/>
+  <text x="668" y="275" class="layer">BRONZE</text><text x="668" y="294" font-family="Inter,Arial,sans-serif" font-size="12" fill="#123344">Source-aligned · append-only · traceable</text>
+  <path d="M800 309 V327" stroke="#70BDD3" stroke-width="2" marker-end="url(#arrow)"/>
+  <rect x="644" y="336" width="312" height="58" rx="11" fill="#77CDBB"/>
+  <text x="668" y="361" class="layer">SILVER</text><text x="668" y="380" font-family="Inter,Arial,sans-serif" font-size="12" fill="#123B36">Typed · corrected · deduplicated · conformed</text>
+  <path d="M800 395 V413" stroke="#70BDD3" stroke-width="2" marker-end="url(#arrow)"/>
+  <rect x="644" y="422" width="312" height="58" rx="11" fill="url(#gold)"/>
+  <text x="668" y="447" class="layer">GOLD</text><text x="668" y="466" font-family="Inter,Arial,sans-serif" font-size="12" fill="#4B2C1A">Engagement · ads · finance · content facts</text>
+  <text x="644" y="535" class="micro">Spark SQL · Structured Streaming · Delta tables</text>
+
+  <!-- Serving -->
+  <g filter="url(#shadow)">
+    <rect x="1025" y="190" width="350" height="320" rx="18" fill="#14283D" stroke="#33506B"/>
+  </g>
+  <text x="1049" y="226" class="cardTitle">04  /  SERVE &amp; DECIDE</text>
+  <rect x="1049" y="250" width="302" height="72" rx="12" fill="#1D3C50" stroke="#337E96"/>
+  <text x="1072" y="280" class="label">PostgreSQL · ottdw</text>
+  <text x="1072" y="302" class="small">Transactional upserts · BI views</text>
+  <path d="M1200 323 V348" stroke="#70BDD3" stroke-width="2" marker-end="url(#arrow)"/>
+  <rect x="1049" y="357" width="302" height="91" rx="12" fill="#3B3548" stroke="#74608C"/>
+  <text x="1072" y="386" class="label">Metabase</text>
+  <rect x="1072" y="401" width="80" height="26" rx="13" fill="#E5B45A"/><text x="1086" y="419" class="pill">Executive</text>
+  <rect x="1160" y="401" width="90" height="26" rx="13" fill="#70C9D1"/><text x="1172" y="419" class="pill">Operations</text>
+  <rect x="1258" y="401" width="75" height="26" rx="13" fill="#88C7A6"/><text x="1267" y="419" class="pill">Finance</text>
+  <text x="1049" y="535" class="micro">3 dashboards · 20 saved SQL questions</text>
+
+  <!-- Inter-stage connectors -->
+  <g fill="none" stroke="#70BDD3" stroke-width="2.5" marker-end="url(#arrow)">
+    <path d="M294 350 H328"/>
+    <path d="M577 350 H613"/>
+    <path d="M982 350 H1018"/>
+  </g>
+
+  <!-- Cross-cutting footer band -->
+  <rect x="62" y="588" width="1313" height="54" rx="13" fill="#0F1F31" stroke="#2C4660"/>
+  <text x="86" y="621" class="eyebrow">CROSS-CUTTING</text>
+  <text x="265" y="622" class="small">Data quality &amp; quarantine</text>
+  <circle cx="485" cy="615" r="3" fill="#E6AB55"/>
+  <text x="505" y="622" class="small">Event-time &amp; replay lineage</text>
+  <circle cx="754" cy="615" r="3" fill="#E6AB55"/>
+  <text x="774" y="622" class="small">Finance reconciliation</text>
+  <circle cx="1000" cy="615" r="3" fill="#E6AB55"/>
+  <text x="1020" y="622" class="small">Optional Airflow orchestration</text>
+  <text x="64" y="665" class="micro">Logical architecture · Optional live streams and Airflow are not implied to be runtime-accepted by the synthetic demo.</text>
+</svg>

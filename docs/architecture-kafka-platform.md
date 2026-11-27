@@ -1,6 +1,6 @@
-# StreamBharat — target big-data platform
+# StreamBharat — Kafka ETL extension architecture
 
-Architecture for the Kafka ETL workbook, extending existing PySpark/Spark SQL without claiming the existing file-based streaming jobs already satisfy the Kafka design.
+This document describes the Kafka-based extension alongside the original PySpark workbook track. Kafka ingestion, Bronze/DLQ processing, Silver/Gold batch transformations and PostgreSQL/Metabase serving have been exercised with the local synthetic dataset. The continuous Q9/Q10 streams, Q17/Q18 live consumers and Airflow DAG remain separate runtime acceptance items. The original file-based Q17/Q18 workbook streams are not the same thing as the topic-based live interfaces.
 
 ## Architecture contract
 
@@ -118,3 +118,12 @@ Keep transformations and paths configuration-driven. Later:
 - Credentials → IAM roles and Secrets Manager.
 
 Do not embed AWS IDs, credentials or endpoints in transformations. Local Compose remains the developer profile; AWS networking, IAM, storage catalogue, deployment and cost sizing are a separate phase.
+
+
+## Runtime profile and validation boundary
+
+The local development profile is a single Kafka broker in KRaft mode, a Spark 3.5.3 standalone master/worker pair, PostgreSQL 16, Metabase and an optional Airflow stack. It is intended for development and academic integration work, not high availability.
+
+The 27 November 2026 synthetic acceptance exercised seven source topics through Bronze/DLQ, offset reconciliation, Silver player/subscription processing, selected Gold transformations, PostgreSQL serving and Metabase. The verified evidence is detailed in [project-status-and-validation.md](project-status-and-validation.md).
+
+The following are not established by that synthetic acceptance: continuous Q9/Q10 session/ad streams, Q17/Q18 topic consumers, full Airflow orchestration, all original Q1–Q20 workbook outputs, full course-data reconciliation, resilience drills or production throughput. Keep these items as explicit follow-up work rather than implying that the architecture diagram alone proves they ran.

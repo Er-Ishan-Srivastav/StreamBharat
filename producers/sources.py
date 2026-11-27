@@ -109,12 +109,12 @@ SOURCES = [
         key_fields=("user_id", "profile_id"),
     ),
     Source(
-        "subscriptions", "ott.billing.subscriptions", read_subscriptions, "billing",
+        "subscriptions", "ott.billing.subscr", read_subscriptions, "billing",
         late_p=0.01, dup_p=0.01, amount_field="price", ts_field="event_ts",
         key_fields=("user_id",),
     ),
     Source(
-        "settlements", "ott.billing.settlements", read_settlements, "payment-gateway",
+        "settlements", "ott.billing.settle", read_settlements, "payment-gateway",
         late_p=0.02, late_minutes=(30, 360), dup_p=0.005,
         amount_field="amount_inr", ts_field="settled_ts", key_fields=("user_id",),
     ),

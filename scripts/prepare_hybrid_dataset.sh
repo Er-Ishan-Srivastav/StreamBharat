@@ -112,10 +112,10 @@ GENERATOR_ARGS=(
 if [[ "$OVERWRITE" == "true" ]]; then
   GENERATOR_ARGS+=(--overwrite)
 fi
-python3 scripts/generate_hybrid_dataset.py "\${GENERATOR_ARGS[@]}"
+python3 scripts/generate_hybrid_dataset.py "${GENERATOR_ARGS[@]}"
 
 if [[ "$SKIP_PAGEVIEWS" != "true" ]]; then
-  SNAPSHOT_DATE="\${START_DATE:0:7}-01"
+  SNAPSHOT_DATE="${START_DATE:0:7}-01"
   CATALOG_SNAPSHOT="$OUTPUT_ROOT/content/catalog_$SNAPSHOT_DATE.json"
   echo "[4/5] Joining public article interest to generated content IDs..."
   python3 scripts/build_public_interest_features.py \

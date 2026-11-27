@@ -30,8 +30,13 @@ def create_spark(app_name: str, extra_packages: list[str] | None = None):
         .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
         .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog")
         .config("spark.sql.adaptive.enabled", "true")
-        .config("spark.sql.shuffle.partitions", os.getenv("SPARK_SHUFFLE_PARTITIONS", "8"))
-        .config("spark.sql.session.timeZone", os.getenv("SPARK_SESSION_TIMEZONE", "Asia/Kolkata"))
+        .config("spark.sql.shuffle.partitions", os.getenv("SPARK_SHUFFLE_PARTITIONS", "4"))
+        # Source timestamps without an explicit offset are treated as wall-clock
+        # values. UTC avoids silently shifting them by the host's local offset
+        # when Spark converts between JVM timestamps and Python datetimes.
+        .config("spark.sql.session.timeZone", os.getenv("SPARK_SESSION_TIMEZONE", "UTC"))
+        .config("spark.driver.memory", os.getenv("SPARK_DRIVER_MEMORY", "1g"))
+        .config("spark.executor.memory", os.getenv("SPARK_EXECUTOR_MEMORY", "1500m"))
     )
 
     if master.startswith("spark://"):

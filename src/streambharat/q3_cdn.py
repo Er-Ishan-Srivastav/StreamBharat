@@ -45,4 +45,11 @@ def run_q3(akash_path="data/raw/cdn/akashcdn_2026-09.log", nimbus_path="data/raw
     finally: spark.stop()
 
 if __name__=="__main__":
-    p=argparse.ArgumentParser(); p.add_argument("--akash",default="data/raw/cdn/akashcdn_2026-09.log"); p.add_argument("--nimbus",default="data/raw/cdn/nimbusedge_2026-09.tsv"); a=p.parse_args(); run_q3(a.akash,a.nimbus)
+    p = argparse.ArgumentParser(description="Parse and reconcile AkashCDN and NimbusEdge request logs")
+    p.add_argument("--akash", default="data/raw/cdn/akashcdn_2026-09.log")
+    p.add_argument("--nimbus", default="data/raw/cdn/nimbusedge_2026-09.tsv")
+    p.add_argument("--edge-map", default="data/raw/reference/cdn_edges.csv")
+    p.add_argument("--bronze", default="data/delta/bronze/cdn_requests")
+    p.add_argument("--silver", default="data/delta/silver/cdn_usage_hourly")
+    a = p.parse_args()
+    run_q3(a.akash, a.nimbus, a.edge_map, a.bronze, a.silver)

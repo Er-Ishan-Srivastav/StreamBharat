@@ -113,6 +113,28 @@ class Validation:
             and bool(catalogue_input.get("source_endpoint")),
             "input snapshot checksum, CC0 licence or source endpoint is missing",
         )
+        pageviews_input = input_snapshots.get("wikimedia_pageviews")
+        if pageviews_input is not None:
+            self.check(
+                "Wikimedia pageview input metadata",
+                bool(pageviews_input.get("sha256"))
+                and pageviews_input.get("license") == "CC0-1.0"
+                and int(pageviews_input.get("row_count", 0)) > 0
+                and int(pageviews_input.get("matched_catalogue_titles", 0)) > 0
+                and bool(pageviews_input.get("weight_formula")),
+                "pageview input hash, CC0 licence, row/title counts or sampling formula is missing",
+            )
+            self.check(
+                "pageview-weighted playback provenance",
+                manifest.get("configuration", {}).get("playback_title_sampling") == "pageview_weighted",
+                "pageview input exists but playback sampling mode is not pageview_weighted",
+            )
+        else:
+            self.check(
+                "uniform playback sampling declaration",
+                manifest.get("configuration", {}).get("playback_title_sampling") == "uniform_no_pageview_prior",
+                "pageviews were not supplied but sampling mode is not declared uniform",
+            )
         hashes = manifest.get("files_sha256", {})
         self.check("manifest file hashes", isinstance(hashes, dict) and bool(hashes), "no source-file checksums")
         actual_files = {

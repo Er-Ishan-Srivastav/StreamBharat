@@ -508,10 +508,13 @@ def generate(args: argparse.Namespace) -> dict:
                 session_events = [("start", 0)]
                 session_events.extend(("heartbeat", position) for position in actual_positions[1:])
                 session_events.append((final_event, duration))
+                # Offline sessions are uploaded as a coherent batch. All events
+                # share one arrival delay; online events get small network jitter.
+                offline_upload_delay = timedelta(days=rng.randint(1, 3)) if offline else None
 
                 for event_no, (event_type, position) in enumerate(session_events):
                     actual_time = start_at + timedelta(seconds=position)
-                    delay = timedelta(days=rng.randint(1, 3)) if offline else timedelta(seconds=rng.randint(2, 30))
+                    delay = offline_upload_delay if offline else timedelta(seconds=rng.randint(2, 30))
                     server_time = actual_time + delay
                     event_counter += 1
                     event = {

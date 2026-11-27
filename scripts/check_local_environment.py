@@ -15,7 +15,7 @@ PORTS = {
     4040: "Spark application UI",
     5432: "PostgreSQL",
     8080: "Kafka UI / Spark master container mapping",
-    8081: "Spark worker / Airflow container mapping",
+    8081: "Airflow (optional)",
     8082: "Spark master host mapping",
     8083: "Spark worker host mapping",
     8888: "JupyterLab",

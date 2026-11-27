@@ -8,6 +8,7 @@ from delta.tables import DeltaTable
 from pyspark.sql import functions as F
 from pyspark.sql import Window
 
+from streambharat.dlq_utils import exclude_dlq_offsets
 from streambharat.dq import (
     RULES,
     build_rule_metrics,
@@ -63,7 +64,7 @@ def run_quality(
         )
         subscriptions = spark.read.format("delta").load(subscription_path)
         subscriptions = exclude_dlq_offsets(
-            subscriptions, "ott.billing.subscriptions"
+            subscriptions, "ott.billing.subscr"
         )
         plans = spark.read.format("delta").load(plans_path)
         price_violations = classify_subscription_quality(subscriptions, plans)

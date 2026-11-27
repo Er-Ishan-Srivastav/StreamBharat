@@ -62,6 +62,9 @@ def run_quality(
             player, current_titles, profiles, licences, city_state
         )
         subscriptions = spark.read.format("delta").load(subscription_path)
+        subscriptions = exclude_dlq_offsets(
+            subscriptions, "ott.billing.subscriptions"
+        )
         plans = spark.read.format("delta").load(plans_path)
         price_violations = classify_subscription_quality(subscriptions, plans)
 

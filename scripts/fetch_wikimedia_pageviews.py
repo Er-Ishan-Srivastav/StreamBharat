@@ -20,14 +20,18 @@ BASE_URL = "https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article"
 LICENSE = "CC0-1.0"
 
 
-def fetch_pageviews(
-    title: str, start: date, end: date, user_agent: str, timeout: int
-) -> list[dict]:
+def build_pageviews_url(title: str, start: date, end: date) -> str:
     article = quote(title.replace(" ", "_"), safe="")
-    url = (
+    return (
         f"{BASE_URL}/en.wikipedia.org/all-access/user/{article}/daily/"
         f"{start:%Y%m%d}00/{end:%Y%m%d}00"
     )
+
+
+def fetch_pageviews(
+    title: str, start: date, end: date, user_agent: str, timeout: int
+) -> list[dict]:
+    url = build_pageviews_url(title, start, end)
     request = Request(url, headers={"Accept": "application/json", "User-Agent": user_agent})
     with urlopen(request, timeout=timeout) as response:
         payload = json.loads(response.read().decode("utf-8"))

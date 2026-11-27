@@ -106,6 +106,17 @@ class Validation:
         )
         hashes = manifest.get("files_sha256", {})
         self.check("manifest file hashes", isinstance(hashes, dict) and bool(hashes), "no source-file checksums")
+        actual_files = {
+            path.relative_to(self.root).as_posix()
+            for path in self.root.rglob("*")
+            if path.is_file() and path.name != "manifest.json"
+        }
+        expected_files = set(hashes) if isinstance(hashes, dict) else set()
+        self.check(
+            "manifest inventory",
+            actual_files == expected_files,
+            f"untracked={sorted(actual_files - expected_files)}; missing={sorted(expected_files - actual_files)}",
+        )
         for relative, expected in hashes.items():
             candidate = self.root / relative
             if not candidate.is_file():
@@ -165,13 +176,25 @@ class Validation:
         self.check("user primary keys", all(user_ids) and len(user_ids) == len(set(user_ids)), "missing or duplicate user_id")
         self.check("profile primary keys", all(profile_ids) and len(profile_ids) == len(set(profile_ids)), "missing or duplicate profile_id")
         user_set, profile_set, content_set = set(user_ids), set(profile_ids), set(catalog_by_id)
+        profile_to_user = {
+            str(row.get("profile_id")): str(row.get("user_id"))
+            for row in profiles
+        }
 
         for row in profiles:
             if row.get("user_id") not in user_set:
                 self.fail(f"Profile references unknown user_id: {row.get('profile_id')} -> {row.get('user_id')}")
+        valid_subscription_types = {
+            "trial_start", "subscribe", "renew", "upgrade", "downgrade",
+            "pause", "resume", "cancel", "payment_failed",
+        }
         for row in subscriptions:
             if row.get("user_id") not in user_set:
                 self.fail(f"Subscription references unknown user_id: {row.get('user_id')}")
+            if row.get("event_type") not in valid_subscription_types:
+                self.fail(f"Invalid subscription event_type: {row.get('event_type')}")
+            if not row.get("event_ts"):
+                self.fail(f"Subscription event missing event_ts: {row.get('user_id')}")
         for row in searches:
             if row.get("profile_id") not in profile_set:
                 self.fail(f"Search references unknown profile_id: {row.get('profile_id')}")
@@ -227,6 +250,8 @@ class Validation:
                         self.fail(f"{path.name}:{line_number}: unknown user_id {row.get('user_id')}")
                     if row.get("profile_id") not in profile_set:
                         self.fail(f"{path.name}:{line_number}: unknown profile_id {row.get('profile_id')}")
+                    elif profile_to_user.get(str(row.get("profile_id"))) != str(row.get("user_id")):
+                        self.fail(f"{path.name}:{line_number}: profile does not belong to user")
                     if row.get("content_id") not in content_set:
                         self.fail(f"{path.name}:{line_number}: unknown content_id {row.get('content_id')}")
                     if row.get("event_type") not in EVENT_TYPES:
@@ -268,6 +293,8 @@ class Validation:
         for row in ad_breaks:
             if row.get("user_id") not in user_set or row.get("profile_id") not in profile_set or row.get("content_id") not in content_set:
                 self.fail(f"Ad break has an unknown user/profile/content reference: {row.get('break_id')}")
+            elif profile_to_user.get(str(row.get("profile_id"))) != str(row.get("user_id")):
+                self.fail(f"Ad break profile does not belong to user: {row.get('break_id')}")
             filled = str(row.get("filled")) == "1"
             impression_id = row.get("impression_id", "")
             if filled != bool(impression_id):
@@ -279,6 +306,8 @@ class Validation:
         for row in ad_impressions:
             if row.get("user_id") not in user_set or row.get("profile_id") not in profile_set or row.get("content_id") not in content_set:
                 self.fail(f"Ad impression has an unknown user/profile/content reference: {row.get('impression_id')}")
+            elif profile_to_user.get(str(row.get("profile_id"))) != str(row.get("user_id")):
+                self.fail(f"Ad impression profile does not belong to user: {row.get('impression_id')}")
             if row.get("campaign_id") not in campaign_ids:
                 self.fail(f"Ad impression references unknown campaign: {row.get('campaign_id')}")
         if set(impression_map) != break_impression_ids:

@@ -42,7 +42,6 @@ def read_break_stream(spark, bootstrap_servers, topic, starting_offsets, waterma
         )
         .filter(
             F.col("break_id").isNotNull()
-            & F.col("impression_id").isNotNull()
             & F.col("user_id").isNotNull()
             & F.col("content_id").isNotNull()
             & F.col("break_ts").isNotNull()

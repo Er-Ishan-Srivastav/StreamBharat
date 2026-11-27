@@ -11,10 +11,21 @@ PROJECT_ROOT = os.getenv("STREAMBHARAT_PROJECT_ROOT", "/opt/streambharat")
 PYTHON = os.getenv("STREAMBHARAT_PYTHON", "python")
 BOOTSTRAP = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "kafka:29092")
 DATA_ROOT = os.getenv("STREAMBHARAT_DATA_ROOT", "/opt/streambharat/data/raw")
+# Render DagRun configuration into process environment, never into shell source.
+# Environment values are passed to BashOperator's subprocess without re-parsing
+# their contents as shell syntax.
 LOGICAL_DATE = '{{ dag_run.conf.get("date", ds) }}'
-FULL_REFRESH = '{{ dag_run.conf.get("full_refresh", "false") | lower }}'
+FULL_REFRESH = '{{ dag_run.conf.get("full_refresh", "false") | string | lower }}'
 REPLAY_START = '{{ dag_run.conf.get("start_date", ds) }}'
 REPLAY_END = '{{ dag_run.conf.get("end_date", ds) }}'
+DATE_RUN_ENV = {
+    "STREAMBHARAT_LOGICAL_DATE": LOGICAL_DATE,
+    "STREAMBHARAT_FULL_REFRESH": FULL_REFRESH,
+}
+REPLAY_RUN_ENV = {
+    "STREAMBHARAT_REPLAY_START": REPLAY_START,
+    "STREAMBHARAT_REPLAY_END": REPLAY_END,
+}
 
 default_args = {
     "owner": "streambharat-data-engineering",
@@ -91,9 +102,11 @@ with DAG(
         bash_command=(
             f"cd {PROJECT_ROOT} && {PYTHON} producers/replay.py "
             f"--data {DATA_ROOT} "
-            f"--from '{REPLAY_START}' --to '{REPLAY_END}' "
+            '--from "$STREAMBHARAT_REPLAY_START" --to "$STREAMBHARAT_REPLAY_END" '
             f"--bootstrap {BOOTSTRAP} --speed 0 --seed 42"
         ),
+        env=REPLAY_RUN_ENV,
+        append_env=True,
     )
 
     bronze_ingestion = BashOperator(
@@ -157,10 +170,12 @@ with DAG(
         cwd=PROJECT_ROOT,
         bash_command=(
             f"cd {PROJECT_ROOT} && "
-            f"if [ '{FULL_REFRESH}' = 'true' ]; then "
+            'if [ "$STREAMBHARAT_FULL_REFRESH" = "true" ]; then '
             f"{PYTHON} -m streambharat.gold_analytics --player lake/silver/player_events --catalog data/raw/content/catalog_2026-10-01.json --gold-root lake/gold ; "
-            f"else {PYTHON} -m streambharat.gold_analytics --player lake/silver/player_events --catalog data/raw/content/catalog_2026-10-01.json --gold-root lake/gold --date '{LOGICAL_DATE}'; fi"
+            f"else {PYTHON} -m streambharat.gold_analytics --player lake/silver/player_events --catalog data/raw/content/catalog_2026-10-01.json --gold-root lake/gold --date "$STREAMBHARAT_LOGICAL_DATE"; fi"
         ),
+        env=DATE_RUN_ENV,
+        append_env=True,
     )
     sessions_gold = BashOperator(
         task_id="build_viewing_sessions_and_episode_dropoff",
@@ -169,8 +184,10 @@ with DAG(
             f"cd {PROJECT_ROOT} && "
             f"if [ '{FULL_REFRESH}' = 'true' ]; then "
             f"{PYTHON} -m streambharat.session_analytics --player lake/silver/player_events ; "
-            f"else {PYTHON} -m streambharat.session_analytics --player lake/silver/player_events --date '{LOGICAL_DATE}'; fi"
+            f"else {PYTHON} -m streambharat.session_analytics --player lake/silver/player_events --date "$STREAMBHARAT_LOGICAL_DATE"; fi"
         ),
+        env=DATE_RUN_ENV,
+        append_env=True,
     )
     cdn_cost_gold = BashOperator(
         task_id="build_cdn_egress_and_regional_cost",
@@ -190,8 +207,10 @@ with DAG(
             f"cd {PROJECT_ROOT} && "
             f"if [ '{FULL_REFRESH}' = 'true' ]; then "
             f"{PYTHON} -m streambharat.ad_matching  ; "
-            f"else {PYTHON} -m streambharat.ad_matching  --date '{LOGICAL_DATE}'; fi"
+            f"else {PYTHON} -m streambharat.ad_matching  --date "$STREAMBHARAT_LOGICAL_DATE"; fi"
         ),
+        env=DATE_RUN_ENV,
+        append_env=True,
     )
     finance_gold = BashOperator(
         task_id="reconcile_revenue_and_calculate_partner_royalties",
@@ -255,8 +274,10 @@ with DAG(
             f"cd {PROJECT_ROOT} && "
             f"if [ '{FULL_REFRESH}' = 'true' ]; then "
             f"{PYTHON} -m streambharat.serve_postgres  ; "
-            f"else {PYTHON} -m streambharat.serve_postgres  --date '{LOGICAL_DATE}'; fi"
+            f"else {PYTHON} -m streambharat.serve_postgres  --date "$STREAMBHARAT_LOGICAL_DATE"; fi"
         ),
+        env=DATE_RUN_ENV,
+        append_env=True,
     )
     preflight >> [create_topics, master_data]
     create_topics >> replay_sources >> bronze_ingestion

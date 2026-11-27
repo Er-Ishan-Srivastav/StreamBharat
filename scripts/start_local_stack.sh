@@ -6,7 +6,7 @@ if [[ ! -f .env ]]; then
   echo "Created .env from .env.example. Review local passwords and tokens before exposing services."
 fi
 
-echo "[1/7] Ensuring the shared Docker network exists..."
+echo "Preparing the shared Docker network..."
 if ! docker network inspect streambharat-network >/dev/null 2>&1; then
   docker network create streambharat-network >/dev/null
 fi

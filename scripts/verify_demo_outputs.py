@@ -23,6 +23,12 @@ DELTA_OUTPUTS = {
     "gold_top_titles_daily": "lake/gold/top_titles_daily",
     "gold_viewing_sessions": "lake/gold/viewing_sessions",
     "gold_content_dropoff_daily": "lake/gold/content_dropoff_daily",
+    "gold_ad_delivery": "lake/silver/ad_delivery",
+    "gold_campaign_daily": "lake/gold/campaign_daily",
+    "gold_ad_fill_rate_hourly": "lake/gold/ad_fill_rate_hourly",
+    "gold_revenue_reconciliation": "lake/gold/revenue_reconciliation",
+    "gold_royalties_quarterly": "lake/gold/royalties_quarterly",
+    "gold_dlq_metrics_daily": "lake/gold/dlq_metrics_daily",
 }
 
 POSTGRES_OUTPUTS = (
@@ -32,6 +38,12 @@ POSTGRES_OUTPUTS = (
     "subscriptions_scd2",
     "viewing_sessions",
     "content_dropoff_daily",
+    "ad_delivery",
+    "campaign_daily",
+    "ad_fill_rate_hourly",
+    "revenue_reconciliation",
+    "royalties_quarterly",
+    "dlq_metrics_daily",
 )
 
 

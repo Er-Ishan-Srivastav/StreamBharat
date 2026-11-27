@@ -122,9 +122,13 @@ streams are independent of the finite nightly batch DAG.
 On a fresh Postgres volume, `001_warehouse.sql` and
 `003_dashboard_views.sql` are mounted in initialization order.
 
-For an existing Postgres volume, manually apply the dashboard views once:
+For an existing Postgres volume, initialization scripts do not replay automatically.
+Apply both idempotent warehouse DDL and dashboard views when the schema changes
+(including the Q17 `live_trending` table):
 
 ```bash
+docker compose -f docker-compose.kafka.yml exec -T postgres \
+  psql -U ott -d ottdw < sql/001_warehouse.sql
 docker compose -f docker-compose.kafka.yml exec -T postgres \
   psql -U ott -d ottdw < sql/003_dashboard_views.sql
 ```

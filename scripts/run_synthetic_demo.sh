@@ -36,7 +36,7 @@ python -m streambharat.subscription_state --bootstrap-servers "$KAFKA_BOOTSTRAP"
 echo "[6/8] Build Gold engagement and viewing-session analytics..."
 python -m streambharat.gold_analytics \
   --player lake/silver/player_events \
-  --catalog "data/raw/content/catalog_2026-10-01.json" \
+  --catalog "data/raw/content/catalog_${DEMO_DATE}.json" \
   --gold-root lake/gold
 python -m streambharat.session_analytics \
   --player lake/silver/player_events \

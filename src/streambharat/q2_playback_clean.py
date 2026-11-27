@@ -54,7 +54,7 @@ def run_q2(input_path="data/raw/player", output_path="data/delta/silver/playback
             .withColumn("clock_correction_applied",
                 (~F.col("is_offline"))
                 & F.coalesce(F.col("offset_reliable"), F.lit(False))
-                & F.col("client_time").isNotNull())
+                & F.col("client_time").isNotNull()))
         enriched.write.format("delta").mode("overwrite").option("overwriteSchema","true").save(output_path)
         offsets.write.format("delta").mode("overwrite").save(offset_path)
         before=(clean.filter(F.col("event_type")=="heartbeat").withColumn("day",F.to_date("server_time"))

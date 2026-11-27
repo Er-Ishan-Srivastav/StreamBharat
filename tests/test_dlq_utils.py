@@ -9,7 +9,7 @@ def test_bronze_transform_excludes_only_matching_source_topic_offsets(spark, tmp
     dlq = spark.createDataFrame(
         [
             ("ott.player.events", 0, 11),
-            ("ott.billing.subscriptions", 1, 20),
+            ("ott.billing.subscr", 1, 20),
         ],
         ["source_topic", "kafka_partition", "kafka_offset"],
     )

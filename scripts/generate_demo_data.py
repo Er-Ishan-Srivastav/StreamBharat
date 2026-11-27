@@ -163,7 +163,7 @@ def generate(data_root: Path, demo_date: date, users: int) -> dict[str, int]:
         "duration_sec": 600,
         "seasons": [],
     }]
-    catalogue_path = data_root / "content" / "catalog_2026-10-01.json"
+    catalogue_path = data_root / "content" / f"catalog_{day}.json"
     catalogue_path.parent.mkdir(parents=True, exist_ok=True)
     catalogue_path.write_text(json.dumps(catalogue, indent=2), encoding="utf-8")
 

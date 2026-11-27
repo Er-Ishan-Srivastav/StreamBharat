@@ -35,8 +35,13 @@ services:
       PYTHONPATH: /opt/streambharat/src
       JAVA_HOME: /usr/lib/jvm/java-17-openjdk-amd64
       PYSPARK_PYTHON: python
-      SPARK_LOCAL_IP: 127.0.0.1
-      SPARK_SHUFFLE_PARTITIONS: "8"
+      SPARK_MASTER: spark://spark-master:7077
+      SPARK_DRIVER_HOST: streambharat-airflow-scheduler
+      SPARK_LOCAL_IP: 0.0.0.0
+      SPARK_SESSION_TIMEZONE: UTC
+      SPARK_DRIVER_MEMORY: 1g
+      SPARK_EXECUTOR_MEMORY: 1500m
+      SPARK_SHUFFLE_PARTITIONS: "4"
       SPARK_EXTRA_PACKAGES: org.postgresql:postgresql:42.7.4
       KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       POSTGRES_HOST: postgres

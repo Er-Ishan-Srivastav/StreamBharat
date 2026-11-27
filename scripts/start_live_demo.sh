@@ -54,7 +54,7 @@ if [[ "$STREAMS" == "plays" || "$STREAMS" == "both" ]]; then
 fi
 
 if [[ "$STREAMS" == "ads" || "$STREAMS" == "both" ]]; then
-  MATCH_START="$(python3 -c 'from datetime import datetime; from zoneinfo import ZoneInfo; print(datetime.now(ZoneInfo("Asia/Kolkata")).replace(tzinfo=None).isoformat(sep=" "))')"
+  MATCH_START="$(python3 -c 'from datetime import datetime, timezone; print(datetime.now(timezone.utc).replace(tzinfo=None).isoformat(sep=" "))')"
   echo "Starting Q18 live ad-pacing consumer..."
   nohup bash scripts/run_kafka_stream.sh ads \
     --campaigns "$CAMPAIGNS_PATH" \

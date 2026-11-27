@@ -6,14 +6,14 @@ if [[ ! -f .env ]]; then
   echo "Created .env from .env.example. Review local passwords and tokens before exposing services."
 fi
 
-echo "[1/6] Building and starting Kafka, Spark master/worker, workspace, Postgres and Metabase..."
+echo "[1/7] Building and starting Kafka, Spark master/worker, workspace, Postgres and Metabase..."
 docker compose -f docker-compose.kafka.yml up -d --build
 
-echo "[2/6] Creating and verifying the 13 workbook Kafka topics..."
+echo "[2/7] Creating and verifying the 13 workbook Kafka topics..."
 bash config/kafka-topics.sh
 
 if [[ -d data/raw ]]; then
-  echo "[3/6] Validating the supplied StreamBharat dataset..."
+  echo "[3/7] Validating the supplied StreamBharat dataset..."
   docker compose -f docker-compose.kafka.yml exec -T workspace \
     python scripts/preflight_dataset.py --data-root data/raw
 else
@@ -21,7 +21,7 @@ else
   echo "      Copy the supplied dataset's data/raw directory into ./data/raw before replaying or triggering Airflow."
 fi
 
-echo "[4/6] Waiting for Spark master and worker registration..."
+echo "[4/7] Waiting for Spark master and worker registration..."
 for attempt in $(seq 1 30); do
   if docker compose -f docker-compose.kafka.yml exec -T workspace python -c '
 import json, urllib.request

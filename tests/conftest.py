@@ -6,10 +6,12 @@ import os
 import pytest
 
 # Keep timezone-less source timestamps stable across developer machines and CI.
+# Tests always use an isolated local Spark session, never a developer's cluster.
 os.environ["SPARK_SESSION_TIMEZONE"] = "UTC"
-os.environ.setdefault("SPARK_LOCAL_IP", "127.0.0.1")
-os.environ.setdefault("SPARK_MASTER", "local[2]")
-os.environ.setdefault("SPARK_SHUFFLE_PARTITIONS", "2")
+os.environ["SPARK_LOCAL_IP"] = "127.0.0.1"
+os.environ["SPARK_MASTER"] = "local[2]"
+os.environ["SPARK_SHUFFLE_PARTITIONS"] = "2"
+os.environ.pop("SPARK_USE_PREINSTALLED_JARS", None)
 
 
 @pytest.fixture

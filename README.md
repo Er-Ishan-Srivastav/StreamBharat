@@ -330,10 +330,11 @@ The Kafka ETL implementation is integrated into this repository under
 `src/streambharat/`; the supplied starter ZIP is the reference scaffold, not a
 second project that needs to be copied into a nested folder.
 
-From the repository root, run:
+From the repository root in a WSL2/Linux terminal, run:
 
 ```bash
-cp .env.example .env
+python3 scripts/check_local_environment.py
+cp .env.example .env  # only when .env does not already exist
 # Review local-only credentials, then:
 bash scripts/start_local_stack.sh
 ```
@@ -346,6 +347,19 @@ optional (set `START_AIRFLOW=true` to include it during startup, or launch its
 Compose file separately). Dataset preflight is attempted when `data/raw/`
 exists but does not block infrastructure startup if the full course dataset is
 missing or incomplete.
+
+When the original course dataset is not yet available, run the isolated synthetic
+vertical slice after startup:
+
+```bash
+docker compose -f docker-compose.kafka.yml exec -T workspace \
+  bash scripts/run_synthetic_demo.sh
+```
+
+It writes synthetic inputs to `data/demo/raw/` and exercises Kafka, Bronze/DLQ,
+Silver, engagement/session Gold, ad delivery, revenue/royalties, PostgreSQL and
+Metabase. See the [synthetic demo runbook](docs/demo-runbook.md). It does not
+replace the full Q1–Q20 historical dataset run.
 
 | Local service | Address |
 |---|---|

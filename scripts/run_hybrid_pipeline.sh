@@ -235,6 +235,13 @@ run_step "parse both CDN providers and calculate hourly egress" \
     --bronze "$LOG_DIR/q3_cdn_bronze" \
     --silver "$LOG_DIR/q3_cdn_hourly"
 
+run_step "aggregate CDN egress, status quality and regional cost (Q3)" \
+  python3 -m streambharat.cdn_analytics \
+    --requests "$LOG_DIR/q3_cdn_bronze" \
+    --rates "$DATA_ROOT/reference/cdn_rates.csv" \
+    --rates-format csv \
+    --output lake/gold/cdn_egress_daily
+
 run_step "publish available Silver and Gold Delta outputs to PostgreSQL" \
   python3 -m streambharat.serve_postgres
 

@@ -149,7 +149,7 @@ def generate(data_root: Path, demo_date: date, users: int) -> dict[str, int]:
         ["impression_id", "user_id", "profile_id", "content_id", "campaign_id", "ad_break_ts", "duration_sec", "completed", "cpm_inr"],
     )
 
-    catalogue = [{
+    catalogue = {
         "content_id": "DEMO-CONTENT-001",
         "title": "The Monsoon Files",
         "type": "movie",
@@ -162,7 +162,7 @@ def generate(data_root: Path, demo_date: date, users: int) -> dict[str, int]:
         "tier": "premium",
         "duration_sec": 600,
         "seasons": [],
-    }]
+    }
     catalogue_path = data_root / "content" / f"catalog_{day}.json"
     catalogue_path.parent.mkdir(parents=True, exist_ok=True)
     catalogue_path.write_text(json.dumps(catalogue, indent=2), encoding="utf-8")

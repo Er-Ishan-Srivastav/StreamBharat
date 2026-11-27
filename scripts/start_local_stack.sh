@@ -6,14 +6,14 @@ if [[ ! -f .env ]]; then
   echo "Created .env from .env.example. Review local passwords and tokens before exposing services."
 fi
 
-echo "[1/5] Building and starting Kafka, Spark workspace, Postgres and Metabase..."
+echo "[1/6] Building and starting Kafka, Spark workspace, Postgres and Metabase..."
 docker compose -f docker-compose.kafka.yml up -d --build
 
-echo "[2/5] Creating and verifying the 13 workbook Kafka topics..."
+echo "[2/6] Creating and verifying the 13 workbook Kafka topics..."
 bash config/kafka-topics.sh
 
 if [[ -d data/raw ]]; then
-  echo "[3/5] Validating the supplied StreamBharat dataset..."
+  echo "[3/6] Validating the supplied StreamBharat dataset..."
   docker compose -f docker-compose.kafka.yml exec -T workspace \
     python scripts/preflight_dataset.py --data-root data/raw
 else
@@ -21,10 +21,29 @@ else
   echo "      Copy the supplied dataset's data/raw directory into ./data/raw before replaying or triggering Airflow."
 fi
 
-echo "[4/5] Checking core service status..."
+echo "[4/6] Waiting for Spark master and worker registration..."
+for attempt in $(seq 1 30); do
+  if docker compose -f docker-compose.kafka.yml exec -T workspace python -c '
+import json, urllib.request
+status = json.load(urllib.request.urlopen("http://spark-master:8080/json/", timeout=2))
+workers = [worker for worker in status.get("workers", []) if worker.get("state") == "ALIVE"]
+assert workers, "No ALIVE Spark workers registered yet"
+' >/dev/null 2>&1; then
+    break
+  fi
+  if [[ "$attempt" -eq 30 ]]; then
+    echo "Spark worker did not register with the master. Inspect docker compose logs spark-master spark-worker." >&2
+    exit 1
+  fi
+  sleep 2
+done
+
+docker compose -f docker-compose.kafka.yml exec -T workspace python -m streambharat.smoke
+
+echo "[5/6] Checking core service status..."
 docker compose -f docker-compose.kafka.yml ps
 
-echo "[5/5] Starting Airflow on the shared Docker network..."
+echo "[6/6] Starting Airflow on the shared Docker network..."
 docker compose -f docker-compose.airflow.yml up -d --build
 docker compose -f docker-compose.airflow.yml ps
 

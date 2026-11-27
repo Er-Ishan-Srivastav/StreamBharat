@@ -30,4 +30,4 @@ def test_synthetic_demo_generator_writes_replayable_sources(tmp_path):
     catalogue = json.loads(
         (tmp_path / "content" / "catalog_2026-10-01.json").read_text()
     )
-    assert catalogue[0]["content_id"] == "DEMO-CONTENT-001"
+    assert catalogue["content_id"] == "DEMO-CONTENT-001"

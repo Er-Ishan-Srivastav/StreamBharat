@@ -75,7 +75,7 @@ def write_report(path: str, payload: dict) -> None:
     report_path = Path(path)
     report_path.parent.mkdir(parents=True, exist_ok=True)
     report_path.write_text(
-        json.dumps(payload, indent=2, sort_keys=True) + "\\n",
+        json.dumps(payload, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
     )
 
@@ -134,7 +134,7 @@ def main() -> None:
         password=os.getenv("POSTGRES_PASSWORD", "ott_local_dev"),
     )
     try:
-        print("\\nPostgreSQL output counts:")
+        print("\nPostgreSQL output counts:")
         with connection.cursor() as cursor:
             for table in POSTGRES_OUTPUTS:
                 cursor.execute(f"SELECT COUNT(*) FROM ottdw.{table}")
@@ -152,11 +152,11 @@ def main() -> None:
     print(f"Machine-readable output counts: {args.report_path}")
 
     if failures:
-        print("\\nDEMO VERIFICATION FAILED:")
+        print("\nDEMO VERIFICATION FAILED:")
         for failure in failures:
             print(f" - {failure}")
         sys.exit(1)
-    print("\\nDEMO VERIFICATION PASSED: all required Delta and PostgreSQL outputs meet their minimum row counts.")
+    print("\nDEMO VERIFICATION PASSED: all required Delta and PostgreSQL outputs meet their minimum row counts.")
 
 
 if __name__ == "__main__":

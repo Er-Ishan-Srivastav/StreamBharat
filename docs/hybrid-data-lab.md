@@ -62,7 +62,7 @@ From the repository root:
 python3 scripts/fetch_wikidata_catalog.py --min-year 2018 --limit 300
 
 # 2) Fetch 30 days of public article-interest signals for up to 20 titles.
-python3 scripts/fetch_wikimedia_pageviews.py --days 30 --articles 20
+python3 scripts/fetch_wikimedia_pageviews.py --days 30 --end-date 2026-10-31 --articles 20
 
 # 3) Generate a seven-day, 500-user OTT activity dataset.
 # The pageview snapshot weights only the synthetic content-selection process.
@@ -233,6 +233,8 @@ Without `--chaos`, the generator's own device-clock offsets and offline uploads 
 
 Q1, Q2 and Q3 intermediate outputs are isolated under the run's evidence directory. Q2 records per-device offset reliability and the daily impact of clock correction; offline events retain their client event time. Q3 reads all generated monthly AkashCDN and NimbusEdge log files using provider-specific parsing and the generated edge reference, then calculates daily egress and regional cost from the generated rate card.
 
+The preparation command calculates the pageview end date as the day before the requested simulation start. The generator rejects any pageview snapshot containing dates on or after the business period begins. This prevents using future article interest to weight earlier synthetic playback.
+
 The preparation command supports cache reuse and skipping the optional pageview signal:
 
 ~~~bash
@@ -248,7 +250,7 @@ docker compose -f docker-compose.kafka.yml exec workspace \
 - The generated source directory follows the documented source file families, but it does not claim exact original row counts or complete Q1–Q20 acceptance.
 - reference/published_metrics.csv is deliberately empty. There are no authentic board-published values to reconcile against.
 - The generated licence, partner, plan and campaign data are scenario data, not real commercial agreements.
-- The pageview sidecar is joined into a local external-interest feature file and can weight the generator's title selection. It is not itself a Kafka event feed, OTT play count, or watch-time measure, and is not currently a Gold/Metabase metric.
+- The pageview sidecar is joined into a local external-interest feature file and can weight the generator's title selection using a prior-period signal. It is not itself a Kafka event feed, OTT play count, or watch-time measure, and is not currently a Gold/Metabase metric.
 - The existing Kafka demo acceptance evidence remains specific to its recorded small synthetic fixture. It does not automatically validate this new factory output.
 
 The remaining engineering gates are to run this pipeline from a clean environment, inspect its acceptance report, close any source-to-Bronze or transformation gaps, and then perform explicit Q1–Q20 gap analysis. The public-interest feature file is currently an external analytical sidecar; it is not inserted into OTT playback metrics or Kafka topics. Keep each gate separately evidenced.

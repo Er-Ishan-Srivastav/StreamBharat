@@ -74,6 +74,19 @@ python3 scripts/generate_hybrid_dataset.py \
   --seed 42
 ~~~
 
+# 4) Join the public pageview signal to the generated content IDs.
+python3 scripts/build_public_interest_features.py \
+  --public-catalog data/external/wikidata/catalog.json \
+  --pageviews data/external/wikimedia/pageviews.jsonl \
+  --hybrid-catalog data/hybrid/raw/content/catalog_2026-11-01.json \
+  --output data/external/wikimedia/content_interest_features.csv
+
+# 5) Validate the generated source tree.
+python3 scripts/preflight_hybrid_dataset.py \
+  --data-root data/hybrid/raw \
+  --report logs/hybrid_preflight/latest.json
+~~~
+
 The Wikidata and Wikimedia requests need internet access. After the catalogue and pageview snapshots have been fetched, generation is offline and deterministic for the same catalogue snapshot, date range, scale and seed.
 
 To run another scale or experiment, select a new output directory rather than overwriting an existing run. The generator refuses to replace a non-empty directory unless --overwrite is supplied.

@@ -368,20 +368,34 @@ bash scripts/trigger_local_full_run.sh 2026-10-01 2026-10-31
 ```
 
 The project uses the supplied workbook's topic names and partition counts.
-Android 7.3 player events are emitted with schema version 2 from 15 October
-2026, with `position_ms` and the added `network` field. The seven-source
-replay keeps a durable acknowledgement ledger under `lake/state/`.
+The Airflow historical replay uses the workbook producer engine: it emits the
+Android 7.3 schema-v2 change from 15 October 2026, plus controlled late,
+duplicate and poisoned messages, then sends corrected versions. The optional
+clean replay module `python -m streambharat.replay_kafka` uses a durable
+acknowledgement ledger under `lake/state/`; downstream Silver MERGE/dedup
+remains the business-level replay protection for Kafka messages.
 
 ### Optional manual Kafka replay and live streams
 
-A short replay is useful for checking the seven source feeds before the full
-Airflow run. It writes to the same durable source-record ledger used by the DAG:
+For a small clean replay smoke test (with a durable source-record ledger):
 
 ```bash
 docker compose -f docker-compose.kafka.yml exec workspace \
-  python producers/replay.py --start-date 2026-10-01 --end-date 2026-10-31 \
-  --speed 0 --max-events 1000
+  python -m streambharat.replay_kafka --start-date 2026-10-01 \
+  --end-date 2026-10-31 --speed 0 --max-events 1000
 ```
+
+The full Airflow DAG instead calls `producers/replay.py` with controlled
+late, duplicate and poisoned source messages. To run that producer manually:
+
+```bash
+docker compose -f docker-compose.kafka.yml exec workspace \
+  python producers/replay.py --from 2026-10-01 --to 2026-10-31 --speed 0
+```
+
+Pass `--no-chaos` for a clean source feed. The source replay uses an
+idempotent Kafka producer; re-running it can create new Kafka offsets, so
+downstream business-key MERGE/dedup is required.
 
 For live Q14/Q15, start the producer and Spark consumer in separate terminals:
 

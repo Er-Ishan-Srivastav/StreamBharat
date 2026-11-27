@@ -126,3 +126,25 @@ SELECT activity_date, source_topic, reason_code,
        invalid_records, affected_partitions,
        first_seen_at, last_seen_at, first_offset, last_offset
 FROM ottdw.dlq_metrics_daily;
+
+
+CREATE OR REPLACE VIEW ottdw.v_viewing_sessions_stream AS
+SELECT viewing_date, profile_id, user_id, device_id, content_id,
+       report_content_id, title, language, session_start_ts, session_end_ts,
+       watched_seconds, event_count, heartbeat_count, completed
+FROM ottdw.viewing_sessions_stream;
+
+CREATE OR REPLACE VIEW ottdw.v_ad_delivery_stream AS
+SELECT activity_date, delivery_status, campaign_id, content_id,
+       COUNT(*) AS delivery_rows,
+       COUNT(impression_id) AS matched_impressions,
+       SUM(COALESCE(cpm_inr, 0) * COALESCE(duration_sec, 0) / 1000.0) AS estimated_spend
+FROM ottdw.ad_delivery_stream
+GROUP BY activity_date, delivery_status, campaign_id, content_id;
+
+CREATE OR REPLACE VIEW ottdw.v_orphan_impressions_stream AS
+SELECT activity_date, campaign_id, content_id, COUNT(*) AS orphan_impressions,
+       MIN(impression_end_ts) AS first_seen_at,
+       MAX(impression_end_ts) AS last_seen_at
+FROM ottdw.orphan_impressions_stream
+GROUP BY activity_date, campaign_id, content_id;

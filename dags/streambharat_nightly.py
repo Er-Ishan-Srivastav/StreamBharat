@@ -89,10 +89,10 @@ with DAG(
         task_id="replay_seven_source_topics",
         cwd=PROJECT_ROOT,
         bash_command=(
-            f"cd {PROJECT_ROOT} && {PYTHON} -m streambharat.replay_kafka "
-            f"--data-root {DATA_ROOT} "
-            f"--start-date '{REPLAY_START}' --end-date '{REPLAY_END}' "
-            f"--bootstrap-servers {BOOTSTRAP} --speed 0"
+            f"cd {PROJECT_ROOT} && {PYTHON} producers/replay.py "
+            f"--data {DATA_ROOT} "
+            f"--from '{REPLAY_START}' --to '{REPLAY_END}' "
+            f"--bootstrap {BOOTSTRAP} --speed 0 --seed 42"
         ),
     )
 

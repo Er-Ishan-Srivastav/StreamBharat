@@ -21,7 +21,6 @@ DELTA_OUTPUTS = {
     "bronze_ad_breaks": "lake/bronze/ads_breaks",
     "bronze_ad_impressions": "lake/bronze/ads_impressions",
     "bronze_dlq": "lake/bronze/dlq",
-    "silver_subscriptions": "lake/silver/subscriptions",
     "bronze_offset_reconciliation": "lake/gold/bronze_offset_reconciliation",
     "silver_player_events": "lake/silver/player_events",
     "silver_subscriptions": "lake/silver/subscriptions",

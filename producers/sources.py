@@ -106,7 +106,7 @@ SOURCES = [
         "player", "ott.player.events", read_player, "player-sdk",
         late_p=0.003, dup_p=0.004, dup_seconds=(1, 60),
         version=player_version, ts_field="client_ts",
-        key_fields=("user_id", "profile_id"),
+        key_fields=("user_id",),
     ),
     Source(
         "subscriptions", "ott.billing.subscr", read_subscriptions, "billing",
@@ -134,6 +134,6 @@ SOURCES = [
         "impressions", "ott.ads.impressions", read_impressions, "ad-tracking",
         late_p=0.02, late_minutes=(2, 30), dup_p=0.008, dup_seconds=(1, 20),
         amount_field="cpm_inr", ts_field="ad_break_ts",
-        key_fields=("user_id", "campaign_id"),
+        key_fields=("user_id",),
     ),
 ]

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import sys
 from datetime import date
 from pathlib import Path
 
@@ -12,6 +13,11 @@ GENERATOR = importlib.util.module_from_spec(SPEC)
 assert SPEC is not None and SPEC.loader is not None
 SPEC.loader.exec_module(GENERATOR)
 generate = GENERATOR.generate
+
+PRODUCERS_PATH = Path(__file__).resolve().parents[1] / "producers"
+sys.path.insert(0, str(PRODUCERS_PATH))
+import sources as replay_sources
+from replay_engine import Context
 
 
 def test_synthetic_demo_generator_writes_replayable_sources(tmp_path):
@@ -58,3 +64,23 @@ def test_synthetic_demo_generator_writes_replayable_sources(tmp_path):
         (tmp_path / "content" / "catalog_2026-10-15.json").read_text()
     )
     assert catalogue["content_id"] == "DEMO-CONTENT-001"
+
+
+def test_synthetic_feed_files_are_readable_by_all_seven_producer_sources(tmp_path):
+    demo_date = date(2026, 10, 15)
+    generate(tmp_path, demo_date, users=2)
+    context = Context(str(tmp_path), demo_date, demo_date)
+
+    expected_counts = {
+        "player": 7,
+        "subscriptions": 6,
+        "settlements": 4,
+        "search": 2,
+        "ratings": 2,
+        "ad_breaks": 2,
+        "impressions": 2,
+    }
+    for source in replay_sources.SOURCES:
+        rows = list(source.reader(context))
+        assert len(rows) == expected_counts[source.name], source.name
+        assert all(len(row) == 3 for row in rows), source.name

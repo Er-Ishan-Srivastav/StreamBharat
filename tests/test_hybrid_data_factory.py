@@ -99,6 +99,10 @@ def test_hybrid_factory_writes_source_contracts_and_provenance(tmp_path):
     assert subscriptions
     assert all(row["user_id"] in {user["user_id"] for user in users} for row in subscriptions)
     assert len({row["event_id"] for row in subscriptions}) == len(subscriptions)
+    assert any(
+        row["event_type"] == "activate" and row["plan"] == "free"
+        for row in subscriptions
+    )
 
     searches = read_jsonl(root / "search" / "search_logs.json")
     assert all(

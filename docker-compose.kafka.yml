@@ -109,7 +109,6 @@ services:
     volumes:
       - ./:/workspace
     ports:
-      - "7077:7077"
       - "8082:8080"
 
   spark-worker:

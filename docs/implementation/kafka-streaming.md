@@ -95,28 +95,35 @@ The course dataset is not stored in Git. Copy the supplied data folder to
 
 ## Source replay, Bronze and DLQ
 
-Replay October source feeds:
+Airflow replays October source feeds with the workbook producer:
 
 ```bash
 docker compose -f docker-compose.kafka.yml exec workspace \
-  python -m streambharat.replay_kafka \
-  --start-date 2026-10-01 --end-date 2026-10-31 --speed 0
+  python producers/replay.py --from 2026-10-01 --to 2026-10-31 \
+  --speed 0 --seed 42
 ```
 
-For a small smoke test, add `--max-events 2000`. The replay uses source-specific
-event/arrival timestamps and the workbook's key fields. Player files are named
-by server-arrival date. Ad impressions are emitted according to their
-ad-break/impression timestamps.
+Chaos is enabled by default: source-specific rates create delayed records,
+duplicates, malformed JSON, invalid amounts/timestamps and missing business
+keys. Poisoned messages are followed by corrected re-sends. The player source
+switches eligible Android 7.3 records to schema version 2 on 15 October 2026.
+Use `--no-chaos` for a clean producer feed, or `--dry-run` to inspect the
+serialized messages under `_dryrun/`.
 
-A durable SQLite acknowledgement ledger at
-`lake/state/kafka_replay.sqlite3` records source topic/file/line, payload hash,
-and acknowledged Kafka partition/offset. A normal rerun skips acknowledged
-records. If the raw source row changes at the same file/line identity, replay
-fails rather than silently publishing a different payload. Keep this state
-database with the local lake across normal reruns. The crash window between
-Kafka acknowledgement and SQLite commit remains at-least-once; downstream
-deduplication by business key is still required. Use a new state DB only when
-you intentionally want a full replay of a revised source dataset.
+For a clean replay with a durable local acknowledgement ledger, use the
+alternative implementation:
+
+```bash
+docker compose -f docker-compose.kafka.yml exec workspace \
+  python -m streambharat.replay_kafka --start-date 2026-10-01 \
+  --end-date 2026-10-31 --speed 0
+```
+
+The ledger records source topic/file/line, payload hash and acknowledged Kafka
+partition/offset. Keep `lake/state/kafka_replay.sqlite3` across normal clean
+replays. The Airflow chaos replay does not claim producer-side exactly-once:
+retries may create new Kafka offsets, and Silver MERGE/business-key dedup is
+the sink-level protection.
 
 Seven separate Structured Streaming queries write append-only Bronze Delta
 tables. Each preserves the raw value string, topic, partition, offset, broker

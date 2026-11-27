@@ -134,29 +134,17 @@ The original course archive is unavailable. The new Hybrid Data Lab builds a fre
 Start with the [Hybrid Data Lab guide](docs/hybrid-data-lab.md). The factory, source fetchers and dedicated preflight are separate from the compact Kafka demo generator.
 
 ~~~bash
-# Fetch the CC0 catalogue and optional public-interest sidecar.
-python3 scripts/fetch_wikidata_catalog.py --min-year 2018 --limit 300
-python3 scripts/fetch_wikimedia_pageviews.py --days 30 --articles 20
-
-# Generate reproducible OTT source files using a fixed seed.
-python3 scripts/generate_hybrid_dataset.py \
-  --output data/hybrid/raw \
-  --start-date 2026-11-01 \
-  --days 7 \
-  --users 500 \
-  --catalog-size 200 \
-  --seed 42
-
-# Validate file contracts, joins, row counts, provenance and SHA-256.
-python3 scripts/preflight_hybrid_dataset.py \
-  --data-root data/hybrid/raw \
-  --report logs/hybrid_preflight/latest.json
-
-# Start the local services, then from the workspace container:
+# Start the local services from the repository root.
 bash scripts/start_local_stack.sh
-bash scripts/run_hybrid_pipeline.sh
-~~~
 
+# Prepare the catalogue, optional external signal, and synthetic OTT source files.
+docker compose -f docker-compose.kafka.yml exec workspace \
+  bash scripts/prepare_hybrid_dataset.sh
+
+# Replay and process the dataset through Kafka, Delta, PostgreSQL and Metabase.
+docker compose -f docker-compose.kafka.yml exec workspace \
+  bash scripts/run_hybrid_pipeline.sh
+~~~
 The factory output is **not** the original coursework dataset. Its public layer contains film metadata only; user activity, partner assignments, subscription events, advertising, regional licences and CDN logs are generated scenario data. The pageview sidecar remains separate from playback analytics. The existing \`scripts/generate_demo_data.py\` and \`scripts/run_synthetic_demo.sh\` still serve the compact previously exercised Kafka fixture.
 
 The new factory's tests and the generated source set must pass before claiming it is accepted. The old demo's recorded row counts and test results do not validate the new factory.

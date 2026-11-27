@@ -80,25 +80,25 @@ def generate(data_root: Path, demo_date: date, users: int) -> dict[str, int]:
                 "client_ts": server_time.isoformat(timespec="seconds"),
                 "server_ts": server_time.isoformat(timespec="seconds"),
                 "ip_city": "Mumbai",
-                "device_type": "android",
-                "app_version": "7.3.0",
+                "device_type": "ios",
+                "app_version": "6.0",
             })
 
         subscriptions.extend([
             {
                 "event_id": f"{user}-SUB-1", "user_id": user,
                 "event_type": "subscribe", "plan": "premium", "price": "299.00",
-                "event_ts": (base - timedelta(days=10)).isoformat(timespec="seconds"),
+                "event_ts": (base - timedelta(minutes=30)).isoformat(timespec="seconds"),
             },
             {
                 "event_id": f"{user}-SUB-2", "user_id": user,
                 "event_type": "payment_failed", "plan": "premium", "price": "299.00",
-                "event_ts": (base - timedelta(days=2)).isoformat(timespec="seconds"),
+                "event_ts": (base - timedelta(minutes=20)).isoformat(timespec="seconds"),
             },
             {
                 "event_id": f"{user}-SUB-3", "user_id": user,
                 "event_type": "renewal", "plan": "premium", "price": "299.00",
-                "event_ts": (base - timedelta(days=1)).isoformat(timespec="seconds"),
+                "event_ts": (base - timedelta(minutes=10)).isoformat(timespec="seconds"),
             },
         ])
         settlements.append({

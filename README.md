@@ -3,7 +3,7 @@
 [![Python tests](https://github.com/Er-Ishan-Srivastav/StreamBharat/actions/workflows/tests.yml/badge.svg?branch=main)](https://github.com/Er-Ishan-Srivastav/StreamBharat/actions/workflows/tests.yml)
 ![Python](https://img.shields.io/badge/Python-3.10%20%7C%203.11-3776AB?logo=python&logoColor=white)
 ![Apache Spark](https://img.shields.io/badge/Apache%20Spark-PySpark%203.5.3-E25A1C?logo=apachespark&logoColor=white)
-![Delta Lake](https://img.shields.io/badge/Delta%20Lake-3.2.0-00A1E0)
+![Delta Lake](https://img.shields.io/badge/Delta%20Lake-3.2.1-00A1E0)
 ![Project](https://img.shields.io/badge/Project-Data%20Engineering-6A5ACD)
 
 **A six-member, end-to-end data engineering project for a fictional Indian OTT platform, extended with a local Kafka + Spark streaming path and a Postgres/Metabase serving foundation.**
@@ -139,7 +139,7 @@ See [the complete question register](docs/questions-and-ownership.md) and [imple
 | Python | 3.10 or 3.11 |
 | Java | 17 runtime for Spark |
 | PySpark | 3.5.3 |
-| Delta Lake | 3.2.0 |
+| Delta Lake | 3.2.1 |
 | Spark MLlib | ALS recommendations and churn classification |
 | Spark Structured Streaming | Incremental ingestion and simulator-driven live jobs |
 | pytest | Deterministic business-rule tests |

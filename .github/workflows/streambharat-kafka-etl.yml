@@ -142,7 +142,25 @@ jobs:
                               to_regclass('ottdw.v_live_trending_latest') IS NOT NULL
                       """)
                       assert all(cursor.fetchone()), "Required warehouse tables/views were not created"
-              print("Warehouse DDL and dashboard views applied twice successfully on PostgreSQL 16")
+
+                      import sys
+                      sys.path.insert(0, "scripts")
+                      from bootstrap_metabase import parse_dashboard_spec
+
+                      dashboards = parse_dashboard_spec(
+                          Path("config/dashboard/streambharat-metabase-questions.md")
+                      )
+                      query_count = 0
+                      for dashboard in dashboards:
+                          for question in dashboard["questions"]:
+                              cursor.execute(question["sql"])
+                              if cursor.description:
+                                  cursor.fetchall()
+                              query_count += 1
+              print(
+                  "Warehouse DDL/views applied twice and "
+                  f"{query_count} dashboard SQL questions executed on PostgreSQL 16"
+              )
           finally:
               if connection is not None:
                   connection.close()

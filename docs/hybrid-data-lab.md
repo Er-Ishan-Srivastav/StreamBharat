@@ -185,7 +185,29 @@ Set the replay date range to cover the playback arrival period shown in manifest
 
 The original 20-user scripts/generate_demo_data.py and scripts/run_synthetic_demo.sh remain unchanged as the compact integration acceptance fixture. They are useful for quick smoke tests; they are not the full data factory.
 
-## 8. Current limits — do not overstate compatibility
+## 8. Run the complete local hybrid pipeline
+
+After the local stack is started with `bash scripts/start_local_stack.sh`, run the end-to-end orchestration from the workspace container:
+
+~~~bash
+bash scripts/run_hybrid_pipeline.sh
+~~~
+
+The runner reads the playback **arrival period** from `manifest.json`, runs the separate hybrid preflight, executes Q1 catalogue flattening, replays all seven event feeds, ingests Bronze, routes validation failures, builds Silver and Gold outputs, performs ad and revenue reconciliation, processes both CDN log formats, publishes available Delta products to PostgreSQL, and verifies the serving SQL and Metabase setup.
+
+It writes a run-specific log and machine-readable evidence under `logs/hybrid_runs/<run-id>/`. The end-to-end acceptance report checks source-to-Bronze counts and required Delta/PostgreSQL outputs. A successful run is evidence for that local run and commit; it is not a production deployment or proof of equivalence to the missing coursework archive.
+
+To exercise replay-time duplicates, late deliveries and poison records, add `--chaos`:
+
+~~~bash
+bash scripts/run_hybrid_pipeline.sh --chaos
+~~~
+
+Without `--chaos`, the generator's own device-clock offsets and offline uploads are still present. Replay-time chaos is deliberately separate so contributors can compare a clean transport run with an imperfect transport run. Use a clean, isolated Kafka/Delta/checkpoint environment for a first acceptance run. Reusing persistent Kafka topics and checkpoints is stateful; do not mistake a second replay for a fresh run.
+
+Q1 and Q3 intermediate outputs are isolated under the run's evidence directory. Q3 reads all generated monthly AkashCDN and NimbusEdge log files using provider-specific parsing and the generated edge reference.
+
+## 9. Current limits — do not overstate compatibility
 
 - The original course dataset is unavailable and has not been recreated.
 - The factory currently uses a public film catalogue; it does not invent TV series, seasons, episode relationships or cast lists.
@@ -195,4 +217,4 @@ The original 20-user scripts/generate_demo_data.py and scripts/run_synthetic_dem
 - The pageview sidecar is not yet included in the Kafka topics, Bronze/Silver/Gold tables or Metabase dashboards.
 - The existing Kafka demo acceptance evidence remains specific to its recorded small synthetic fixture. It does not automatically validate this new factory output.
 
-The next engineering gates are a synthetic-source preflight, a fresh-environment replay acceptance using this dataset, input/output row reconciliation, then explicit Q1–Q20 gap analysis and integration of the external-interest signal. Keep each gate separately evidenced.
+The remaining engineering gates are to run this pipeline from a clean environment, inspect its acceptance report, close any source-to-Bronze or transformation gaps, and then perform explicit Q1–Q20 gap analysis. The public-interest feature file is currently an external analytical sidecar; it is not inserted into OTT playback metrics or Kafka topics. Keep each gate separately evidenced.

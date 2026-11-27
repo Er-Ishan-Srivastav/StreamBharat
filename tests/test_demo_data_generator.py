@@ -54,6 +54,11 @@ def test_synthetic_demo_generator_writes_replayable_sources(tmp_path):
     assert {row["event_type"] for row in settlement_rows} == {"subscribe", "renew"}
     assert all(row["amount_inr"] == "299.00" for row in settlement_rows)
 
+    breaks_path = tmp_path / "ads" / "ad_breaks.csv"
+    with breaks_path.open(encoding="utf-8", newline="") as handle:
+        break_rows = list(csv.DictReader(handle))
+    assert all(row["impression_id"] for row in break_rows)
+
     campaign_path = tmp_path / "ads" / "ad_campaigns.csv"
     assert campaign_path.is_file()
     partner_path = tmp_path / "reference" / "content_partners.csv"

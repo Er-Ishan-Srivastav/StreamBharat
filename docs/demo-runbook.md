@@ -28,7 +28,7 @@ Execute the runner inside the workspace container:
 docker compose -f docker-compose.kafka.yml exec -T workspace bash scripts/run_synthetic_demo.sh
 ```
 
-Optional arguments are demo date and user count:
+The default date is 15 October 2026, the Android player schema-v2 rollout date, so the replay demonstrates the versioned `position_sec` → `position_ms` payload change. Optional arguments are demo date and user count:
 
 ```powershell
 docker compose -f docker-compose.kafka.yml exec -T workspace bash scripts/run_synthetic_demo.sh 2026-10-15 5

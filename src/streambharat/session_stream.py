@@ -8,6 +8,7 @@ from delta.tables import DeltaTable
 from pyspark.sql import functions as F
 from pyspark.sql.types import MapType, StringType
 
+from streambharat.monitoring import attach_streaming_metrics
 from streambharat.q1_catalog import read_catalog_snapshot
 from streambharat.spark_session import create_spark
 
@@ -19,7 +20,7 @@ def build_session_stream(spark, bootstrap_servers, topic, catalog_path,
         spark.readStream.format("kafka")
         .option("kafka.bootstrap.servers", bootstrap_servers)
         .option("subscribe", topic)
-         .option("startingOffsets", starting_offsets)
+        .option("startingOffsets", starting_offsets)
         .option("includeHeaders", "true")
         .option("failOnDataLoss", "true")
         .load()
@@ -162,6 +163,7 @@ def run_session_stream(
         "StreamBharat-RealTime-Viewing-Sessions",
         extra_packages=["org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.3"],
     )
+    listener = attach_streaming_metrics(spark, bootstrap_servers)
     try:
         sessions = build_session_stream(
             spark, bootstrap_servers, topic, catalog_path, watermark, session_gap,
@@ -176,6 +178,7 @@ def run_session_stream(
         )
         query.awaitTermination()
     finally:
+        spark.streams.removeListener(listener)
         spark.stop()
 
 

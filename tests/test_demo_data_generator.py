@@ -22,7 +22,7 @@ def test_synthetic_demo_generator_writes_replayable_sources(tmp_path):
     assert counts["ad_breaks"] == 2
     assert counts["ad_impressions"] == 2
 
-    player_path = tmp_path / "player" / "playback_2026-10-01.json"
+    player_path = tmp_path / "player" / "playback_2026-10-15.json"
     player_rows = [json.loads(line) for line in player_path.read_text().splitlines()]
     invalid = next(row for row in player_rows if row["event_id"].endswith("PLAY-INVALID"))
     assert invalid["position_sec"] is None

@@ -14,6 +14,7 @@ from pyspark.sql import DataFrame, Window
 from pyspark.sql import functions as F
 from pyspark.sql.types import MapType, StringType
 
+from streambharat.dlq_utils import exclude_dlq_offsets
 from streambharat.spark_session import create_spark
 
 ACTIVE_TYPES = (
@@ -242,6 +243,7 @@ def run_subscription_state(
     )
     try:
         bronze = spark.read.format("delta").load(bronze_path)
+        bronze = exclude_dlq_offsets(bronze, "ott.billing.subscriptions")
         events, invalid = parse_subscription_events(bronze)
         if not invalid.isEmpty():
             if DeltaTable.isDeltaTable(spark, invalid_path):

@@ -44,6 +44,10 @@ def main() -> int:
     parser.add_argument("--catalog", default="data/external/wikidata/catalog.json")
     parser.add_argument("--output", default="data/external/wikimedia/pageviews.jsonl")
     parser.add_argument("--days", type=int, default=30)
+    parser.add_argument(
+        "--end-date",
+        help="Last complete UTC day to include (defaults to yesterday); useful to avoid future-data leakage",
+    )
     parser.add_argument("--articles", type=int, default=20)
     parser.add_argument("--timeout", type=int, default=30)
     parser.add_argument(
@@ -75,7 +79,16 @@ def main() -> int:
         print("ERROR: no catalogue records have an English Wikipedia article.", file=sys.stderr)
         return 3
 
-    end = datetime.now(timezone.utc).date() - timedelta(days=1)
+    latest_complete_day = datetime.now(timezone.utc).date() - timedelta(days=1)
+    if args.end_date:
+        try:
+            end = date.fromisoformat(args.end_date)
+        except ValueError:
+            parser.error("--end-date must use YYYY-MM-DD format")
+        if end > latest_complete_day:
+            parser.error("--end-date cannot be later than yesterday in UTC")
+    else:
+        end = latest_complete_day
     start = end - timedelta(days=args.days - 1)
     retrieved_at = datetime.now(timezone.utc).isoformat()
     output = Path(args.output)

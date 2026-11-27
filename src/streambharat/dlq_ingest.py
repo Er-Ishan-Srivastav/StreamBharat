@@ -62,6 +62,19 @@ def _missing(name: str):
     return value.isNull() | (F.length(F.trim(value)) == 0)
 
 
+def _parse_source_timestamp(value):
+    """Accept the source ISO timestamp variants while rejecting ambiguous slash dates."""
+    formats = [
+        "yyyy-MM-dd'T'HH:mm:ss.SSSX",
+        "yyyy-MM-dd'T'HH:mm:ssX",
+        "yyyy-MM-dd'T'HH:mm:ss.SSS",
+        "yyyy-MM-dd'T'HH:mm:ss",
+        "yyyy-MM-dd HH:mm:ss.SSS",
+        "yyyy-MM-dd HH:mm:ss",
+    ]
+    return F.coalesce(*(F.to_timestamp(value, pattern) for pattern in formats))
+
+
 def add_reason_code(parsed: DataFrame, alias: str) -> DataFrame:
     """Classify malformed, incomplete and selected semantically invalid rows."""
     if alias not in REQUIRED_FIELDS:
@@ -74,14 +87,14 @@ def add_reason_code(parsed: DataFrame, alias: str) -> DataFrame:
     timestamp_field = TIMESTAMP_FIELDS[alias]
     timestamp_invalid = (
         _missing(timestamp_field)
-        | F.to_timestamp(_field(timestamp_field)).isNull()
+        | _parse_source_timestamp(_field(timestamp_field)).isNull()
     )
     reason = reason.when(timestamp_invalid, F.lit("INVALID_TIMESTAMP"))
 
     if alias == "player_events":
         client_ts = _field("client_ts")
         reason = reason.when(
-            ~_missing("client_ts") & F.to_timestamp(client_ts).isNull(),
+            ~_missing("client_ts") & _parse_source_timestamp(client_ts).isNull(),
             F.lit("INVALID_CLIENT_TIMESTAMP"),
         )
         position_sec = _field("position_sec")

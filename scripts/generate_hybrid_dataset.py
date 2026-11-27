@@ -632,7 +632,7 @@ def generate(args: argparse.Namespace) -> dict:
                 city, state, edge_code = state_by_user[user_id]
                 start_at = datetime.combine(
                     event_day,
-                    time(rng.randrange(6, 24), rng.randrange(60), rng.randrange(60)),
+                    time(rng.randrange(6, 23), rng.randrange(60), rng.randrange(60)),
                 )
                 if rng.random() < 0.12:
                     duration = rng.randint(

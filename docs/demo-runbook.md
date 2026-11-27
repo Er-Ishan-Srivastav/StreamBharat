@@ -31,7 +31,7 @@ docker compose -f docker-compose.kafka.yml exec -T workspace bash scripts/run_sy
 Optional arguments are demo date and user count:
 
 ```powershell
-docker compose -f docker-compose.kafka.yml exec -T workspace bash scripts/run_synthetic_demo.sh 2026-10-01 5
+docker compose -f docker-compose.kafka.yml exec -T workspace bash scripts/run_synthetic_demo.sh 2026-10-15 5
 ```
 
 The runner performs these steps:

@@ -14,7 +14,7 @@ PORTS = {
     3000: "Metabase",
     4040: "Spark application UI",
     5432: "PostgreSQL",
-    8080: "Kafka UI / Spark master container mapping",
+    8080: "Kafka UI",
     8081: "Airflow (optional)",
     8082: "Spark master host mapping",
     8083: "Spark worker host mapping",

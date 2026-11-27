@@ -45,7 +45,7 @@ The project uses two public sources for different purposes.
 
 **Wikidata** supplies content descriptions. The original QID remains attached to each record so a title can be traced to its source. The project maps QIDs to StreamBharat content IDs, but the new content ID is a synthetic business key.
 
-**Wikimedia pageviews** supplies article-interest data. It remains an external signal, not playback. The pageviews adapter is joined to StreamBharat content by Wikidata QID in scripts/build_public_interest_features.py. The output contains article_pageviews and rolling_7d_article_pageviews. It must never be labelled as plays, unique viewers, watch time or OTT engagement.
+**Wikimedia pageviews** supplies article-interest data. It remains an external signal, not playback. The pageviews adapter is joined to StreamBharat content by Wikidata QID in scripts/build_public_interest_features.py. The output contains article_pageviews and rolling_7d_article_pageviews. The synthetic source factory can use a prior-period pageview total as a damped title-selection weight; the generator rejects future-dated pageviews and records the input hash and formula. This affects only which titles are sampled into generated test playback. The generated plays remain synthetic and must never be labelled as observed plays, unique viewers, watch time or OTT engagement.
 
 Inspect local source snapshots:
 

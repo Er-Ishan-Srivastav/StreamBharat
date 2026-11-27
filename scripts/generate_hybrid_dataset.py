@@ -338,7 +338,23 @@ def generate(args: argparse.Namespace) -> dict:
         user_profiles = profiles_by_user[user_id]
         charge_price = PLANS.get(plan, 0.0)
         gateway = rng.choice(["razorpay", "cashfree", "payu"])
-        if plan != "free":
+        if plan == "free":
+            subscription_at = datetime.combine(
+                start + timedelta(days=rng.randrange(args.days)), time(8, 0)
+            )
+            subscription_rows.append(
+                {
+                    "event_id": f"SUB-{user_id}-FREE",
+                    "user_id": user_id,
+                    "event_type": "activate",
+                    "plan": "free",
+                    "price": "",
+                    "event_ts": iso(subscription_at),
+                    "gateway": "",
+                    "provenance": "synthetic_generated",
+                }
+            )
+        else:
             subscription_at = datetime.combine(start + timedelta(days=rng.randrange(args.days)), time(8, 0))
             initial_kind = "trial_start" if rng.random() < 0.12 else "subscribe"
             subscription_rows.append(

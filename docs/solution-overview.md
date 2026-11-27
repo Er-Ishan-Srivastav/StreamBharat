@@ -14,6 +14,10 @@ The project combines:
 
 It is best understood as a **lakehouse analytics solution with an event-driven ingestion extension**, not a production OTT application or a deployed cloud platform.
 
+## Workload context
+
+The business scenario describes a fictional OTT service with a 3-crore-user scale. The supplied learning dataset is much smaller: approximately **2,500 accounts, 4,736 profiles and 1.62 million playback events**. Those figures describe the course sample, not a production benchmark. The accepted local Kafka demonstration used a separate deterministic **20-user synthetic dataset** under \`data/demo/raw/\`; it is a test fixture, not real platform activity.
+
 ## 1. Business problem → data product
 
 | Business problem | Data engineering response | Business-facing product |

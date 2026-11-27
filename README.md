@@ -145,7 +145,7 @@ See [the complete question register](docs/questions-and-ownership.md) and [imple
 | pytest | Deterministic business-rule tests |
 | GitHub Actions | Python tests and compilation checks |
 
-The Kafka extension adds Apache Kafka 3.8 (KRaft), PySpark 3.5.3 with Delta Lake 3.2, PostgreSQL 16, Metabase, a Jupyter workspace and a separate Airflow 2.10.4 stack for local orchestration. Airflow shares the Kafka/Postgres Docker network and runs the implemented replay-to-Gold pipeline in Spark local mode.
+The Kafka extension adds Apache Kafka 3.8 (KRaft), PySpark 3.5.3 with Delta Lake 3.2, PostgreSQL 16, Metabase, a Jupyter workspace and an optional Airflow 2.10.4 stack. Airflow shares the Kafka/Postgres network and is configured to submit Spark jobs to the shared standalone cluster; validate this path during the local runtime check.
 
 ## Repository layout
 
@@ -307,9 +307,9 @@ The CI workflow currently checks the deterministic test suite and Python compila
 
 **Automated checks:** GitHub Actions runs the pure-Python and Spark contract tests, followed by Python compilation for the source modules, scripts and Airflow DAGs. See [GitHub Actions](https://github.com/Er-Ishan-Srivastav/StreamBharat/actions).
 
-**Kafka extension status:** the branch now contains seven-source chaos replay (late, duplicate, poison and corrected events), an optional clean replay with a durable source-record acknowledgement ledger, independent Bronze consumers, source DLQ validation/routing and daily DLQ metrics, retained-offset reconciliation, player schema-v1/v2 and clock handling, a restartable July–September arrival-day backfill, master/reference loads and CDN log normalization, subscription SCD2/grace handling, Gold engagement and session analytics, ad-break/impression matching and campaign pacing, revenue/settlement reconciliation, quarterly partner royalties, DQ quarantine/gating, CDN egress cost, published-board variance reconciliation, live Q17/Q18 adapters, streaming throughput/lag/freshness metrics, Postgres JDBC staging/upserts, query-ready Metabase views, and an Airflow full-refresh/date-sliced DAG. The local stack includes Kafka, Spark workspace, Postgres, Metabase and Airflow.
+**Kafka extension status:** the branch now contains seven-source chaos replay (late, duplicate, poison and corrected events), an optional clean replay with a durable source-record acknowledgement ledger, independent Bronze consumers, source DLQ validation/routing and daily DLQ metrics, retained-offset reconciliation, player schema-v1/v2 and clock handling, a restartable July–September arrival-day backfill, master/reference loads and CDN log normalization, subscription SCD2/grace handling, Gold engagement and session analytics, ad-break/impression matching and campaign pacing, revenue/settlement reconciliation, quarterly partner royalties, DQ quarantine/gating, CDN egress cost, published-board variance reconciliation, live Q17/Q18 adapters, streaming throughput/lag/freshness metrics, Postgres JDBC staging/upserts, query-ready Metabase views, and an Airflow full-refresh/date-sliced DAG. The core local stack includes Kafka, Spark workspace, Postgres and Metabase; Airflow is optional.
 
-**Runtime status:** the previous completed CI run passed its Spark contract suite and Python compilation. A fresh CI run is executing against the latest branch head. The full Docker/Spark/Kafka/Postgres pipeline has not yet been executed here against the complete course dataset. Metabase still requires its saved questions and dashboards to be assembled after data is loaded. Published-board actuals, throughput numbers and end-to-end reconciliation are not claimed.
+**Runtime status:** the latest completed CI run passed 59 tests, Python compilation, Compose validation and shell syntax checks. A new CI run is executing against the latest producer-key and startup changes. The full Docker/Spark/Kafka/Postgres pipeline has not yet been executed locally against the complete course dataset. The startup helper provisions Metabase questions and dashboards; cards for source domains absent from the synthetic demo will remain empty. Published-board actuals, throughput numbers and full-dataset reconciliation are not claimed.
 
 Treat a question as validated only after its Spark job has run against the supplied data, output schemas and key counts have been inspected, business reconciliations have passed, and the owner has walked through the implementation.
 
@@ -338,13 +338,14 @@ cp .env.example .env
 bash scripts/start_local_stack.sh
 ```
 
-The script builds and starts Kafka, a Spark 3.5.3 standalone
-master/worker cluster, the PySpark/Jupyter workspace, PostgreSQL, Metabase and
-Airflow, then creates and verifies all 13 Kafka topics. It runs a connectivity
-smoke test across Kafka, Spark, Delta and Postgres. Dataset preflight runs
-automatically if `data/raw/` exists; otherwise initialization still completes
-and data preflight is deferred until you copy the supplied dataset into that
-directory.
+The script ensures the shared Docker network exists, builds and starts Kafka,
+a Spark 3.5.3 standalone master/worker cluster, the PySpark/Jupyter workspace,
+PostgreSQL and Metabase, then creates/verifies all 13 Kafka topics. It runs a
+connectivity smoke test across Kafka, Spark, Delta and Postgres. Airflow is
+optional (set `START_AIRFLOW=true` to include it during startup, or launch its
+Compose file separately). Dataset preflight is attempted when `data/raw/`
+exists but does not block infrastructure startup if the full course dataset is
+missing or incomplete.
 
 | Local service | Address |
 |---|---|
@@ -354,15 +355,16 @@ directory.
 | Spark application UI | http://localhost:4040 |
 | JupyterLab | http://localhost:8888 |
 | Metabase | http://localhost:3000 |
-| Airflow | http://localhost:8081 |
+| Airflow (optional) | http://localhost:8081 |
 | PostgreSQL | localhost:5432, database `ottdw` |
 
-The workspace uses the standalone Spark master by default. Spark applications
-launched by Airflow run in local mode inside the Airflow task container; the
-interactive workspace uses the Spark worker cluster. The initializer also
-creates the Metabase administrator, connects the `ottdw` warehouse, saves the
-SQL questions and assembles the three dashboards. Metabase login credentials
-are the `METABASE_ADMIN_EMAIL` and `METABASE_ADMIN_PASSWORD` values in `.env`.
+The workspace uses the standalone Spark master by default. Airflow is configured
+to use the same Spark cluster, with the scheduler container as the Spark driver;
+this scheduler-to-worker path still requires local runtime validation. The
+initializer creates the Metabase administrator, connects the `ottdw` warehouse,
+saves the SQL questions and assembles the three dashboards. Metabase login
+credentials are the `METABASE_ADMIN_EMAIL` and `METABASE_ADMIN_PASSWORD` values
+in `.env`.
 
 After the dataset is present, the first historical Airflow run is triggered by:
 

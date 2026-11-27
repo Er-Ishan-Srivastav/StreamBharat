@@ -151,12 +151,12 @@ Useful evidence links:
 
 ## 5. Issues found and fixes applied during acceptance
 
-The local run exposed several environment and orchestration issues. The Python executable, Spark listener property and PostgreSQL identifier fixes were merged into main through PR #2. The sequential DLQ runner hardening described in item 4 is proposed in PR #3 and remains pending CI/merge.
+The local run exposed several environment and orchestration issues. The Python executable, Spark listener property and PostgreSQL identifier fixes were merged into main through PR #2. The sequential DLQ runner hardening and manual acceptance workflow Python 3 corrections were merged through PR #3.
 
 1. **Python executable mismatch:** the workspace image provides python3, while several shell entry points called python. The affected local scripts now use python3.
 2. **Spark listener property conflict:** StreamingMetricsListener previously assigned to PySpark's read-only spark property. The reference is now stored as _spark_session. A separate asynchronous callback/shutdown warning was still observed during stream teardown; this is a known limitation and is not claimed as fully resolved.
 3. **PostgreSQL table-name validation:** the original validation rejected the digit in subscriptions_scd2. The accepted pattern now permits digits after the first lowercase letter while restricting the identifier to lowercase letters, digits and underscores.
-4. **Shared DLQ Delta target:** launching all seven topic validations simultaneously caused a concurrent Delta table-initialization conflict on the first empty DLQ path. The local recovery ran the topic validations sequentially. In the proposed PR #3 patch, the synthetic runner is changed to preserve that sequential execution on fresh runs.
+4. **Shared DLQ Delta target:** launching all seven topic validations simultaneously caused a concurrent Delta table-initialization conflict on the first empty DLQ path. The local recovery ran the topic validations sequentially. The synthetic runner now preserves that sequential execution on fresh runs.
 5. **Synthetic catalogue path:** manual Gold/session/ad commands must use the generated catalogue at data/demo/raw/content/catalog_2026-10-15.json, not the default course-data path under data/raw/.
 
 The original synthetic runner invocation stopped at Bronze because of the python/python3 mismatch. After the runtime fixes, the remaining stages were completed manually and verified stage-by-stage. The corrected one-command runner has **not yet been independently re-run from start to finish on a fresh isolated set of Kafka topics, checkpoints and volumes**. Do not represent the original manual recovery as a clean one-shot runner acceptance.
@@ -201,3 +201,8 @@ The synthetic inputs are isolated under data/demo/raw/. The original course inpu
 As of 27 November 2026, StreamBharat has a **locally verified synthetic Kafka → Bronze/DLQ → Silver/Gold → PostgreSQL → Metabase vertical slice**, passing 77 local tests, 20 warehouse SQL executions, 3-dashboard/20-question Metabase verification and both GitHub Actions workflows referenced above.
 
 The project repository is merged and stable on main. The full course-data workload, complete Q1–Q20 acceptance, optional continuous streaming jobs, Airflow orchestration, measured performance and AWS deployment remain separate milestones. This is the accurate project status; it should not be described as production-ready or as a completed full-course-data run.
+
+
+### CI follow-up after the recorded acceptance
+
+After PR #3 was merged, the Kafka ETL workflow passed on main (run #448). The subsequent Python tests push run on the same main baseline (run #853) failed while Spark's Ivy resolver attempted to obtain Delta Lake 3.2.1 from Maven Central; Spark then could not load DeltaCatalog. The Python test workflow passed in the PR context (run #852), and the local test suite had passed 77 tests. This discrepancy is recorded as a CI dependency-bootstrapping issue, not as a product-level test assertion failure. A follow-up change is being prepared to install the pinned Delta JARs directly into the PySpark test runtime and make that path explicit.

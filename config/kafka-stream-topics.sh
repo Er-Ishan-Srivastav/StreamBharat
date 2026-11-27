@@ -3,10 +3,10 @@ set -euo pipefail
 CONTAINER="\${KAFKA_CONTAINER:-streambharat-kafka}"
 topics=(
   "ott.live.plays:6"
-  "ott.live.ads:6"
-  "ott.dlq:3"
-  "ott.metrics.trending:3"
-  "ott.alerts.ad_pacing:3"
+  "ott.live.ads:3"
+  "ott.dlq:1"
+  "ott.metrics.trending:1"
+  "ott.alerts.ad_pacing:1"
   "ott.ref.subscription_state:3"
 )
 for spec in "\${topics[@]}"; do

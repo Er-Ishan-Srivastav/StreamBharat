@@ -16,7 +16,7 @@ bash config/kafka-topics.sh
 
 echo "[3/8] Waiting for PostgreSQL and applying idempotent warehouse migrations..."
 for attempt in $(seq 1 30); do
-  if docker compose -f docker-compose.kafka.yml exec -T postgres \\
+  if docker compose -f docker-compose.kafka.yml exec -T postgres \
       sh -lc 'pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"' >/dev/null 2>&1; then
     break
   fi
@@ -27,9 +27,9 @@ for attempt in $(seq 1 30); do
   sleep 2
 done
 
-docker compose -f docker-compose.kafka.yml exec -T postgres \\
+docker compose -f docker-compose.kafka.yml exec -T postgres \
   sh -lc 'psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB"' < sql/001_warehouse.sql
-docker compose -f docker-compose.kafka.yml exec -T postgres \\
+docker compose -f docker-compose.kafka.yml exec -T postgres \
   sh -lc 'psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB"' < sql/003_dashboard_views.sql
 
 if [[ -d data/raw ]]; then

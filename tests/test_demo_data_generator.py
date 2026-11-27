@@ -1,9 +1,17 @@
 from __future__ import annotations
 
+import importlib.util
 import json
 from datetime import date
+from pathlib import Path
 
-from scripts.generate_demo_data import generate
+
+GENERATOR_PATH = Path(__file__).resolve().parents[1] / "scripts" / "generate_demo_data.py"
+SPEC = importlib.util.spec_from_file_location("streambharat_demo_data_generator", GENERATOR_PATH)
+GENERATOR = importlib.util.module_from_spec(SPEC)
+assert SPEC is not None and SPEC.loader is not None
+SPEC.loader.exec_module(GENERATOR)
+generate = GENERATOR.generate
 
 
 def test_synthetic_demo_generator_writes_replayable_sources(tmp_path):

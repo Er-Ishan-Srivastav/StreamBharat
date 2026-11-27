@@ -715,7 +715,7 @@ def generate(args: argparse.Namespace) -> dict:
                             "profile_id": profile["profile_id"],
                             "content_id": content["content_id"],
                             "break_ts": iso(break_time),
-                            "filled": filled,
+                            "filled": int(filled),
                             "impression_id": impression_id,
                         }
                     )

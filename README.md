@@ -359,7 +359,10 @@ directory.
 
 The workspace uses the standalone Spark master by default. Spark applications
 launched by Airflow run in local mode inside the Airflow task container; the
-interactive workspace uses the Spark worker cluster.
+interactive workspace uses the Spark worker cluster. The initializer also
+creates the Metabase administrator, connects the `ottdw` warehouse, saves the
+SQL questions and assembles the three dashboards. Metabase login credentials
+are the `METABASE_ADMIN_EMAIL` and `METABASE_ADMIN_PASSWORD` values in `.env`.
 
 After the dataset is present, the first historical Airflow run is triggered by:
 

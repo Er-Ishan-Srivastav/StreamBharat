@@ -163,3 +163,47 @@ def test_hybrid_factory_does_not_overwrite_existing_data_by_default(tmp_path):
         pass
     else:
         raise AssertionError("Expected the factory to protect a non-empty output directory")
+
+
+
+def test_monthly_catalogue_history_labels_synthetic_commercial_changes(tmp_path):
+    args = args_for(tmp_path, "monthly")
+    args.catalog = str(make_public_catalog(tmp_path / "external" / "catalog.json", size=120))
+    args.start_date = "2026-11-01"
+    args.days = 90
+    args.users = 10
+    args.catalog_size = 120
+    GENERATOR.generate(args)
+
+    root = Path(args.output)
+    snapshot_paths = sorted((root / "content").glob("catalog_*.json"))
+    assert len(snapshot_paths) == 3
+    snapshots = [
+        {
+            row["wikidata_qid"]: row
+            for row in json.loads(path.read_text(encoding="utf-8"))
+        }
+        for path in snapshot_paths
+    ]
+
+    changed_rows = 0
+    for qid, current in snapshots[1].items():
+        previous = snapshots[0][qid]
+        partner_changed = current["partner_id"] != previous["partner_id"]
+        tier_changed = current["tier"] != previous["tier"]
+        if partner_changed or tier_changed:
+            changed_rows += 1
+        reasons = set(current["synthetic_change_reasons"])
+        assert partner_changed == ("synthetic_partner_assignment_change" in reasons)
+        assert tier_changed == ("synthetic_tier_change" in reasons)
+    assert changed_rows > 0
+
+    preflight_path = ROOT / "scripts" / "preflight_hybrid_dataset.py"
+    preflight_spec = importlib.util.spec_from_file_location(
+        "hybrid_dataset_preflight_monthly", preflight_path
+    )
+    preflight = importlib.util.module_from_spec(preflight_spec)
+    assert preflight_spec is not None and preflight_spec.loader is not None
+    preflight_spec.loader.exec_module(preflight)
+    report = preflight.validate_dataset(args.output)
+    assert report["status"] == "passed", report["errors"]

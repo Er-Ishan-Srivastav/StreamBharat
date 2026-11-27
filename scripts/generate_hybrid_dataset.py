@@ -187,13 +187,14 @@ def generate(args: argparse.Namespace) -> dict:
 
     # Each source-domain output remains in its original format and path.
     snapshot_dates = month_starts(start, end)
+    current_snapshot = copy.deepcopy(catalog)
     for snapshot_index, snapshot_date in enumerate(snapshot_dates):
         # Wikidata contributes one current public metadata snapshot. Subsequent
         # monthly snapshots preserve those facts but simulate a small number of
-        # commercial partner/tier changes for SCD2 exercises.
-        snapshot = copy.deepcopy(catalog)
+        # commercial partner/tier changes for SCD2 exercises. Changes persist
+        # into later months until another generated change occurs.
         if snapshot_index > 0:
-            for title in snapshot:
+            for title in current_snapshot:
                 changes = []
                 if rng.random() < 0.025:
                     alternatives = [
@@ -206,6 +207,7 @@ def generate(args: argparse.Namespace) -> dict:
                     title["tier"] = "free" if title["tier"] == "premium" else "premium"
                     changes.append("synthetic_tier_change")
                 title["synthetic_change_reasons"] = changes
+        snapshot = copy.deepcopy(current_snapshot)
         snapshot_name = f"catalog_{snapshot_date:%Y-%m-%d}.json"
         write_json(staging / "content" / snapshot_name, snapshot)
         counts["catalogue_snapshots"] += 1

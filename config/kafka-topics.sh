@@ -4,17 +4,17 @@ set -euo pipefail
 CONTAINER="${KAFKA_CONTAINER:-streambharat-kafka}"
 topics=(
   "ott.player.events:6"
-  "ott.billing.subscr:3"
-  "ott.billing.settle:3"
+  "ott.billing.subscriptions:3"
+  "ott.billing.settlements:3"
   "ott.app.search:3"
   "ott.app.ratings:1"
   "ott.ads.breaks:3"
   "ott.ads.impressions:3"
   "ott.live.plays:6"
-  "ott.live.ads:6"
-  "ott.dlq:3"
-  "ott.metrics.trending:3"
-  "ott.alerts.ad_pacing:3"
+  "ott.live.ads:3"
+  "ott.dlq:1"
+  "ott.metrics.trending:1"
+  "ott.alerts.ad_pacing:1"
   "ott.ref.subscription_state:3"
 )
 

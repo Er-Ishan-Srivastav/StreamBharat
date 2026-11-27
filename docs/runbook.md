@@ -77,8 +77,12 @@ On a new Postgres volume, `001_warehouse.sql` and
 `003_dashboard_views.sql` run at initialization. The startup helper then
 runs `scripts/bootstrap_metabase.py` to create the local administrator,
 warehouse connection, saved SQL questions and three dashboards. For an
-existing volume, apply schema changes manually:
+existing volume, initialization scripts do not replay automatically. Apply
+both the idempotent warehouse DDL and dashboard views after schema changes
+(including the Q17 `live_trending` table):
 ```bash
+docker compose -f docker-compose.kafka.yml exec -T postgres \
+  psql -U ott -d ottdw < sql/001_warehouse.sql
 docker compose -f docker-compose.kafka.yml exec -T postgres \
   psql -U ott -d ottdw < sql/003_dashboard_views.sql
 ```

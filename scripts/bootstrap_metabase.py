@@ -252,6 +252,7 @@ def main():
                 "name": dashboard_name,
                 "description": f"StreamBharat {dashboard_name} dashboard.",
                 "collection_id": collection_id,
+                "parameters": details.get("parameters", []),
                 "dashcards": dashcards + new_dashcards,
             }
             api.request("PUT", f"/api/dashboard/{dashboard_id}", payload)

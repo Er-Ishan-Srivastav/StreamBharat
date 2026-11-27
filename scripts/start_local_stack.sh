@@ -6,12 +6,9 @@ if [[ ! -f .env ]]; then
   echo "Created .env from .env.example. Review local passwords and tokens before exposing services."
 fi
 
-echo "Preparing the shared Docker network..."
-if ! docker network inspect streambharat-network >/dev/null 2>&1; then
-  docker network create streambharat-network >/dev/null
-fi
-
 echo "[1/7] Building and starting Kafka, Spark master/worker, workspace, Postgres and Metabase..."
+# docker-compose.kafka.yml owns and creates the named streambharat-network.
+# The Airflow compose file attaches to that network as an external network.
 docker compose -f docker-compose.kafka.yml up -d --build
 
 echo "[2/7] Creating and verifying the 13 workbook Kafka topics..."

@@ -16,7 +16,8 @@ Trigger `streambharat_nightly` in Airflow. The DAG:
 - validates all seven source feeds, monthly catalog snapshots, supporting references and CDN logs;
 - creates/validates the thirteen Kafka topics;
 - loads master/reference data;
-- replays the logical-date source files to Kafka;
+- replays the selected source arrival range to Kafka with controlled late,
+  duplicate, poison and corrected messages;
 - consumes seven independent Bronze Delta paths and routes invalid records to Delta + `ott.dlq`;
 - reconciles retained broker offsets to Bronze;
 - processes player clock offsets/schema v1/v2 and backfills July–September by server-arrival day;
@@ -71,13 +72,17 @@ batch duration, maximum event time, freshness and broker high-watermark lag to
 ## BI / Postgres
 
 On a new Postgres volume, `001_warehouse.sql` and
-`003_dashboard_views.sql` run at initialization. For an existing volume:
+`003_dashboard_views.sql` run at initialization. The startup helper then
+runs `scripts/bootstrap_metabase.py` to create the local administrator,
+warehouse connection, saved SQL questions and three dashboards. For an
+existing volume, apply schema changes manually:
 ```bash
 docker compose -f docker-compose.kafka.yml exec -T postgres \
   psql -U ott -d ottdw < sql/003_dashboard_views.sql
 ```
-Connect Metabase at http://localhost:3000 to `ottdw`; build saved questions
-and dashboards from `config/dashboard/streambharat-metabase-questions.md`.
+Open Metabase at http://localhost:3000. Login credentials are configured in
+`.env` as `METABASE_ADMIN_EMAIL` and `METABASE_ADMIN_PASSWORD`. The three
+dashboards and saved SQL questions are provisioned by the startup helper.
 
 ## Stop services
 
@@ -109,5 +114,6 @@ checkpoint. For Postgres serving failures, inspect staging tables and retry the
 transactional loader. Capture logs, offsets and row counts for every failure
 drill before calling the pipeline production-ready.
 
-The local stack uses one Kafka broker and Spark local mode. AWS deployment is
-intentionally deferred.
+The local stack uses one Kafka broker and a single-worker Spark standalone
+cluster. Airflow batch tasks run local Spark inside the Airflow container.
+AWS deployment is intentionally deferred.

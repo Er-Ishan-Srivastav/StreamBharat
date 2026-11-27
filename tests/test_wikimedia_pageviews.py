@@ -18,5 +18,5 @@ def test_pageviews_url_uses_encoded_article_and_daily_boundary_format():
         date(2026, 11, 27),
     )
     assert url.endswith(
-        "/en.wikipedia.org/all-access/user/Dune%20%282021%20film%29/daily/2026110100/2026112700"
+        "/en.wikipedia.org/all-access/user/Dune_%282021_film%29/daily/2026110100/2026112700"
     )

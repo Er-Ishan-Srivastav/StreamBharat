@@ -799,6 +799,16 @@ def generate(args: argparse.Namespace) -> dict:
                 "license": "CC0-1.0",
                 "retrieved_at_utc": public_payload.get("retrieved_at_utc"),
                 "fields": ["title", "release_date", "genres", "original_languages", "runtime_minutes", "wikipedia_title"],
+                "additional_signals": (
+                    [{
+                        "source": "Wikimedia Analytics API",
+                        "license": "CC0-1.0",
+                        "purpose": "External-interest prior for synthetic playback title sampling only",
+                        "input_snapshot": "wikimedia_pageviews",
+                    }]
+                    if pageviews_input is not None
+                    else []
+                ),
             },
             "synthetic_derived": {
                 "fields": ["content_id", "partner_id", "tier", "age_rating", "duration_fallback_synthetic"],

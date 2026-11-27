@@ -131,7 +131,8 @@ The dated 27 November 2026 20-user synthetic demo remains the only previously re
 ### Gate A — source reproducibility
 - Wikidata snapshot fetch succeeds and records retrieval metadata and licence.
 - Pageview fetch succeeds for linked pages, writes a retrieval manifest and respects sequential request guidance.
-- A generation run completes offline from the cached catalogue.
+- The pageview sampling prior is limited to dates before the simulation period and its source hash, CC0 declaration, matched-title count and weight formula are recorded.
+- A generation run completes offline from the cached catalogue and optional pageview snapshot.
 - Same catalogue snapshot, parameters and seed produce identical source-file hashes.
 
 ### Gate B — source integrity

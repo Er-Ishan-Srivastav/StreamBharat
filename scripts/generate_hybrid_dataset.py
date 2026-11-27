@@ -8,6 +8,7 @@ data. The manifest records this distinction and hashes every produced source fil
 from __future__ import annotations
 
 import argparse
+import calendar
 import csv
 import hashlib
 import json
@@ -15,7 +16,7 @@ import random
 import shutil
 import sys
 from collections import Counter, defaultdict
-from datetime import date, datetime, time, timedelta
+from datetime import date, datetime, time, timedelta, timezone
 from pathlib import Path
 from typing import Iterable
 
@@ -545,7 +546,6 @@ def generate(args: argparse.Namespace) -> dict:
                             )
                         else:
                             pop = f"POP_{edge_code.upper()}-01"
-                            import calendar
                             epoch = calendar.timegm(server_time.timetuple())
                             nimbus_by_month[request_month].append(
                                 f"{epoch}\t{pop}\t{client_hash}\tvod/{content['content_id']}/{quality}/{segment}\t"
@@ -623,7 +623,7 @@ def generate(args: argparse.Namespace) -> dict:
         "dataset_type": "hybrid",
         "schema_version": "1.0",
         "generator_version": GENERATOR_VERSION,
-        "generated_at_utc": datetime.now().astimezone().astimezone(__import__("datetime").timezone.utc).isoformat(timespec="seconds"),
+        "generated_at_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "business_period": {"start_date": start.isoformat(), "end_date": end.isoformat(), "days": args.days},
         "playback_arrival_period": {
             "start_date": min(player_by_arrival).isoformat() if player_by_arrival else None,

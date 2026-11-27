@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import calendar
+import copy
 import csv
 import hashlib
 import json
@@ -144,6 +145,7 @@ def build_catalog(records: list[dict], rng: random.Random) -> list[dict]:
                 "external_source": "Wikidata",
                 "external_license": "CC0-1.0",
                 "synthetic_fields": ["partner_id", "tier", "age_rating"],
+                "synthetic_change_reasons": [],
                 "duration_fallback_synthetic": duration if not runtime_minutes else None,
                 "provenance": "public_external+synthetic_derived",
             }
@@ -184,9 +186,28 @@ def generate(args: argparse.Namespace) -> dict:
     partner_ids = [f"PARTNER-{number:02d}" for number in range(1, 9)]
 
     # Each source-domain output remains in its original format and path.
-    for snapshot_date in month_starts(start, end):
+    snapshot_dates = month_starts(start, end)
+    for snapshot_index, snapshot_date in enumerate(snapshot_dates):
+        # Wikidata contributes one current public metadata snapshot. Subsequent
+        # monthly snapshots preserve those facts but simulate a small number of
+        # commercial partner/tier changes for SCD2 exercises.
+        snapshot = copy.deepcopy(catalog)
+        if snapshot_index > 0:
+            for title in snapshot:
+                changes = []
+                if rng.random() < 0.025:
+                    alternatives = [
+                        partner for partner in partner_ids
+                        if partner != title["partner_id"]
+                    ]
+                    title["partner_id"] = rng.choice(alternatives)
+                    changes.append("synthetic_partner_assignment_change")
+                if rng.random() < 0.015:
+                    title["tier"] = "free" if title["tier"] == "premium" else "premium"
+                    changes.append("synthetic_tier_change")
+                title["synthetic_change_reasons"] = changes
         snapshot_name = f"catalog_{snapshot_date:%Y-%m-%d}.json"
-        write_json(staging / "content" / snapshot_name, catalog)
+        write_json(staging / "content" / snapshot_name, snapshot)
         counts["catalogue_snapshots"] += 1
 
     partner_rows = [

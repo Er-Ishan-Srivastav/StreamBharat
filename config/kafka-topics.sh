@@ -36,6 +36,24 @@ for spec in "${topics[@]}"; do
   docker exec "$CONTAINER" /opt/kafka/bin/kafka-topics.sh \
     --bootstrap-server localhost:29092 --create --if-not-exists \
     --topic "$topic" --partitions "$partitions" --replication-factor 1
+
+  description="$(docker exec "$CONTAINER" /opt/kafka/bin/kafka-topics.sh \
+    --bootstrap-server localhost:29092 --describe --topic "$topic")"
+  current_partitions="$(printf '%s\n' "$description" | sed -n '1s/.*PartitionCount: \([0-9][0-9]*\).*/\1/p')"
+  if [[ -z "$current_partitions" ]]; then
+    echo "Could not determine partition count for $topic" >&2
+    exit 1
+  fi
+  if (( current_partitions < partitions )); then
+    echo "Increasing $topic partitions from $current_partitions to $partitions"
+    docker exec "$CONTAINER" /opt/kafka/bin/kafka-topics.sh \
+      --bootstrap-server localhost:29092 --alter --topic "$topic" \
+      --partitions "$partitions"
+  elif (( current_partitions > partitions )); then
+    echo "ERROR: $topic has $current_partitions partitions; workbook contract requires $partitions." >&2
+    echo "Kafka cannot safely reduce a topic's partition count; use a fresh local Kafka volume for a clean contract." >&2
+    exit 1
+  fi
 done
 
 docker exec "$CONTAINER" /opt/kafka/bin/kafka-configs.sh --bootstrap-server localhost:29092 \

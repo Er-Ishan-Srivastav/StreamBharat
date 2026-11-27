@@ -335,61 +335,86 @@ def generate(args: argparse.Namespace) -> dict:
         user_profiles = profiles_by_user[user_id]
         charge_price = PLANS.get(plan, 0.0)
         gateway = rng.choice(["razorpay", "cashfree", "payu"])
-        subscription_at = datetime.combine(start + timedelta(days=rng.randrange(args.days)), time(8, 0))
-        initial_kind = "trial_start" if rng.random() < 0.12 else "subscribe"
-        subscription_rows.append(
-            {
-                "user_id": user_id,
-                "event_type": initial_kind,
-                "plan": plan if plan != "free" else "basic",
-                "price": "" if initial_kind == "trial_start" or plan == "free" else f"{charge_price:.2f}",
-                "event_ts": iso(subscription_at),
-                "gateway": gateway,
-                "provenance": "synthetic_generated",
-            }
-        )
-        if initial_kind == "subscribe" and plan != "free":
-            settlement_rows.append(
+        if plan != "free":
+            subscription_at = datetime.combine(start + timedelta(days=rng.randrange(args.days)), time(8, 0))
+            initial_kind = "trial_start" if rng.random() < 0.12 else "subscribe"
+            subscription_rows.append(
                 {
-                    "gateway": gateway,
                     "user_id": user_id,
-                    "charge_id": f"CHG-{user_id}-001",
-                    "settlement_id": f"SET-{user_id}-001",
-                    "amount_inr": f"{charge_price:.2f}",
-                    "settled_ts": iso(subscription_at + timedelta(minutes=rng.randint(1, 20))),
-                    "event_type": "subscribe",
-                    "status": "success",
+                    "event_type": initial_kind,
+                    "plan": plan if plan != "free" else "basic",
+                    "price": "" if initial_kind == "trial_start" or plan == "free" else f"{charge_price:.2f}",
+                    "event_ts": iso(subscription_at),
+                    "gateway": gateway,
+                    "provenance": "synthetic_generated",
                 }
             )
-
-        cycles = max(0, (args.days - 1) // 30) if plan != "free" else 0
-        if cycles:
-            for cycle in range(1, cycles + 1):
-                renewal_at = subscription_at + timedelta(days=30 * cycle)
-                if renewal_at.date() > end:
-                    continue
-                failed = rng.random() < 0.08
-                if failed:
-                    subscription_rows.append(
-                        {
-                            "user_id": user_id,
-                            "event_type": "payment_failed",
-                            "plan": plan,
-                            "price": f"{charge_price:.2f}",
-                            "event_ts": iso(renewal_at),
-                            "gateway": gateway,
-                            "provenance": "synthetic_generated",
-                        }
-                    )
-                    if rng.random() < 0.75 and (renewal_at + timedelta(days=2)).date() <= end:
-                        recovered = renewal_at + timedelta(days=2)
+            if initial_kind == "subscribe" and plan != "free":
+                settlement_rows.append(
+                    {
+                        "gateway": gateway,
+                        "user_id": user_id,
+                        "charge_id": f"CHG-{user_id}-001",
+                        "settlement_id": f"SET-{user_id}-001",
+                        "amount_inr": f"{charge_price:.2f}",
+                        "settled_ts": iso(subscription_at + timedelta(minutes=rng.randint(1, 20))),
+                        "event_type": "subscribe",
+                        "status": "success",
+                    }
+                )
+    
+            cycles = max(0, (args.days - 1) // 30) if plan != "free" else 0
+            if cycles:
+                for cycle in range(1, cycles + 1):
+                    renewal_at = subscription_at + timedelta(days=30 * cycle)
+                    if renewal_at.date() > end:
+                        continue
+                    failed = rng.random() < 0.08
+                    if failed:
+                        subscription_rows.append(
+                            {
+                                "user_id": user_id,
+                                "event_type": "payment_failed",
+                                "plan": plan,
+                                "price": f"{charge_price:.2f}",
+                                "event_ts": iso(renewal_at),
+                                "gateway": gateway,
+                                "provenance": "synthetic_generated",
+                            }
+                        )
+                        if rng.random() < 0.75 and (renewal_at + timedelta(days=2)).date() <= end:
+                            recovered = renewal_at + timedelta(days=2)
+                            subscription_rows.append(
+                                {
+                                    "user_id": user_id,
+                                    "event_type": "renew",
+                                    "plan": plan,
+                                    "price": f"{charge_price:.2f}",
+                                    "event_ts": iso(recovered),
+                                    "gateway": gateway,
+                                    "provenance": "synthetic_generated",
+                                }
+                            )
+                            settlement_rows.append(
+                                {
+                                    "gateway": gateway,
+                                    "user_id": user_id,
+                                    "charge_id": f"CHG-{user_id}-{cycle + 1:03d}",
+                                    "settlement_id": f"SET-{user_id}-{cycle + 1:03d}",
+                                    "amount_inr": f"{charge_price:.2f}",
+                                    "settled_ts": iso(recovered + timedelta(minutes=5)),
+                                    "event_type": "renew",
+                                    "status": "success",
+                                }
+                            )
+                    else:
                         subscription_rows.append(
                             {
                                 "user_id": user_id,
                                 "event_type": "renew",
                                 "plan": plan,
                                 "price": f"{charge_price:.2f}",
-                                "event_ts": iso(recovered),
+                                "event_ts": iso(renewal_at),
                                 "gateway": gateway,
                                 "provenance": "synthetic_generated",
                             }
@@ -401,36 +426,13 @@ def generate(args: argparse.Namespace) -> dict:
                                 "charge_id": f"CHG-{user_id}-{cycle + 1:03d}",
                                 "settlement_id": f"SET-{user_id}-{cycle + 1:03d}",
                                 "amount_inr": f"{charge_price:.2f}",
-                                "settled_ts": iso(recovered + timedelta(minutes=5)),
+                                "settled_ts": iso(renewal_at + timedelta(minutes=5)),
                                 "event_type": "renew",
                                 "status": "success",
                             }
                         )
-                else:
-                    subscription_rows.append(
-                        {
-                            "user_id": user_id,
-                            "event_type": "renew",
-                            "plan": plan,
-                            "price": f"{charge_price:.2f}",
-                            "event_ts": iso(renewal_at),
-                            "gateway": gateway,
-                            "provenance": "synthetic_generated",
-                        }
-                    )
-                    settlement_rows.append(
-                        {
-                            "gateway": gateway,
-                            "user_id": user_id,
-                            "charge_id": f"CHG-{user_id}-{cycle + 1:03d}",
-                            "settlement_id": f"SET-{user_id}-{cycle + 1:03d}",
-                            "amount_inr": f"{charge_price:.2f}",
-                            "settled_ts": iso(renewal_at + timedelta(minutes=5)),
-                            "event_type": "renew",
-                            "status": "success",
-                        }
-                    )
-
+    
+    
         # Each user produces 1–3 searches and each profile may provide 1–3 ratings.
         for search_no in range(rng.randint(1, 3)):
             query_time = datetime.combine(

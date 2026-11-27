@@ -95,6 +95,9 @@ jobs:
           for path in ("docker-compose.kafka.yml", "docker-compose.airflow.yml"):
               config = yaml.safe_load(Path(path).read_text())
               assert "services" in config, path
+          for path in Path(".github/workflows").glob("*.yml"):
+              config = yaml.safe_load(path.read_text())
+              assert isinstance(config, dict), path
           tomllib.loads(Path("pyproject.toml").read_text())
           assert Path(".env.example").is_file()
           assert Path("sql/001_warehouse.sql").is_file()

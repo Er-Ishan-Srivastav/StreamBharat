@@ -48,7 +48,7 @@ flowchart LR
   SIL --> GOLD[Gold: engagement / ads / finance / DQ / CDN]
   GOLD --> PG[(Postgres ottdw)]
   PG --> MB[Metabase views and dashboards]
-  SIM[Live simulator] --> PB[SQLite-backed Kafka producer]
+  SIM[Live simulator] --> PB[Idempotent Kafka producer]
   PB --> LP[(ott.live.plays)]
   PB --> LA[(ott.live.ads)]
   LP --> TR[5-minute / 30-second trending]

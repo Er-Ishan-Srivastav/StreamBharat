@@ -106,14 +106,6 @@ def main() -> int:
                 if len(timestamp) < 8:
                     continue
                 row = {
-                    "content_id": next(
-                        (
-                            record.get("content_id")
-                            for record in []
-                            if record.get("wikipedia_title") == article
-                        ),
-                        None,
-                    ),
                     "wikidata_qid": title["wikidata_qid"],
                     "wikipedia_title": article,
                     "date": f"{timestamp[:4]}-{timestamp[4:6]}-{timestamp[6:8]}",
